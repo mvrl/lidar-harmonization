@@ -1,0 +1,5 @@
+dataset/*
+evaluation/*
+dublaz/*
+__pycache__/*
+*_dict
