@@ -1,4 +1,5 @@
-dataset/*
+dataset/gt/*
+dataset/alt/*
 evaluation/*
 dublaz/*
 __pycache__/*

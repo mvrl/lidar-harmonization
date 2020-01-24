@@ -1,16 +1,17 @@
 import argparse
+import numpy as np
 import torch
 from pathlib import Path
 
 from lidar_dataset import LidarDataset
-# from transforms import ???
+from torchvision.transforms import Compose
 
 from train import train
 from evaluate import evaluate
 from config import Config
-from transforms import LoadNP, CloudNormalize, CloudAugment, CloudJitter, ToTensor
-from torchvision.transforms import Compose
-import numpy as np
+from util.transforms import LoadNP, CloudNormalize, CloudAugment, CloudJitter, ToTensor
+
+
 
 parser = argparse.ArgumentParser(description="run script for Intensity Correction")
 group = parser.add_mutually_exclusive_group()
@@ -25,10 +26,10 @@ config = Config(25, 25, .001)
 
 if args.train:
     transforms = Compose([LoadNP(), CloudNormalize(), ToTensor()])
-    dataset = LidarDataset("dataset.csv", transform=transforms)
-    train(dataset, config, use_valid=True, baseline=True)
+    dataset = LidarDataset("dataset/train_dataset.csv", transform=transforms)
+    train(dataset, config, use_valid=True, baseline=False)
 
 if args.eval:
     transforms = Compose([LoadNP(), CloudNormalize(), ToTensor()])
-    dataset = LidarDataset("test_dataset.csv", transform=transforms)
+    dataset = LidarDataset("dataset/test_dataset.csv", transform=transforms)
     evaluate("intensity_dict", dataset)

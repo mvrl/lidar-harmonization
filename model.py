@@ -110,7 +110,7 @@ class IntensityNet(nn.Module):
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.dropout(self.fc2(x))))
         x = self.fc3(x).squeeze(1)
-        return x, trans, trans_feat
+        return torch.clamp(x, 0, 255), trans, trans_feat
         
         
 

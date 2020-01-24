@@ -6,11 +6,12 @@ import numpy as np
 from torch.utils.data import SubsetRandomSampler, DataLoader
 import torch.optim as optim
 import torch.nn as nn
-from model import IntensityNet
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 from scipy.stats import gaussian_kde
+
+from model import IntensityNet
 
 def train(dataset, config, use_valid=True, baseline=False, use_tb=False):
     if baseline:
@@ -87,20 +88,20 @@ def train(dataset, config, use_valid=True, baseline=False, use_tb=False):
 
             for batch_idx, batch in enumerate(dataloaders[phase]):
                 train_time = time.time()
-                gt, alt = batch
+                gt, alt, _, _ = batch
                 # Get the intensity of the ground truth point
                 # code.interact(local=locals())
                 i_gt = alt[:,0,3].to(config.device)
 
                 # get rid of the first point from the training sample
                 alt = alt[:, 1:, :]
-
+                
                 if baseline:
                     # only use the nearest point
                     alt = alt[:, 0, :]
-                
-                # need [batch, channels, pts]
-                alt = alt.reshape([config.batch_size, 4, -1]).to(config.device)
+                    alt = alt.unsqueeze(2)
+
+                alt = alt.transpose(1, 2).to(config.device)
 
                 optimizer.zero_grad()
 
@@ -154,7 +155,7 @@ def train(dataset, config, use_valid=True, baseline=False, use_tb=False):
                     plt.title("Predicted vs Actual")
                     plt.xlabel("predicted")
                     plt.ylabel("ground truth")
-                    plt.savefig("kde.png")
+                    plt.savefig("evaluation/kde_validation.png")
                     
                     
 
