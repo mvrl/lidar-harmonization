@@ -2,5 +2,5 @@ dataset/gt/*
 dataset/alt/*
 evaluation/*
 dublaz/*
-__pycache__/*
+*__pycache__/*
 *_dict
