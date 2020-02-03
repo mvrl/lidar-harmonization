@@ -13,7 +13,7 @@ from scipy.stats import gaussian_kde
 
 from model import IntensityNet
 
-def train(dataset, config, use_valid=True, baseline=False, use_tb=False):
+def train(dataset=None, config=None, use_valid=True, baseline=False, use_tb=False):
     if baseline:
         print("making baseline!")
     start_time = time.time()
@@ -88,10 +88,12 @@ def train(dataset, config, use_valid=True, baseline=False, use_tb=False):
 
             for batch_idx, batch in enumerate(dataloaders[phase]):
                 train_time = time.time()
-                gt, alt, _, _ = batch
+                gt, alt, fid, _ = batch
+
                 # Get the intensity of the ground truth point
                 # code.interact(local=locals())
                 i_gt = alt[:,0,3].to(config.device)
+                fid = fid.to(config.device)
 
                 # get rid of the first point from the training sample
                 alt = alt[:, 1:, :]
@@ -110,7 +112,7 @@ def train(dataset, config, use_valid=True, baseline=False, use_tb=False):
                 # forward pass
                 # track grad only in train
                 with torch.set_grad_enabled(phase == 'train'):
-                    output, trans, trans_feat = model(alt)
+                    output, trans, trans_feat = model(alt, fid)
                     loss = criterion(output, i_gt)
                 
                     # backward + optimize only if in training phase

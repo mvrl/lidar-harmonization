@@ -1,3 +1,4 @@
+import code
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -100,12 +101,18 @@ class IntensityNet(nn.Module):
         self.fc1 = nn.Linear(1024, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, num_classes)
+        self.embed_fc = nn.Linear(2, 4)
         self.dropout = nn.Dropout(p=0.3)
         self.bn1 = nn.BatchNorm1d(512)
         self.bn2 = nn.BatchNorm1d(256)
         self.relu = nn.ReLU()
+        self.embed = nn.Embedding(50, 4)
+        self.debug = Debug()
 
-    def forward(self, x):
+    def forward(self, x, fid):
+        fid_embed = self.embed(fid)
+        fid_embed = fid_embed.unsqueeze(2)
+        x = torch.cat((x, fid_embed), dim=2)
         x, trans, trans_feat = self.feat(x)
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.dropout(self.fc2(x))))

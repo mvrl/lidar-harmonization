@@ -11,25 +11,32 @@ from evaluate import evaluate
 from config import Config
 from util.transforms import LoadNP, CloudNormalize, CloudAugment, CloudJitter, ToTensor
 
-
+transforms = Compose([LoadNP(), CloudNormalize(), ToTensor()])
+config = Config(25, 25, .001)
 
 parser = argparse.ArgumentParser(description="run script for Intensity Correction")
-group = parser.add_mutually_exclusive_group()
-group.add_argument("-t", "--train", help="train network", action="store_true")
-group.add_argument("-e", "--eval", help="evaluate network", action="store_true")
+subparsers = parser.add_subparsers(help='sub-command help')
+
+parser_train = subparsers.add_parser('train', help='train the network')
+parser_train.set_defaults(func="train",
+                          dataset=LidarDataset("dataset/train_dataset.csv", transform=transforms),
+                          config=config,
+                          use_valid=True)
+parser_train.add_argument('-b', "--baseline", help="run baseline", action="store_true")
+
+parser_eval = subparsers.add_parser('eval', help='evaluate the network')
+parser_eval.set_defaults(func=evaluate,
+                         dataset=LidarDataset("dataset/test_dataset.csv"),
+                         transform=transforms)
 
 args = parser.parse_args()
 
-# input transform =
 
-config = Config(25, 25, .001)
+if args.func == "train":
+    train(dataset=args.dataset,
+          config=args.config,
+          use_valid=args.use_valid,
+          baseline=args.baseline)
 
-if args.train:
-    transforms = Compose([LoadNP(), CloudNormalize(), ToTensor()])
-    dataset = LidarDataset("dataset/train_dataset.csv", transform=transforms)
-    train(dataset, config, use_valid=True, baseline=False)
-
-if args.eval:
-    transforms = Compose([LoadNP(), CloudNormalize(), ToTensor()])
-    dataset = LidarDataset("dataset/test_dataset.csv", transform=transforms)
-    evaluate("intensity_dict", dataset)
+if args.func == "eval":
+   evaluate("intensity_dict", args.dataset)

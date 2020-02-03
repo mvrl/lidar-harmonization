@@ -56,7 +56,7 @@ def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
     for i in range(len(dataset)):
         # iterate over dataset
         gt, alt, flight_num, fl_path = dataset[i]
-
+        code.interact(local=locals())
         # construct the altered flight if we haven't seen this flightpath already
         if curr_fl_path is not fl_path:
             curr_fl_path = fl_path

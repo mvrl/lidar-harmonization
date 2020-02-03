@@ -7,7 +7,7 @@ from pathlib import Path
 start_time = time.time()
 
 # Read in the response functions file
-with open('dataset/response_functions.json') as json_file:
+with open('/home/david/bin/python/dublin/dataset/response_functions.json') as json_file:
     data = json.load(json_file)
 
 print(data.keys())  # names scales brightness intensities
@@ -35,7 +35,7 @@ for file_path in files:
 
     code.interact(local=locals())
 
-    np.save(f"dataset/{flight_num}_{index}_alt.npy", altered_sample)
+    np.save(f"/home/david/bin/python/dublin/dataset/alt/{flight_num}_{index}_alt.npy", altered_sample)
     
     
 
