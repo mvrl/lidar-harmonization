@@ -56,7 +56,7 @@ def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
     for i in range(len(dataset)):
         # iterate over dataset
         gt, alt, flight_num, fl_path = dataset[i]
-        code.interact(local=locals())
+        # code.interact(local=locals())
         # construct the altered flight if we haven't seen this flightpath already
         if curr_fl_path is not fl_path:
             curr_fl_path = fl_path
@@ -81,8 +81,10 @@ def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
             print(f"{fl_path} already loaded -> ({flight.shape})")
 
         # query the kdtree
+        # code.interact(local=locals())
         alt = alt[1:, :] # chop out f1 point
         gt = gt[1:,:]
+        flight_num = torch.tensor(flight_num).cuda()
         query = kdtree._query(kd, alt.numpy(), k=tree_size)
 
         # index the altered flight to return clouds
@@ -93,13 +95,14 @@ def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
         clouds = torch.tensor(clouds).cuda()
 
         # perform inference - get "fixed intensities"
-        pred = torch.stack([model(cloud.unsqueeze(2))[0] for cloud in clouds])
+        code.interact(local=locals())
+        pred = torch.stack([model(cloud.unsqueeze(2), flight_num)[0] for cloud in clouds])
 
         # After inference, can re-make alt with these new intensites. 
         fixed_sample = np.copy(alt)
         fixed_sample[:,3] = pred[0, :].cpu().detach().numpy()
 
-        code.interact(local=locals())
+        # code.interact(local=locals())
 
         # Display fixed sample and alt side by side, only 3 times @ rand?
         if i: # in random_viewer_sample:
@@ -138,7 +141,7 @@ def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
     # Create KDE Plot -- this takes a while, maybe sample this to avoid using
     # the whole thing?
     print("Generating KDE for visualization")
-    code.interact(local=locals())
+    # code.interact(local=locals())
     fixed_vs_gt = np.concatenate(fixed_vs_gt, axis=1)
     z = gaussian_kde(fixed_vs_gt)(fixed_vs_gt)
     fig, ax = plt.subplots()

@@ -10,9 +10,6 @@ class LoadNP(object):
 
 
 class CloudNormalize(object):
-    def __init__(self):
-        pass
-    
     def __call__(self, sample):
         # Center the neighborhood
         gt, alt, num, path = sample
@@ -25,7 +22,10 @@ class CloudNormalize(object):
 class ToTensor(object):
     def __call__(self, sample):
         gt, alt, num, path = sample
-        return (torch.from_numpy(gt), torch.from_numpy(alt), num, path)
+        return (torch.from_numpy(gt),
+                torch.from_numpy(alt),
+                torch.tensor(int(num)),
+                path)
 
 
 """ not implemented below this point """
