@@ -128,9 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-dataset/*
-!dataset/response_functions.json
-!dataset/tools/*
+dataset/[0-9]*
+dataset/big_tile/*
+dataset/dublin_flights/*
+
 
 results/*
 *_dict
