@@ -10,7 +10,7 @@ import torch.nn as nn
 from model import IntensityNet
 from util.metrics import Metrics, create_kde
 
-def train(dataset=None, config=None, use_valid=True, use_tb=False):
+def train(**kwargs):
 
     start_time = time.time()
     sample_count = len(dataset)

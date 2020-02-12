@@ -128,10 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-dataset/gt/*
-dataset/alt/*
-evaluation/*
-dublaz/*
-*__pycache__/*
-*/__pycache__/*
+dataset/*
+!dataset/response_functions.json
+!dataset/tools/*
+
+results/*
 *_dict

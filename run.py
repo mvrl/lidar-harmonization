@@ -18,28 +18,21 @@ parser = argparse.ArgumentParser(description="run script for Intensity Correctio
 subparsers = parser.add_subparsers(help='sub-command help')
 
 parser_train = subparsers.add_parser('train', help='train the network')
-parser_train.set_defaults(func="train",
-                          dataset=LidarDataset("dataset/train_dataset.csv",
+parser_train.set_defaults(dataset=LidarDataset("dataset/train_dataset.csv",
                                                transform=transforms),
                           config=config,
                           use_valid=True)
 parser_train.add_argument('-b', "--baseline", help="run baseline", action="store_true")
 
 parser_eval = subparsers.add_parser('eval', help='evaluate the network')
-parser_eval.set_defaults(func="eval",
-                         dataset=LidarDataset("dataset/test_dataset.csv",
+parser_eval.set_defaults(dataset=LidarDataset("dataset/test_dataset.csv",
                                               transform=transforms),
                          transform=transforms)
 
 args = parser.parse_args()
 
+kwargs = vars(args)
+func = kwargs['func']
+del kwargs['func']
 
-if args.func == "train":
-    print("starting training...")
-    train(dataset=args.dataset,
-          config=args.config,
-          use_valid=args.use_valid)
-
-if args.func == "eval":
-    print("starting evaluation...")
-    evaluate("intensity_dict", args.dataset)
+func(**kwargs)
