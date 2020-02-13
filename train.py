@@ -10,7 +10,7 @@ import torch.nn as nn
 from model import IntensityNet
 from util.metrics import Metrics, create_kde
 
-def train(**kwargs):
+def train(config=None, dataset=None, epochs=None, use_valid=True):
 
     start_time = time.time()
     sample_count = len(dataset)
@@ -41,16 +41,17 @@ def train(**kwargs):
         for phase, sampler in samplers.items()}
 
     # Instantiate Model(s)
-    model = IntensityNet().to(config.device).double()
-    criterion = nn.SmoothL1Loss()
+    model = IntensityNet(num_classes=config.num_classes).to(config.device).double()
     optimizer = optim.Adam(model.parameters())
     iterations = 0; best_loss = 10e3
-
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                        patience=4,
+                                                        verbose=True)
     metrics = Metrics(["mae"], None)
     
-    for epoch in range(config.epochs):
+    for epoch in range(epochs):
         epoch_time = time.time()
-        print('\nEpoch {}/{}'.format(epoch+1, config.epochs)); print('-' * 10)
+        print('\nEpoch {}/{}'.format(epoch+1, epochs)); print('-' * 10)
 
         # Each epoch has a training and validation phase
         for phase in phases:
@@ -79,8 +80,9 @@ def train(**kwargs):
 
                 with torch.set_grad_enabled(phase == 'train'):
                     output, _, _ = model(alt, fid)
+                    # output = torch.argmax(output, dim=1) # for cross entropy
                     metrics.collect(output, i_gt)
-                    loss = criterion(output, i_gt)
+                    loss = config.criterion(output, i_gt)
                 
                     if phase == 'train':
                         loss.backward()
@@ -93,7 +95,9 @@ def train(**kwargs):
                     metrics.compute()
                     print(f"[{batch_idx}/{len(dataloaders[phase])}] "
                           f"loss: {running_loss/total:.3f} "
-                          f"MAE: {metrics.metrics['mae']:.3f} ")
+                          f"MAE: {metrics.metrics['mae']:.3f} "
+                          f"GT_Max: {gt[:,:,3].max():.2f} P_Max: {output.max():.2f} "
+                          f"Alt_max: {alt[:,:,3].max()}")
 
             running_loss = running_loss/dataset_sizes[phase]
 
@@ -107,10 +111,11 @@ def train(**kwargs):
 
                     # Create a KDE plot for the network at this state
                     print("Generating KDE for visualization")
-                    create_kde(metrics.pred_, metrics.targ_, "evaluation/kde_validation.png")
-
+                    create_kde(metrics.pred_, metrics.targ_, "results/kde_validation.png")
+            
             metrics.clear_metrics()
         print(f"Epoch finished in {(time.time() - epoch_time):.3f} seconds")
+        lr_scheduler.step(best_loss)
             
 
     print(f"finished in {time.time() - start_time}")

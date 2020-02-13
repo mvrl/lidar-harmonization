@@ -28,22 +28,21 @@ def create_altered_tiles(path):
     for file_path in files:
         file_name = file_path.stem
         flight_num, index = file_name.split('_')[0], file_name.split('_')[1]
-    
-
+        
         curr_sample = np.load(file_path)
         curr_intensities = curr_sample[:,3]
         altered_intensities = np.interp(curr_intensities,
-                                    np.array(data['brightness'][str(flight_num)])*255,
-                                    np.array(data['intensities'][str(flight_num)])*255)
+                                        np.array(data['brightness'][str(flight_num)])*512,
+                                        np.array(data['intensities'][str(flight_num)])*512)
 
         altered_sample = np.copy(curr_sample)
         altered_sample[:,3] = altered_intensities
 
-        np.save(alt_path / f"{flight_num}_{index}_alt.npy", altered_sample)
+        np.save(alt_path / f"{flight_num}_{index}.npy", altered_sample)
 
     print(f"finished in {time.time() - start_time} seconds")
     
     
 if __name__=='__main__':
-    create_altered_tiles('100_10000')
+    create_altered_tiles('50_10000')
 

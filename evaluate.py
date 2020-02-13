@@ -19,20 +19,14 @@ from laspy.file import File
 
 from model import IntensityNet
 
-def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
-    """ 
-    This function runs evaluation for the intensity prediction on a given model.
-    
-    Needs to evaluate the altered tiles: 
-        Do this by loading the flight for each tile, then grab the cloud around 
-        each point in the tile.
+def evaluate(state_dict=None, dataset=None, tree_size=50, viewer_sample=3, **kwargs):
 
-        Compare this with the ground truth tile.
-
-        Additionally, record the original amount of error between the ground 
-        truth tile and the altered tile
-    """
     start_time = time.time()
+
+    # get flight path files:
+    laz_files_path = Path(r"dataset/dublin_flights")
+    laz_files = [file for file in laz_files_path.glob('*.npy')]
+    file_count = len(laz_files)
     
     # Load model to be evaulated
     model = IntensityNet().double().cuda()
@@ -53,19 +47,50 @@ def evaluate(state_dict, dataset, tree_size=50, viewer_sample=3):
     random_viewer_sample = np.random.randint(0,
                                              high=len(dataset),
                                              size=viewer_sample)
+
+    # Evaluate the big tile first
+    big_tile = np.load("dataset/big_tile/big_tile.npy")
+    big_tile_alt = np.load("dataset/big_tile/big_tile_alt.npy")
+
+
+
+    # need to generate a 30000 x neighbor from big_tile
+
+    # load flight 1:
+    f1 = np.load(laz_files[0])
+    f1_alt = f1.copy()
+    f1_alt_i = f1_alt[:, 3]
+    f1_alt_i = np.interp(f1_alt_i, np.array(data['brightness']['2'])*255, np.array(data['intensities']['2'])*255)
+    f1_alt[:, 3] = f1_alt_i
+
+    
+    kd = kdtree._build(f1[:, :3])
+
+    query = kdtree._query(kd, big_tile[:,:3], k=50)
+    with torch.no_grad():
+        n = f1_alt[query]
+        n = torch.tensor(n).cuda()
+        n = n.transpose(1,2)
+        f = torch.full((30000,1), 2).long().cuda().squeeze()
+    
+        results = []
+        for i in range(0, 30000, 100):
+            output,_,_ = model(n[i:i+100], f[i:i+100])
+            results.append(output.cpu())
+    
+    
+
+        code.interact(local=locals())
+    exit()
     for i in range(len(dataset)):
         # iterate over dataset
         gt, alt, flight_num, fl_path = dataset[i]
-        # code.interact(local=locals())
+
         # construct the altered flight if we haven't seen this flightpath already
         if curr_fl_path is not fl_path:
             curr_fl_path = fl_path
             print(f"Loading {fl_path}...")
-            flight = File(fl_path)
-            flight = np.stack([flight.x,
-                               flight.y,
-                               flight.z,
-                               flight.intensity]).transpose(1, 0)
+            flight = np.load(fl_path[:-3] + 'npy')
 
             flight_i = flight[:, 3]
             flight_ai = np.interp(flight_i,

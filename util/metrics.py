@@ -26,10 +26,10 @@ def create_kde(predictions, ground_truths, output_path, sample_ratio=1):
     z = gaussian_kde(xy)(xy)
 
     fig, ax = plt.subplots()
-    ax.scatter(predictions, ground_truths, c=z, s=100, edgecolor='')
+    ax.scatter(ground_truths, predictions, c=z, s=20, edgecolor='')
     plt.title("Predicted vs Actual")
-    plt.xlabel("Predicted")
-    plt.ylabel("Ground Truth")
+    plt.ylabel("Predicted")
+    plt.xlabel("Ground Truth")
     plt.savefig(output_path)
     
 

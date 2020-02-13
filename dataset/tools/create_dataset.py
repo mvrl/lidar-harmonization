@@ -91,4 +91,4 @@ def create_dataset(path, neighborhood_size, samples, sanity_check=True):
 if __name__ == '__main__':
     import argparse
     
-    create_dataset('dublin_flights', 100, 10000, sanity_check=True)
+    create_dataset('dublin_flights', 50, 10000, sanity_check=True)

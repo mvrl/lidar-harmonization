@@ -94,7 +94,7 @@ class PointNetfeat(nn.Module):
 
         
 class IntensityNet(nn.Module):
-    def __init__(self, num_classes=1, embed_dim=2, feature_transform=False, num_features=4):
+    def __init__(self, num_classes, embed_dim=2, feature_transform=False, num_features=4):
         super(IntensityNet, self).__init__()
         self.feature_transform = feature_transform
         self.feat = PointNetfeat(global_feat=True, feature_transform=feature_transform, num_features=num_features)
@@ -112,13 +112,13 @@ class IntensityNet(nn.Module):
     def forward(self, x, fid):
         fid_embed = self.embed(fid)
         x, trans, trans_feat = self.feat(x)
+
         x = torch.cat((x, fid_embed), dim=1)
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.dropout(self.fc2(x))))
-        # code.interact(local=locals())
+
         x = self.fc3(x).squeeze()
         
-        # x = torch.clamp(x, 0, 255)
         return x, trans, trans_feat
         
         

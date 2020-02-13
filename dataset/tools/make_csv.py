@@ -10,12 +10,12 @@ import code
 def make_csv(path):
     dataset_path = Path(path)
 
-    alts = [f for f in (dataset_path / "alt").glob("*_alt.npy")]
-    gts = [f for f in (dataset_path / "gt").glob("*.npy")]
+    alts = [f.absolute() for f in (dataset_path / "alt").glob("*.npy")]
+    gts = [f.absolute() for f in (dataset_path / "gt").glob("*.npy")]
     
     flight_path = []
     flight_num = []
-    flight_files = [flight for flight in Path(r"dublin_flights").glob("*.laz")]
+    flight_files = [flight for flight in Path(r"dublin_flights").glob("*.npy")]
 
     gt_ordered_list = []
     alt_ordered_list = []
@@ -24,19 +24,17 @@ def make_csv(path):
     for gt in gts:
         filename = gt.stem
         flight_num.append(filename.split("_")[0])
-        alt_name = filename[:-4]+"_alt" + filename[-4:]
+        alt_name = None
         altered = None
 
         # Check that our files are what we expect
         for alt in alts:
-            if filename in str(alt.stem):
+            alt_name = alt.stem
                 # reverse check as well to confirm
-                alt_filename = alt.stem
-                test = alt_filename[:-8]+alt_filename[-8:-4]
-                if test in filename:
-                    print(f"Found match: {alt} == {gt}") 
-                    altered = alt
-                    break
+            if alt_name == filename:
+                print(f"Found match: {alt} == {gt}") 
+                altered = alt
+                break
 
         if not altered:
             print("ERROR: couldn't find altered version of %s" % gt)
@@ -51,10 +49,12 @@ def make_csv(path):
             exit()
 
         if np.allclose(original_np[:, 3], altered_np[:, 3]):
-            print("ERROR: intensities were not altered between files")
-            exit()
+            if not (np.all(original_np[:, 3]) and original_np[:, 3][0] == 512):
+                code.interact(local=locals())
+                print("ERROR: intensities were not altered between files")
+                exit()
 
-        flight_path.append(flight_files[int(filename[:filename.find("_")])])
+        flight_path.append(flight_files[int(filename[:filename.find("_")])].absolute())
         gt_ordered_list.append(gt)
         alt_ordered_list.append(altered)
 
@@ -84,5 +84,5 @@ def make_csv(path):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("100_10000")
+    make_csv("50_10000")
         
