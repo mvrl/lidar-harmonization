@@ -132,6 +132,4 @@ dataset/[0-9]*
 dataset/big_tile/*
 dataset/dublin_flights/*
 
-
-results/*
 *_dict
