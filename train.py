@@ -3,6 +3,7 @@ import time
 import torch
 import code
 import numpy as np
+from dataset.lidar_dataset import LidarDataset
 from torch.utils.data import SubsetRandomSampler, DataLoader
 import torch.optim as optim
 import torch.nn as nn
@@ -10,9 +11,10 @@ import torch.nn as nn
 from model import IntensityNet
 from util.metrics import Metrics, create_kde
 
-def train(config=None, dataset=None, epochs=None, use_valid=True):
+def train(config=None, dataset_csv=None, transforms=None, epochs=None, use_valid=True):
 
     start_time = time.time()
+    dataset = LidarDataset(dataset_csv, transform=transforms) 
     sample_count = len(dataset)
     indices_list = list(range(sample_count))
     indices = {}

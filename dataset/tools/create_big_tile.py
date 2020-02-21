@@ -5,9 +5,10 @@ import numpy as np
 from pathlib import Path
 from pptk import kdtree
 
+from util.apply_rf import apply_rf
 from create_dataset import load_laz
 
-def create_big_tile(path):
+def create_big_tile(path, alteration, size):
 
     start_time = time.time()
 
@@ -29,31 +30,23 @@ def create_big_tile(path):
 
     # Build a giant kd tree
     kd = kdtree._build(f1[:, :3])
-    query = kdtree._query(kd, f1_sample[:, :3], k=30000)
+    query = kdtree._query(kd, f1_sample[:, :3], k=size)
 
     big_tile = f1[query]
 
     np.save(save_path / "big_tile.npy", big_tile)
 
     # now mess up the big tile
-    with open('response_functions.json') as json_file:
-        data = json.load(json_file)
 
-    big_tile_intensities = big_tile[:,3].copy()
-    alt_big_tile_intensities = np.interp(big_tile_intensities,
-                                         np.array(data['brightness']['2'])*255,
-                                         np.array(data['intensities']['2'])*255)
+    big_tile_alt = apply_rf("response_functions.json", big_tile, alteration)
 
-    alt_big_tile = big_tile.copy()
-    alt_big_tile[:, 3] = alt_big_tile_intensities
-
-    np.save(save_path / "big_tile_alt.npy", alt_big_tile)
+    np.save(save_path / "big_tile_alt.npy", big_tile_alt)
 
     print(f"finished in {time.time() - start_time} seconds")
     
 
 if __name__=='__main__':
-    create_big_tile('dublin_flights')
+    create_big_tile('dublin_flights', 4, 1000000)
 
     
                  

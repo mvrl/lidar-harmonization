@@ -27,7 +27,19 @@ class ToTensor(object):
                 torch.tensor(int(num)),
                 path)
 
+class ToTensorBD(object):
+    def __call__(self, sample):
+        cloud, flight_ids = sample
+        return (torch.from_numpy(cloud), torch.tensor(flight_ids))
 
+class CloudNormalizeBD(object):
+    def __call__(self, sample):
+        cloud, flight_id = sample
+        centered_cloud = np.copy(cloud)
+        centered_cloud[:,:3] = cloud[:,:3] - cloud[0][:3]
+        return (centered_cloud, flight_id)
+
+    
 """ not implemented below this point """
 class CloudAugment(object):
     def __init__(self):
