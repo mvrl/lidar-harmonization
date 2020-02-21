@@ -2,7 +2,7 @@ to do:
 
 - revisit evaluation
 - add a monitor and get some loss plots started
-- weight decay
+- siamese style network with neighborhood from original flight? Maybe we don't have this though in some use case
 
 
 
