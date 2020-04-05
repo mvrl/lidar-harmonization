@@ -11,7 +11,13 @@ def load_laz(path):
     return f
 
 
-def create_dataset(path, neighborhood_size, samples, sanity_check=True):
+def create_dataset(path,
+                   neighborhood_size,
+                   samples,
+                   contains_flights=None,
+                   output_prefix=None,
+                   sanity_check=True):
+    
     start_time = time.time()
     
     # get flight path files:
@@ -21,6 +27,8 @@ def create_dataset(path, neighborhood_size, samples, sanity_check=True):
 
     # save path
     save_path = Path(r"%s_%s/gt/" % (neighborhood_size, samples))
+    if output_prefix:
+        save_path = Path(r"%s_%s_%s/gt/" % (output_prefix, neighborhood_size, samples))
     save_path.mkdir(parents=True, exist_ok=True)
     print(f"Created path: {save_path}")
     print(f"Found {file_count} flights")
@@ -32,13 +40,18 @@ def create_dataset(path, neighborhood_size, samples, sanity_check=True):
     # Randomly sample the first flight
     f1_sample = f1[sample]
     
-    p = Pool(4)
+    p = Pool(2)
 
     training_examples = []
     num_examples = 0
 
-    # Query flights 2-? with all points from flight 1
-    for fidx, fi in enumerate(p.imap_unordered(load_laz, laz_files[1:])):
+    if not contains_flights:
+        flights_container = laz_files[1:]
+    else:
+        flights_container = [laz_files[i] for i in contains_flights]
+                                    
+    # Query flights 2-? with all points from flight 0
+    for fidx, fi in enumerate(p.imap_unordered(load_laz, flights_container)):
         kd = kdtree._build(fi[:,:3])
         queries = kdtree._query(kd, f1_sample[:,:3], k=neighborhood_size, dmax=1)
         for idx, query in enumerate(queries):
@@ -53,6 +66,7 @@ def create_dataset(path, neighborhood_size, samples, sanity_check=True):
             print("no overlap found!")
 
     print(f"Found {len(training_examples)} total examples")
+
 
     # sanity check these values:
     if sanity_check:
@@ -91,4 +105,10 @@ def create_dataset(path, neighborhood_size, samples, sanity_check=True):
 if __name__ == '__main__':
     import argparse
     
-    create_dataset('dublin_flights', 50, 10000, sanity_check=True)
+    create_dataset('dublin_flights',
+                   10,
+                   100000,
+                   # contains_flights=[4],
+                   # output_prefix="",
+                   sanity_check=True)
+    

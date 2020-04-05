@@ -131,5 +131,6 @@ dmypy.json
 dataset/[0-9]*
 dataset/big_tile/*
 dataset/dublin_flights/*
-
-*_dict
+results.txt
+*_dict*
+dataset/synth/*

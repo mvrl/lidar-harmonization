@@ -44,5 +44,5 @@ def create_altered_tiles(path):
     
     
 if __name__=='__main__':
-    create_altered_tiles('50_10000')
+    create_altered_tiles('synth')
 

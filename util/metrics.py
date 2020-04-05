@@ -12,24 +12,24 @@ def mae(predictions, targets):
     mae = torch.sum(torch.abs(targets - predictions))/len(predictions)
     return mae
 
-def create_kde(predictions, ground_truths, output_path, sample_ratio=1):
+def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1):
     def torch_to_numpy(t):
         if type(t) == torch.Tensor:
             return torch.clone(t).cpu().detach().numpy()
         else:
             return t
 
-    predictions = torch_to_numpy(predictions)
-    ground_truths = torch_to_numpy(ground_truths)    
+    x = torch_to_numpy(x)
+    y = torch_to_numpy(y)
 
-    xy = np.vstack([predictions, ground_truths])
+    xy = np.vstack([y, x])
     z = gaussian_kde(xy)(xy)
 
     fig, ax = plt.subplots()
-    ax.scatter(ground_truths, predictions, c=z, s=20, edgecolor='')
-    plt.title("Predicted vs Actual")
-    plt.ylabel("Predicted")
-    plt.xlabel("Ground Truth")
+    ax.scatter(x, y, c=z, s=20, edgecolor='')
+    plt.title(f"{ylabel} vs {xlabel}")
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
     plt.savefig(output_path)
     
 

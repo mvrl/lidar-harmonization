@@ -19,6 +19,8 @@ def train(config=None, dataset_csv=None, transforms=None, epochs=None, use_valid
     indices_list = list(range(sample_count))
     indices = {}
 
+    suffix = dataset_csv.split("/")[1]
+    
     phases = ['train']
 
     if use_valid:
@@ -32,7 +34,8 @@ def train(config=None, dataset_csv=None, transforms=None, epochs=None, use_valid
     
     dataset_sizes = {phase : len(indices[phase]) for phase in phases}
     samplers = {phase : SubsetRandomSampler(indices[phase]) for phase in phases}
-
+    print(len(samplers['train']))
+    print(len(samplers['val']))
     dataloaders = {
         phase : DataLoader(
             dataset,
@@ -95,11 +98,13 @@ def train(config=None, dataset_csv=None, transforms=None, epochs=None, use_valid
 
                 if batch_idx % ((len(samplers[phase])/config.batch_size)//10) == 0:
                     metrics.compute()
+                    # code.interact(local=locals())
                     print(f"[{batch_idx}/{len(dataloaders[phase])}] "
                           f"loss: {running_loss/total:.3f} "
                           f"MAE: {metrics.metrics['mae']:.3f} "
-                          f"GT_Max: {gt[:,:,3].max():.2f} P_Max: {output.max():.2f} "
-                          f"Alt_max: {alt[:,:,3].max()}")
+                          f"GT_Max: {gt[:,:,3].max():.2f}  "
+                          f"P_Max: {output.max():.2f} "
+                          f"Alt_max: {alt.transpose(1, 2)[:,:,3].max()}")
 
             running_loss = running_loss/dataset_sizes[phase]
 
@@ -108,12 +113,16 @@ def train(config=None, dataset_csv=None, transforms=None, epochs=None, use_valid
             if (phase == 'val'):
                 if running_loss < best_loss:
                     print("New best loss! Saving model...")
-                    torch.save(model.state_dict(), "intensity_dict")
+                    torch.save(model.state_dict(), f"intensity_dict_{suffix}")
                     best_loss = running_loss
 
                     # Create a KDE plot for the network at this state
                     print("Generating KDE for visualization")
-                    create_kde(metrics.pred_, metrics.targ_, "results/kde_validation.png")
+                    create_kde(metrics.targ_,
+                               metrics.pred_,
+                               "ground truths",
+                               "predictions",
+                               "results/kde_validation.png")
             
             metrics.clear_metrics()
         print(f"Epoch finished in {(time.time() - epoch_time):.3f} seconds")

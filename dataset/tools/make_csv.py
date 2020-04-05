@@ -84,5 +84,5 @@ def make_csv(path):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("50_10000")
+    make_csv("synth")
         

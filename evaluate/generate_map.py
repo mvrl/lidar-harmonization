@@ -25,7 +25,12 @@ from model import IntensityNet
 from dataset.lidar_dataset import BigMapDataset
 
 
-def generate_map(config=None, state_dict=None, tile_directory=None, tree_size=50, viewer_sample=3, **kwargs):
+def generate_map(config=None,
+                 state_dict=None,
+                 tile_directory=None,
+                 tree_size=50,
+                 viewer_sample=3,
+                 **kwargs):
 
     start_time = time.time()
 
