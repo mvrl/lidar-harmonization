@@ -10,7 +10,6 @@ def load_laz(path):
     f = np.load(path)
     return f
 
-
 def create_dataset(path,
                    neighborhood_size,
                    samples,
@@ -25,6 +24,8 @@ def create_dataset(path,
     laz_files = [file for file in laz_files_path.glob('*.npy')]
     file_count = len(laz_files)
 
+    idx_count = 0
+        
     # save path
     save_path = Path(r"%s_%s/gt/" % (neighborhood_size, samples))
     if output_prefix:
@@ -40,10 +41,7 @@ def create_dataset(path,
     # Randomly sample the first flight
     f1_sample = f1[sample]
     
-    p = Pool(2)
-
-    training_examples = []
-    num_examples = 0
+    p = Pool(1)
 
     if not contains_flights:
         flights_container = laz_files[1:]
@@ -54,59 +52,33 @@ def create_dataset(path,
     for fidx, fi in enumerate(p.imap_unordered(load_laz, flights_container)):
         kd = kdtree._build(fi[:,:3])
         queries = kdtree._query(kd, f1_sample[:,:3], k=neighborhood_size, dmax=1)
-        for idx, query in enumerate(queries):
+        
+        for idx, query in enumerate(queries):  # only get full neighborhoods
             if len(query) == neighborhood_size:
+                fi_query = fi[query]
+
+                if sanity_check:
+                    check = np.linalg.norm(f1_sample[idx][:3] - fi_query[:,:3])
+                    if check.any() > 1:
+                        print("ERROR: points too far away")
+                        
                 # log the flight where this data comes from, the test point, and the query data
-                training_examples.append((fidx, f1_sample[idx], fi[query]))
-        if (len(training_examples) > num_examples):
-            print(f"Added {len(training_examples)-num_examples} examples")
-            num_examples = len(training_examples)
+                sample = np.concatenate(
+                    (np.expand_dims(f1_sample[idx], 0), fi_query)
+                )
+                
+                np.save(save_path / f"{fidx}_{idx_count}.npy", sample)
+                idx_count += 1
+                
 
-        else:
-            print("no overlap found!")
-
-    print(f"Found {len(training_examples)} total examples")
-
-
-    # sanity check these values:
-    if sanity_check:
-        print("running sanity check...")
-        flag = 0
-        for idx, ex in enumerate(training_examples):
-            a = ex[1][:3]
-            b = ex[2][:,:3]
-            c = np.linalg.norm(b - a, axis=1)
-            # Distance from a should never be greater than dmax=1
-            if c.any() > 1:
-                print("ERROR")
-                flag = 1
-        if flag == 0:
-            print("no issues detected")
-
-    # save this as something useable for later
-    # group these by flight
-    dataset = {}
-
-    for i in range(len(training_examples)):
-        name = training_examples[i][0]
-        a = np.expand_dims(training_examples[i][1], 0)
-        b = training_examples[i][2]
-        if name in dataset:
-            dataset[name].append(np.concatenate((a, b)))
-        else:
-            dataset[name] = [np.concatenate((a, b))]
-
-    for key, datalist in dataset.items():
-        for idx, item in enumerate(datalist):
-            np.save(save_path / f"{key}_{idx}.npy", item)
-    
+    print(f"Found {idx_count} total examples")
     print(f"finished in {time.time() - start_time} seconds")        
 
 if __name__ == '__main__':
     import argparse
     
     create_dataset('dublin_flights',
-                   10,
+                   200,
                    100000,
                    # contains_flights=[4],
                    # output_prefix="",

@@ -10,7 +10,7 @@ from train import train
 from evaluate.generate_map import generate_map
 from evaluate.measure_accuracy import measure_accuracy
 from config import Config
-from util.transforms import LoadNP, CloudNormalize, CloudAugment, CloudJitter, ToTensor
+from util.transforms import LoadNP, CloudNormalize, CloudAugment, CloudJitter, ToTensor, CloudCenter
 
 
 parser = argparse.ArgumentParser(description="run script for Intensity Correction")
@@ -23,8 +23,9 @@ parser_train.set_defaults(func=train,
                           config=Config(),
                           dataset_csv=r"dataset/50_10000/train_dataset.csv",
                           transforms=Compose([LoadNP(),
-                                             CloudNormalize(),
-                                             ToTensor()]),
+                                              CloudCenter(),
+                                              CloudNormalize(),
+                                              ToTensor()]),
                           epochs=50,                       
                           use_valid=True)
 
@@ -35,6 +36,7 @@ parser_eval.set_defaults(func=None,
                          config=Config(),
                          dataset_csv="dataset/50_10000/test_dataset.csv",
                          transforms=Compose([LoadNP(),
+                                             CloudCenter(),
                                              CloudNormalize(),
                                              ToTensor()]))
 

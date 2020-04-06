@@ -9,7 +9,7 @@ class LoadNP(object):
         return (np.load(gt), np.load(alt), num, path)
 
 
-class CloudNormalize(object):
+class CloudCenter(object):
     def __call__(self, sample):
         # Center the neighborhood
         gt, alt, num, path = sample
@@ -18,6 +18,14 @@ class CloudNormalize(object):
         centered_alt = np.copy(alt)
         centered_alt[:,:3] = alt[:,:3] - alt[0][:3]
         return (centered_gt, centered_alt, num, path)
+
+class CloudNormalize(object):
+    def __call__(self, sample):
+        # Normalize the intensity values
+        gt, alt, num, path = sample
+        gt[:, 3]/=512
+        alt[:, 3]/=512
+        return (gt, alt, num, path)
 
 class ToTensor(object):
     def __call__(self, sample):

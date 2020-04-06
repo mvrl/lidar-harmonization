@@ -13,5 +13,7 @@ def make_dataset(neighborhood_size, sample_size):
     create_altered_tiles(f"{neighborhood_size}_{sample_size}")
     make_csv(f"{neighborhood_size}_{sample_size}")
 
-
-make_dataset(500, 10000)
+neighborhood_size = 150
+sample_size = 100000
+print(f"Building dataset {neighborhood_size}_{sample_size}")
+make_dataset(neighborhood_size, sample_size)

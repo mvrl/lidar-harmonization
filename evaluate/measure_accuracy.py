@@ -93,5 +93,5 @@ def measure_accuracy(config=None,
     # total measurement
     total_mae_output = np.mean(np.array(mae_output))
     # print(mae_output)
-    print(total_mae_output)
+    print(total_mae_output*512)
     
