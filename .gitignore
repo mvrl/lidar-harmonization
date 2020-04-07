@@ -135,3 +135,4 @@ results/*
 results.txt
 *_dict*
 dataset/synth/*
+run_batch

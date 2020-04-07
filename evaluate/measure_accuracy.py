@@ -36,9 +36,15 @@ def measure_accuracy(config=None,
 
     dataset = LidarDataset(dataset_csv, transform=transforms)
 
+    suffix = dataset_csv.split("/")[1]
+    if suffix.split("_")[0] == '0':
+        print("Entering zero-neighbors mode")
+        zero_neighbors = True
+    else:
+        zero_neighbors = False
     dataloader = DataLoader(
         dataset,
-        batch_size=config.batch_size,
+        batch_size=100,
         num_workers=config.num_workers,
         drop_last=True)
 
@@ -48,7 +54,7 @@ def measure_accuracy(config=None,
     gt_values = []
     model = IntensityNet(num_classes=config.num_classes).to(config.device).double()
     model.load_state_dict(torch.load(state_dict))
-    
+    model.eval()
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
             eval_time = time.time()
@@ -57,14 +63,16 @@ def measure_accuracy(config=None,
             # Get the intensity of the ground truth point
             i_gt = gt[:,0,3].to(config.device)
             fid = fid.to(config.device)
-            
-            # get rid of the first point from training sample
+
             alt_values.append(alt[:, 0, 3])
             gt_values.append(i_gt)
-            alt = alt[:, 1:, :]
+            
+            alt = alt[:, 0:, :]
+           
             alt = alt.transpose(1, 2).to(config.device)
 
             output, _, _ = model(alt, fid)
+            output = output.squeeze()
             fixed_values.append(output)
             mae_output.append(torch.mean(torch.abs(i_gt - output)).cpu().numpy())
 
@@ -77,21 +85,22 @@ def measure_accuracy(config=None,
     print(f"GT Values: {len(gt_values)}")
     print(f"Fixed values: {len(fixed_values)}")
 
+    # altered vs ground truth
     create_kde(gt_values,
                alt_values,
                "ground truth",
                "altered values",
-               "results/alt_kde.png")
-
+               f"results/{suffix}/kde_alt_vs_gt.png")
+    
     # fixed vs ground truth
     create_kde(gt_values,
                fixed_values,
                "ground truth",
                "fixed values",
-               "results/fixed_kde.png")
+               f"results/{suffix}/kde_evaluation.png")
     
     # total measurement
     total_mae_output = np.mean(np.array(mae_output))
-    # print(mae_output)
-    print(total_mae_output*512)
+
+    print(f"MAE: {total_mae_output}")
     

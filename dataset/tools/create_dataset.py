@@ -14,7 +14,7 @@ def create_dataset(path,
                    neighborhood_size,
                    samples,
                    contains_flights=None,
-                   output_prefix=None,
+                   output_suffix="",
                    sanity_check=True):
     
     start_time = time.time()
@@ -27,9 +27,7 @@ def create_dataset(path,
     idx_count = 0
         
     # save path
-    save_path = Path(r"%s_%s/gt/" % (neighborhood_size, samples))
-    if output_prefix:
-        save_path = Path(r"%s_%s_%s/gt/" % (output_prefix, neighborhood_size, samples))
+    save_path = Path(r"%s_%s%s/gt/" % (neighborhood_size, samples, output_suffix))
     save_path.mkdir(parents=True, exist_ok=True)
     print(f"Created path: {save_path}")
     print(f"Found {file_count} flights")
@@ -67,7 +65,7 @@ def create_dataset(path,
                     (np.expand_dims(f1_sample[idx], 0), fi_query)
                 )
                 
-                np.save(save_path / f"{fidx}_{idx_count}.npy", sample)
+                np.save(save_path / f"{contains_flights[fidx]}_{idx_count}.npy", sample)
                 idx_count += 1
                 
 

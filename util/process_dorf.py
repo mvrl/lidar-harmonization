@@ -2,6 +2,8 @@ import os
 import time
 import numpy as np
 import pandas as pd
+import json
+
 start_time = time.time()
 
 names = []
@@ -19,28 +21,28 @@ with open("dorfCurves.txt", 'r') as f:
         elif count % 6 == 2:
             scale.append(line)
         elif count % 6 == 4:
-            brightness.append(np.fromstring(line, sep=" "))
+            brightness.append(line)
         elif count % 6 == 0:
-            intensities.append(np.fromstring(line, sep=" "))
+            intensities.append(line)
         line = f.readline()
         count += 1
 
 
-print(len(names))
-print(len(scale))
-print(len(brightness))
-print(len(intensities))
-df = pd.DataFrame()
-df["names"] = names
-df["scales"] = scale
-df["brightness"] = brightness
-df["intensities"] = intensities
-df.to_json("response_functions.json")
+dorf_curves = {}
+for idx, i in enumerate(names):
+    dorf_curves[idx] = {"name" : i,
+                        "scale": scale[idx],
+                        "B": brightness[idx],
+                        "I": intensities[idx]} 
+        
 
-brightness = np.stack(brightness)
-intensities = np.stack(intensities)
+with open("dorfCurves.json", 'w') as fp:
+    json.dump(dorf_curves, fp, indent=4)
+    
+# df = pd.DataFrame()
+# df["names"] = names
+# df["scales"] = scale
+# df["brightness"] = brightness
+# df["intensities"] = intensities
+# df.to_json("response_functions.json")
 
-print(brightness.shape)
-print(intensities.shape)
-
-output = np.save("response_functions.npy", np.stack([brightness, intensities]))

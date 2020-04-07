@@ -9,7 +9,7 @@ matplotlib.use('Agg')
 from scipy.stats import gaussian_kde
 
 def mae(predictions, targets):
-    mae = torch.sum(torch.abs(targets - predictions))/len(predictions)
+    mae = torch.mean(torch.abs(targets - predictions))
     return mae
 
 def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1):
@@ -24,12 +24,16 @@ def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1):
 
     xy = np.vstack([y, x])
     z = gaussian_kde(xy)(xy)
+    N = 50
 
     fig, ax = plt.subplots()
-    ax.scatter(x, y, c=z, s=20, edgecolor='')
+    ax.scatter(x, y, c=z, s=10, edgecolor='')
     plt.title(f"{ylabel} vs {xlabel}")
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
+    plt.plot([0, 1], [0,1])
+    plt.margins(x=0)
+    plt.margins(y=0)
     plt.savefig(output_path)
     
 

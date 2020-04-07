@@ -17,13 +17,15 @@ def plot_dorf_functions(data):
     fig.set_size_inches(9, 9)
     
     for i in range(16):
-        axs.flat[i].plot(data['brightness'][str(i)],
-                         data['intensities'][str(i)])
-        axs.flat[i].title.set_text('CR %s' % i)
+        idx = i + 0
+        idx = str(idx)
+        axs.flat[i].plot(np.fromstring(data[idx]["B"], sep=" "),
+                         np.fromstring(data[idx]["I"], sep=" "))
+        axs.flat[i].title.set_text(" %s" % data[idx]["name"])
         axs.flat[i].set_xlabel('brightness')
         axs.flat[i].set_ylabel('intensity')
         
-    plt.savefig("dataset/rf_plots.png")
+    plt.savefig("rf_plots.png")
 
 # now plot the first point gt point cloud
 def scatter3d(xyz, cs, colorsMap='jet'):
@@ -58,10 +60,10 @@ def plot_dorf_cloud(data):
 
 
 if __name__=='__main__':
-    with open('dataset/response_functions.json') as json_file:
+    with open('dorfCurves.json') as json_file:
         data = json.load(json_file)
 
-    plot_dorf_cloud(data)
+    plot_dorf_functions(data)
 
 
     

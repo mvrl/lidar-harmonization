@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description="run script for Intensity Correctio
 subparsers = parser.add_subparsers(help='sub-command help')
 
 parser_train = subparsers.add_parser('train', help='train the network')
+parser_train.add_argument('-b', '--batch_size', type=int, help='batch size')
 parser_train.add_argument('-e', '--epochs', type=int, help='number of epochs to train')
 parser_train.add_argument('-d', '--dataset_csv', help='training dataset csv to use')
 parser_train.set_defaults(func=train,
