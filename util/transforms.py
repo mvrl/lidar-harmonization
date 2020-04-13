@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-
 class LoadNP(object):
     def __call__(self, sample):
         # Load the numpy files
@@ -19,14 +18,29 @@ class CloudCenter(object):
         centered_alt[:,:3] = alt[:,:3] - alt[0][:3]
         return (centered_gt, centered_alt, num, path)
 
-class CloudNormalize(object):
+    
+class CloudIntensityNormalize(object):
+    def __init__(self, max):
+        self.max = max
     def __call__(self, sample):
         # Normalize the intensity values
         gt, alt, num, path = sample
-        gt[:, 3]/=512
-        alt[:, 3]/=512
+        gt[:, 3]/=self.max
+        alt[:, 3]/=self.max
         return (gt, alt, num, path)
 
+    
+class CloudIntensityClip(object):
+    def __init__(self, max):
+        self.max = max
+    def __call__(self, sample):
+        # clip intensity values to `self.max`
+        gt, alt, num, path = sample
+        gt[:, 3] = np.clip(gt[:, 3], 0, 512)
+        alt[:, 3] = np.clip(alt[:, 3], 0, 512)
+        return (gt, alt, num, path)
+        
+        
 class ToTensor(object):
     def __call__(self, sample):
         gt, alt, num, path = sample
@@ -35,11 +49,13 @@ class ToTensor(object):
                 torch.tensor(int(num)),
                 path)
 
+    
 class ToTensorBD(object):
     def __call__(self, sample):
         cloud, flight_ids = sample
         return (torch.from_numpy(cloud), torch.tensor(flight_ids))
 
+    
 class CloudNormalizeBD(object):
     def __call__(self, sample):
         cloud, flight_id = sample
@@ -48,33 +64,35 @@ class CloudNormalizeBD(object):
         return (centered_cloud, flight_id)
 
     
-""" not implemented below this point """
 class CloudAugment(object):
     def __init__(self):
         pass
 
     def __call__(self, sample):
-        cloud = sample
+        gt, alt, num, path = sample
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
         rotation_matrix = np.array([[cosval, 0, sinval],
                                     [0, 1, 0],
                                     [-sinval, 0, cosval]])
-        cloud[:,:3] = np.dot(cloud[:,:3], rotation_matrix)
-        return cloud
+        gt[:,:3] = np.dot(gt[:,:3], rotation_matrix)
+        alt[:,:3] = np.dot(alt[:,:3], rotation_matrix)
+        
+        return (gt, alt, num, path)
 
-    
+
+# not implemented below this point 
 class CloudJitter(object):
     def __init__(self, sigma=0.01, clip=0.05):
         self.sigma = sigma
         self.clip = clip
 
     def __call__(self, sample):
-        cloud = sample
+        gt, alt, num, path = sample
         jittered_data = np.clip(
             self.sigma*np.random.randn(
-                3, cloud.shape[1]),
+                 gt.shape[0], 3),
             -1*self.clip,
             self.clip)
         

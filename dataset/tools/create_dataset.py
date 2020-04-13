@@ -43,6 +43,7 @@ def create_dataset(path,
 
     if not contains_flights:
         flights_container = laz_files[1:]
+        contains_flights = [i for i in range(41)]
     else:
         flights_container = [laz_files[i] for i in contains_flights]
                                     

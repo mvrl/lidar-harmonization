@@ -26,22 +26,27 @@ from util.metrics import create_kde
 from model import IntensityNet
 
 def measure_accuracy(config=None,
-                state_dict=None,
-                tile_directory=None,
-                dataset_csv=None,
-                transforms=None,
-                **kwargs):
+                     state_dict=None,
+                     tile_directory=None,
+                     dataset_csv=None,
+                     transforms=None,
+                     use_second_point=None,
+                     **kwargs):
 
     print(f"measuring accuracy on {dataset_csv}")
 
     dataset = LidarDataset(dataset_csv, transform=transforms)
 
-    suffix = dataset_csv.split("/")[1]
-    if suffix.split("_")[0] == '0':
-        print("Entering zero-neighbors mode")
-        zero_neighbors = True
+    if state_dict.split("model")[1].split(".")[0] == "_nc":
+        save_suffix = "_nc"
     else:
-        zero_neighbors = False
+        save_suffix = ""
+
+    suffix = dataset_csv.split("/")[1]
+    if suffix.split("_")[0] == '0' and save_suffix == "_nc":
+        exit("No points to evaluate! Use a bigger "
+             "neighborhood or remove no_pass_center")
+          
     dataloader = DataLoader(
         dataset,
         batch_size=100,
@@ -66,9 +71,15 @@ def measure_accuracy(config=None,
 
             alt_values.append(alt[:, 0, 3])
             gt_values.append(i_gt)
-            
-            alt = alt[:, 0:, :]
-           
+
+            if save_suffix == "_nc":
+                alt = alt[:, 1:, :]
+            else:
+                alt = alt[:, 0:, :]
+
+            if len(alt.shape) == 2:
+                alt = alt.unsqueeze(1)
+                
             alt = alt.transpose(1, 2).to(config.device)
 
             output, _, _ = model(alt, fid)
@@ -85,6 +96,10 @@ def measure_accuracy(config=None,
     print(f"GT Values: {len(gt_values)}")
     print(f"Fixed values: {len(fixed_values)}")
 
+    # total measurement
+    total_mae_output = np.mean(np.array(mae_output))
+
+
     # altered vs ground truth
     create_kde(gt_values,
                alt_values,
@@ -97,10 +112,9 @@ def measure_accuracy(config=None,
                fixed_values,
                "ground truth",
                "fixed values",
-               f"results/{suffix}/kde_evaluation.png")
+               f"results/{suffix}/kde_evaluation{save_suffix}.png",
+               text=f"MAE: {total_mae_output:.5f}")
     
-    # total measurement
-    total_mae_output = np.mean(np.array(mae_output))
 
     print(f"MAE: {total_mae_output}")
     

@@ -8,17 +8,17 @@ matplotlib.use('Agg')
 
 from scipy.stats import gaussian_kde
 
+def torch_to_numpy(t):
+    if type(t) == torch.Tensor:
+        return torch.clone(t).cpu().detach().numpy()
+    else:
+        return t
+
 def mae(predictions, targets):
     mae = torch.mean(torch.abs(targets - predictions))
     return mae
 
-def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1):
-    def torch_to_numpy(t):
-        if type(t) == torch.Tensor:
-            return torch.clone(t).cpu().detach().numpy()
-        else:
-            return t
-
+def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1, text=None):
     x = torch_to_numpy(x)
     y = torch_to_numpy(y)
 
@@ -34,42 +34,44 @@ def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1):
     plt.plot([0, 1], [0,1])
     plt.margins(x=0)
     plt.margins(y=0)
+    if text:
+        plt.text(.5, 0, str(text))
     plt.savefig(output_path)
     
-
+    
 class Metrics:
-    def __init__(self, metrics_list, plots):
+    def __init__(self, metrics_list, plots, batch_size):
         self.metrics_list = metrics_list
         self.metrics = {m:None for m in metrics_list}
-        # self.plots = {p:None for p in plots}
+
+        # validation metrics
         self.pred_ = None
-        self.targ_ = None
-        self.update = -1
+        self.targ_ = None                
+        self.update = True  # some values reset on epoch end
 
         self.metric_functions = {'mae': mae}
 
+    def collect_metrics(self, predictions, targets):
 
-    def collect(self, predictions, targets):
-        if self.update == -1:
+        if self.update == True:
             self.pred_ = predictions
             self.targ_ = targets
-        
-        self.pred_ = torch.cat((self.pred_, predictions))
-        self.targ_ = torch.cat((self.targ_, targets))
-        self.update = True
+            self.update = False
+        else:
+            self.pred_ = torch.cat((self.pred_, predictions))
+            self.targ_ = torch.cat((self.targ_, targets))
+            
 
-    def compute(self):
+    def compute_metrics(self):
         for key in self.metrics:
             self.metrics[key] = self.metric_functions[key](self.pred_, self.targ_)
-
-        self.update = False
             
     def clear_metrics(self):
-        # clears values (use every epoch?)
+        # clears values - useful for values that reset on epoch end
         self.metrics = {m:None for m in self.metrics_list}
         self.pred_ = None
         self.targ_ = None
-        self.update = -1
+        self.update = True
 
 if __name__=='__main__':
     metrics = Metrics(['mae'], None)

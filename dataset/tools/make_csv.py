@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import code
-
+from tqdm import tqdm, trange
 # Options
 # N/A
 
@@ -19,10 +19,9 @@ def make_csv(path):
 
     gt_ordered_list = []
     alt_ordered_list = []
-
     # sanity check that there is an altered version of each ground truth
-    for gt in gts:
-        filename = gt.stem
+    for i in trange(len(gts), desc="processing", ascii=True):
+        filename = gts[i].stem
         flight_num.append(filename.split("_")[0])
         alt_name = None
         altered = None
@@ -32,20 +31,20 @@ def make_csv(path):
             alt_name = alt.stem
                 # reverse check as well to confirm
             if alt_name == filename:
-                print(f"Found match: {alt} == {gt}") 
+                # print(f"Found match: {alt} == {gts[i]}") 
                 altered = alt
                 break
 
         if not altered:
-            print("ERROR: couldn't find altered version of %s" % gt)
+            print("ERROR: couldn't find altered version of %s" % gts[i])
             exit()
 
         altered_np = np.load(altered)
-        original_np = np.load(gt)
+        original_np = np.load(gts[i])
 
         # check that the xyz are the same and that intensities are different
         if not np.allclose(original_np[:, :3], altered_np[:, :3]):
-            print("ERROR: xyz are different between %s and %s" % (gt, alt_name))
+            print("ERROR: xyz are different between %s and %s" % (gts[i], alt_name))
             exit()
 
         if np.allclose(original_np[:, 3], altered_np[:, 3]):
@@ -55,7 +54,7 @@ def make_csv(path):
                 exit()
 
         flight_path.append(flight_files[int(filename[:filename.find("_")])].absolute())
-        gt_ordered_list.append(gt)
+        gt_ordered_list.append(gts[i])
         alt_ordered_list.append(altered)
 
 
@@ -84,5 +83,5 @@ def make_csv(path):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("synth")
+    make_csv("50_10000")
         

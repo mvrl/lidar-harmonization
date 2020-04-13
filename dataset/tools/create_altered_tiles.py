@@ -4,7 +4,13 @@ import numpy as np
 import json
 from pathlib import Path
 
-def create_altered_tiles(path):
+def random_mapping():
+    # there are 41 flights, 160 response functions
+    mapping = np.random.choice(160, size=41)
+    return mapping
+    
+
+def create_altered_tiles(path, mapping=None):
 
     start_time = time.time()
 
@@ -31,9 +37,13 @@ def create_altered_tiles(path):
         
         curr_sample = np.load(file_path)
         curr_intensities = curr_sample[:,3]
-        altered_intensities = np.interp(curr_intensities,
-                                        np.array(data['brightness'][str(flight_num)])*512,
-                                        np.array(data['intensities'][str(flight_num)])*512)
+
+        # 65534.0 is max value for intensity across flights
+        altered_intensities = np.interp(
+            curr_intensities,
+            np.array(data['brightness'][str(mapping[int(flight_num)])])*512,
+            np.array(data['intensities'][str(mapping[int(flight_num)])])*512,
+        )
 
         altered_sample = np.copy(curr_sample)
         altered_sample[:,3] = altered_intensities
@@ -44,5 +54,6 @@ def create_altered_tiles(path):
     
     
 if __name__=='__main__':
+    mapping = random_mapping()
     create_altered_tiles('synth')
 

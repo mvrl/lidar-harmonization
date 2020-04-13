@@ -96,7 +96,7 @@ class PointNetfeat(nn.Module):
 class IntensityNet(nn.Module):
     def __init__(self,
                  num_classes,
-                 embed_dim=2,
+                 embed_dim=3,
                  feature_transform=False,
                  num_features=4):
         super(IntensityNet, self).__init__()
@@ -107,7 +107,7 @@ class IntensityNet(nn.Module):
         self.fc1 = nn.Linear(1024+embed_dim, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, num_classes)
-        self.dropout = nn.Dropout(p=0.0)
+        self.dropout = nn.Dropout(p=0.3)
         self.bn1 = nn.BatchNorm1d(512)
         self.bn2 = nn.BatchNorm1d(256)
         self.relu = nn.ReLU()
