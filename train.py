@@ -18,34 +18,34 @@ def train(config=None,
           transforms=None,
           epochs=None,
           batch_size=None,
-          use_valid=None,
-          no_pass_center=None):
+          phases=None,
+          no_center=None,
+          no_scan_angle=None):
 
     start_time = time.time()
-    dataset = LidarDataset(dataset_csv, transform=transforms) 
+    dataset = LidarDataset(dataset_csv, transform=transforms)
+    input_features=8
     sample_count = len(dataset)
     indices_list = list(range(sample_count))
     indices = {}
 
 
-
+    print("training with no-center!")
     suffix = dataset_csv.split("/")[1]
-    if suffix.split("_")[0] == '0' and no_pass_center:
-        exit("No points to train on! Use a bigger "
-             "neighborhood or remove no_pass_center")
-
-    if no_pass_center:
-        save_suffix = "_nc"
-    else:
-        save_suffix = ""
+    if suffix.split("_")[0] == '0' and no_center:
+        exit("No points found! Use a bigger neighborhood or remove no_center")
+    save_suffix = ""
+    if no_center:
+        save_suffix += "_nc"
+    if no_scan_angle:
+        save_suffix += "_nsa"
+        input_features=4
 
     plotter = VisdomLinePlotter(f"{suffix}{save_suffix}")
         
     Path(f"results/{suffix}").mkdir(parents=True, exist_ok=True)
-    phases = ['train']
 
-    if use_valid:
-        phases.append('val')
+    if "val" in phases:
         split = sample_count // 5
         indices['val'] = np.random.choice(indices_list, size=split, replace=False)
         indices['train'] = list(set(indices_list) - set(indices['val']))
@@ -70,14 +70,16 @@ def train(config=None,
 
     # Instantiate Model(s)
     model = IntensityNet(
-        num_classes=config.num_classes
+        num_classes=config.num_classes,
+        input_features=input_features
     ).to(config.device).double()
+
     
     optimizer = optim.Adam(model.parameters())
     iterations = 0; best_loss = 10e3
     lr_scheduler = CyclicLR(optimizer,
                             0.000001,
-                            0.0001,
+                            0.001,
                             step_size_up=dataset_sizes['train']//batch_size//2,
                             mode='triangular',
                             cycle_momentum=False)
@@ -106,7 +108,10 @@ def train(config=None,
                 i_gt = gt[:,0,3].to(config.device)
                 fid = fid.to(config.device)
 
-                if no_pass_center:
+                if no_scan_angle:
+                    alt = alt[:, :, :4]
+                    
+                if no_center:
                     alt = alt[:, 1:, :]
 
                 if len(alt.shape) == 2: 
@@ -125,6 +130,12 @@ def train(config=None,
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
+                        lr_scheduler.step()
+                        plotter.plot('lr',
+                                     'val',
+                                     'Learning Rate',
+                                     iterations,
+                                     lr_scheduler.get_lr()[0])            
     
                 running_loss += loss.item()*x.shape[0]
                 total += x.size(0)
@@ -135,9 +146,6 @@ def train(config=None,
                     print(f"[{batch_idx}/{len(dataloaders[phase])}] "
                           f"loss: {running_loss/total:.3f} "
                           f"MAE: {metrics.metrics['mae']:.3f}")
-
-                lr_scheduler.step()
-                plotter.plot('lr', 'val', 'Learning Rate', iterations, lr_scheduler.get_lr()[0])            
 
             running_loss = running_loss/dataset_sizes[phase]
 

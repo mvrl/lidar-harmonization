@@ -31,6 +31,7 @@ class CloudIntensityNormalize(object):
 
     
 class CloudIntensityClip(object):
+    # this doesn't actually do anything -- slate for removal
     def __init__(self, max):
         self.max = max
     def __call__(self, sample):

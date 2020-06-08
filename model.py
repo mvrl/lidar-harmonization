@@ -98,12 +98,12 @@ class IntensityNet(nn.Module):
                  num_classes,
                  embed_dim=3,
                  feature_transform=False,
-                 num_features=4):
+                 input_features=8):
         super(IntensityNet, self).__init__()
         self.feature_transform = feature_transform
         self.feat = PointNetfeat(global_feat=True,
                                  feature_transform=feature_transform,
-                                 num_features=num_features)
+                                 num_features=input_features)
         self.fc1 = nn.Linear(1024+embed_dim, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, num_classes)

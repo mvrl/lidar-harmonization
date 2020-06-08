@@ -36,14 +36,17 @@ def measure_accuracy(config=None,
     print(f"measuring accuracy on {dataset_csv}")
 
     dataset = LidarDataset(dataset_csv, transform=transforms)
-
-    if state_dict.split("model")[1].split(".")[0] == "_nc":
-        save_suffix = "_nc"
-    else:
-        save_suffix = ""
+    input_features = 8
+    save_suffix = ""
+    if "nc" in state_dict:
+        save_suffix += "_nc"
+    if "nsa" in state_dict:
+        print("USING NSA")
+        save_suffix += "_nsa"
+        input_features = 4
 
     suffix = dataset_csv.split("/")[1]
-    if suffix.split("_")[0] == '0' and save_suffix == "_nc":
+    if suffix.split("_")[0] == '0' and "nc" in save_suffix:
         exit("No points to evaluate! Use a bigger "
              "neighborhood or remove no_pass_center")
           
@@ -57,9 +60,14 @@ def measure_accuracy(config=None,
     alt_values = []
     fixed_values = []
     gt_values = []
-    model = IntensityNet(num_classes=config.num_classes).to(config.device).double()
+
+    # code.interact(local=locals())
+    model = IntensityNet(
+        num_classes=config.num_classes,
+        input_features=input_features).to(config.device).double()
     model.load_state_dict(torch.load(state_dict))
     model.eval()
+    
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
             eval_time = time.time()
@@ -72,10 +80,11 @@ def measure_accuracy(config=None,
             alt_values.append(alt[:, 0, 3])
             gt_values.append(i_gt)
 
-            if save_suffix == "_nc":
+            if "nc" in save_suffix:
                 alt = alt[:, 1:, :]
-            else:
-                alt = alt[:, 0:, :]
+
+            if "nsa" in save_suffix:
+                alt = alt[:, :, :4]
 
             if len(alt.shape) == 2:
                 alt = alt.unsqueeze(1)
