@@ -4,19 +4,19 @@ import torch
 class LoadNP(object):
     def __call__(self, sample):
         # Load the numpy files
-        gt, alt, num, path = sample
-        return (np.load(gt), np.load(alt), num, path)
+        gt, alt = sample
+        return (np.load(gt), np.load(alt))
 
 
 class CloudCenter(object):
     def __call__(self, sample):
         # Center the neighborhood
-        gt, alt, num, path = sample
+        gt, alt = sample
         centered_gt = np.copy(gt)
         centered_gt[:,:3] = gt[:,:3] - gt[0][:3]
         centered_alt = np.copy(alt)
         centered_alt[:,:3] = alt[:,:3] - alt[0][:3]
-        return (centered_gt, centered_alt, num, path)
+        return (centered_gt, centered_alt)
 
     
 class CloudIntensityNormalize(object):
@@ -24,33 +24,18 @@ class CloudIntensityNormalize(object):
         self.max = max
     def __call__(self, sample):
         # Normalize the intensity values
-        gt, alt, num, path = sample
+        gt, alt = sample
         gt[:, 3]/=self.max
         alt[:, 3]/=self.max
-        return (gt, alt, num, path)
+        return (gt, alt)
 
-    
-class CloudIntensityClip(object):
-    # this doesn't actually do anything -- slate for removal
-    def __init__(self, max):
-        self.max = max
-    def __call__(self, sample):
-        # clip intensity values to `self.max`
-        gt, alt, num, path = sample
-        gt[:, 3] = np.clip(gt[:, 3], 0, 512)
-        alt[:, 3] = np.clip(alt[:, 3], 0, 512)
-        return (gt, alt, num, path)
-        
         
 class ToTensor(object):
     def __call__(self, sample):
-        gt, alt, num, path = sample
+        gt, alt = sample
         return (torch.from_numpy(gt),
-                torch.from_numpy(alt),
-                torch.tensor(int(num)),
-                path)
+                torch.from_numpy(alt))
 
-    
 class ToTensorBD(object):
     def __call__(self, sample):
         cloud, flight_ids = sample
@@ -70,7 +55,7 @@ class CloudAugment(object):
         pass
 
     def __call__(self, sample):
-        gt, alt, num, path = sample
+        gt, alt = sample
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
@@ -80,7 +65,7 @@ class CloudAugment(object):
         gt[:,:3] = np.dot(gt[:,:3], rotation_matrix)
         alt[:,:3] = np.dot(alt[:,:3], rotation_matrix)
         
-        return (gt, alt, num, path)
+        return (gt, alt)
 
 
 # not implemented below this point 

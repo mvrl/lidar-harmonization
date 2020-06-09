@@ -74,33 +74,32 @@ def create_dataset(path,
         
             # code.interact(local=locals())   
             for idx, query in enumerate(queries):  # only get full neighborhoods
-                if idx_count < example_count:
-                    if len(query) == neighborhood_size:
-                        fi_query = fi[query]
+                if len(query) == neighborhood_size:
+                    fi_query = fi[query]
 
-                        if sanity_check:
-                            check = np.linalg.norm(f1_sample[idx][:3] - fi_query[:,:3])
-                            if check.any() > 1:
-                                print("ERROR: points too far away")
+                    if sanity_check:
+                        check = np.linalg.norm(f1_sample[idx][:3] - fi_query[:,:3])
+                        if check.any() > 1:
+                            print("ERROR: points too far away")
                         
-                        # log the flight where this data comes from, the test point, and the query data
-                        sample = np.concatenate(
-                            (np.expand_dims(f1_sample[idx], 0), fi_query)
-                        )   
-                
-                        np.save(save_path / f"{contains_flights[fidx]}_{idx_count}.npy", sample)
-                        idx_count += 1
-                        flight_counts[fidx] += 1
-                else:
-                    break  # early stop, found enough examples
-                
+                    # log the flight where this data comes from, the test point, and the query data
+                    sample = np.concatenate(
+                        (np.expand_dims(f1_sample[idx], 0), fi_query)
+                    )   
+            
+                    np.save(save_path / f"{contains_flights[fidx]}_{idx_count}.npy", sample)
+                    idx_count += 1
+                    flight_counts[fidx] += 1
+            
         print("Training example counts by flight:")
         print(flight_counts)
         print(f"Found {idx_count} total examples")
         if idx_count < example_count:
             print("Could not find enough examples! Try increasing sample size...")
-            print("Only found {idx_count} samples")
-
+            print(f"Only found {idx_count} samples")
+            exit()
+        else:
+            print("Found sufficient training data")
     
     print(f"finished in {time.time() - start_time} seconds")        
 

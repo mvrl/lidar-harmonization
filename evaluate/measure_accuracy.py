@@ -31,25 +31,25 @@ def measure_accuracy(config=None,
                      dataset_csv=None,
                      transforms=None,
                      use_second_point=None,
+                     neighborhood_size=None,
+                     dual_flight=None,
                      **kwargs):
 
     print(f"measuring accuracy on {dataset_csv}")
-
+    if dual_flight:
+        dataset_csv = dataset_csv[:-4] + "_df.csv"
     dataset = LidarDataset(dataset_csv, transform=transforms)
     input_features = 8
-    save_suffix = ""
-    if "nc" in state_dict:
-        save_suffix += "_nc"
-    if "nsa" in state_dict:
-        print("USING NSA")
-        save_suffix += "_nsa"
-        input_features = 4
+    if neighborhood_size == 0:
+        save_suffix = "_sf"
+    elif neighborhood_size > 0 and dual_flight:
+        save_suffix = "_df"
+    elif neighborhood_size > 0:
+        save_suffix = "_mf"
+    else:
+        exit("ERROR: this does not appear to be a valid configuration, check neighborhood size: {neighborhood_size} and dual_flight: {dual_flight}")
 
-    suffix = dataset_csv.split("/")[1]
-    if suffix.split("_")[0] == '0' and "nc" in save_suffix:
-        exit("No points to evaluate! Use a bigger "
-             "neighborhood or remove no_pass_center")
-          
+    results_path = Path(f"results/current/{neighborhood_size}{save_suffix}")
     dataloader = DataLoader(
         dataset,
         batch_size=100,
@@ -71,23 +71,28 @@ def measure_accuracy(config=None,
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
             eval_time = time.time()
-            gt, alt, fid, _ = batch
+            gt, alt = batch
             
             # Get the intensity of the ground truth point
             i_gt = gt[:,0,3].to(config.device)
-            fid = fid.to(config.device)
-
-            alt_values.append(alt[:, 0, 3])
-            gt_values.append(i_gt)
-
-            if "nc" in save_suffix:
+            alt_values.append(alt[:, 0, 3]) # save it for later
+            
+            if neighborhood_size == 0:
+                # the altered flight is just a copy of the gt center
+                alt = alt[:, 0, :]
+                alt = alt.unsqueeze(1)
+            else:
+                # chop out the target point
                 alt = alt[:, 1:, :]
 
-            if "nsa" in save_suffix:
-                alt = alt[:, :, :4]
+                # only take the neighborhood
+                alt = alt[:, 0:neighborhood_size, :]
 
-            if len(alt.shape) == 2:
-                alt = alt.unsqueeze(1)
+            # Extract the pt_src_id
+            fid = alt[:, :, 8][:, 0].long().to(config.device)
+            alt = alt[:, :, :8]  # remove pt_src_id from input feature vector
+            
+            gt_values.append(i_gt)
                 
             alt = alt.transpose(1, 2).to(config.device)
 
@@ -114,14 +119,14 @@ def measure_accuracy(config=None,
                alt_values,
                "ground truth",
                "altered values",
-               f"results/{suffix}/kde_alt_vs_gt.png")
+               results_path / "kde_alt_vs_gt.png")
     
     # fixed vs ground truth
     create_kde(gt_values,
                fixed_values,
                "ground truth",
                "fixed values",
-               f"results/{suffix}/kde_evaluation{save_suffix}.png",
+               results_path / "kde_evaluation.png",
                text=f"MAE: {total_mae_output:.5f}")
     
 

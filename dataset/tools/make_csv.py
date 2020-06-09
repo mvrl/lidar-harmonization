@@ -7,56 +7,37 @@ from tqdm import tqdm, trange
 # N/A
 
 
-def make_csv(path):
+def make_csv(path, example_count):
+    print(f"building csv on {path}")
     dataset_path = Path(path)
 
     alts = [f.absolute() for f in (dataset_path / "alt").glob("*.npy")]
     gts = [f.absolute() for f in (dataset_path / "gt").glob("*.npy")]
     
-    flight_path = []
-    flight_num = []
+    flight_path = [None] * len(gts)
+    flight_num = [None] * len(gts)
     flight_files = [flight for flight in Path(r"dublin_flights").glob("*.npy")]
 
-    gt_ordered_list = []
-    alt_ordered_list = []
+    gt_ordered_list = [None] * len(gts)
+    alt_ordered_list = [None] * len(gts)
     # sanity check that there is an altered version of each ground truth
     for i in trange(len(gts), desc="processing", ascii=True):
         filename = gts[i].stem
-        flight_num.append(filename.split("_")[0])
+        flight_num[i] = filename.split("_")[0]
         alt_name = None
         altered = None
 
         # Check that our files are what we expect
-        for alt in alts:
-            alt_name = alt.stem
-                # reverse check as well to confirm
-            if alt_name == filename:
-                # print(f"Found match: {alt} == {gts[i]}") 
-                altered = alt
-                break
+        alt_name = alts[i].stem
+        if alt_name != filename:
+            exit("ERROR: wrong filename")
+        else:
+            altered = alts[i]
 
-        if not altered:
-            print("ERROR: couldn't find altered version of %s" % gts[i])
-            exit()
-
-        altered_np = np.load(altered)
-        original_np = np.load(gts[i])
-
-        # check that the xyz are the same and that intensities are different
-        if not np.allclose(original_np[:, :3], altered_np[:, :3]):
-            print("ERROR: xyz are different between %s and %s" % (gts[i], alt_name))
-            exit()
-
-        if np.allclose(original_np[:, 3], altered_np[:, 3]):
-            if not (np.all(original_np[:, 3]) and original_np[:, 3][0] == 512):
-                code.interact(local=locals())
-                print("ERROR: intensities were not altered between files")
-                exit()
-
-        flight_path.append(flight_files[int(filename[:filename.find("_")])].absolute())
-        gt_ordered_list.append(gts[i])
-        alt_ordered_list.append(altered)
-
+        flight_path[i] = (flight_files[int(filename[:filename.find("_")])].absolute())
+        gt_ordered_list[i] = gts[i]
+        alt_ordered_list[i] = altered
+    
 
     print("SUCCESS")
     print("creating csv...")
@@ -66,9 +47,41 @@ def make_csv(path):
     df['flight_num'] = flight_num
     df['flight_path_file'] = flight_path
 
-    # randomize dataframe
-    df = df.sample(frac=1).reset_index(drop=True)
+    # Create new dataframe with the ~required number of samples, 
+    # evenly sampled from each flight
+    #
+    df_new = pd.DataFrame(columns=['gt', 'alt'])
+    
+    # get a list of unique flights from the dataframe
+    uf = (df.flight_num.unique())
 
+    # calculate how many samples exist for each flight 
+    remaining_samples = {f:len(df.flight_num[df.flight_num == f]) for f in uf}
+    
+    # estimate the number of samples needed from each flight
+    z = int(example_count//len(remaining_samples))
+
+    # if a flight doesn't have enough samples, remove it
+    viable_flights = {key: value//z for key,value in remaining_samples.items()}
+    keys_to_remove = []
+    for key,value in viable_flights.items():
+        if value == 0:
+            keys_to_remove.append(key)
+
+    for key in keys_to_remove:
+        del viable_flights[key]
+    
+    viable_flights = list(viable_flights.keys())
+    
+    # sample from the list of viable flights,
+    # create a new dataframe to hold this data
+    for flight in viable_flights:
+        tdf = df[df.flight_num == flight]
+        df_new = df_new.append(tdf.sample(n=z).loc[:, 'gt':'alt'], ignore_index=True)
+    code.interact(local=locals()) 
+    df = df_new
+    df = df.sample(frac=1).reset_index(drop=True)
+  
     # create train/test split
     sample_count = len(df)
     split_point = sample_count - sample_count//5
@@ -83,5 +96,6 @@ def make_csv(path):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("50_10000")
+    make_csv("200_78000", 78000)
+
         

@@ -14,7 +14,6 @@ def second_closest_point_baseline(config=None,
     print(f"Measuring baseline accuracy")
     print("--Second-closest point method")
 
-    suffix = dataset_csv.split("/")[1]
     dataset = LidarDataset(dataset_csv, transform=transforms)
 
     dataloader = DataLoader(
@@ -28,7 +27,7 @@ def second_closest_point_baseline(config=None,
     fixed_values = []
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
-            gt, alt, fid, _ = batch
+            gt, alt = batch
 
             # Get intensity of the gt point
             i_gt = gt[:,0,3]
@@ -52,7 +51,7 @@ def second_closest_point_baseline(config=None,
                fixed_values,
                "Ground Truth",
                "Fixed Values",
-               f"results/{suffix}/kde_baseline.png",
+               f"results/kde_baseline.png",
                text=f"MAE: {total_mae_output:.5f}")
 
     print(f"MAE: {total_mae_output}")

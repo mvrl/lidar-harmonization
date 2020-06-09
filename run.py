@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import torch
 from pathlib import Path
-
+import code
 
 from torchvision.transforms import Compose
 
@@ -57,64 +57,51 @@ subparsers = parser.add_subparsers(help='sub-command help')
 
 parser_train = subparsers.add_parser('train', help='train the network')
 parser_train.add_argument('dataset_csv', help='training dataset csv to use')
+parser_train.add_argument('neighborhood_size', help='neighborhood size')
 parser_train.add_argument('-b', '--batch_size', type=int, help='batch size')
 parser_train.add_argument('-e', '--epochs', type=int, help='number of epochs to train')
-parser_train.add_argument('--no-center',
-                          type=str2bool,
-                          nargs='?',
-                          const=True,
-                          default=False,
-                          help="don't pass center point during training")
-parser_train.add_argument('--no-scan-angle',
-                          type=str2bool,
-                          nargs='?',
-                          const=True,
-                          default=False,
-                          help="don't use scan angles or surface normals during training")
+
+parser_train.add_argument(
+        '-d', 
+        '--dual_flight', 
+        type=str2bool, 
+        nargs='?', 
+        const=True,
+        default=False,
+        help="Use dual-flight dataset")
 
 parser_train.set_defaults(func=train,
                           get_dataset=PathFromDataset('train'),
                           config=Config(),
                           transforms=Compose(
                               [LoadNP(),
-                               CloudCenter(),
-                               CloudIntensityClip(max_intensity_bound),
+                               CloudCenter(),                               
                                CloudIntensityNormalize(max_intensity_bound),
                                CloudAugment(),
                                ToTensor()]
                           ),
                           epochs=50,                       
                           phases=["train", "val"],
-                          no_center=False,
-                          no_scan_angle=False)
+                          dual_flight=False)
+
 
 parser_eval = subparsers.add_parser('eval', help='evaluate the network')
-parser_eval.add_argument('state_dict', help='state dictionary for the model')
 parser_eval.add_argument('dataset_csv', help='testing csv to use')
-parser_eval.add_argument('--no-center',
-                         type=str2bool,
-                         nargs='?',
-                         const=True,
-                         default=False,
-                         help="use no-center-point model version")
+parser_eval.add_argument('neighborhood_size', type=int, help='neighborhood size')
 
-parser_eval.add_argument('--no-scan-angle',
-                         type=str2bool,
-                         nargs='?',
-                         const=True,
-                         default=False,
-                         help="use no-scan-angle model version")
-
-parser_eval.set_defaults(func=None,
-                         config=Config(),
-                         get_dataset=PathFromDataset('test'),
-                         transforms=Compose([LoadNP(),
-                                             CloudCenter(),
-                                             CloudIntensityClip(max_intensity_bound),
-                                             CloudIntensityNormalize(max_intensity_bound),
-                                             ToTensor()]),
-                         no_center=False,
-                         no_scan_angle=False)
+parser_eval.set_defaults(
+        func=None,
+        config=Config(),
+        get_dataset=PathFromDataset('test'),
+        get_model=True,
+        transforms=Compose([
+            LoadNP(),
+            CloudCenter(),
+            CloudIntensityNormalize(max_intensity_bound),
+            ToTensor()
+            ]),
+        dual_flight=False
+        )
 
 eval_subparsers = parser_eval.add_subparsers(help='evaluation experiment')
 
@@ -123,19 +110,23 @@ map_parser.set_defaults(func=generate_map,
                         dataset=r"dataset/big_tile/")
 
 acc_parser = eval_subparsers.add_parser('measure_acc', help='meausre accuracy on tileset')
+acc_parser.add_argument(
+        '-d','--dual_flight', type=str2bool,
+        nargs='?', const=True, default=False, help="use dual-flight dataset")
 acc_parser.set_defaults(func=measure_accuracy)
 
 baseline_parser = subparsers.add_parser('baseline', help='measure baseline')
 baseline_parser.add_argument('dataset_csv', help='testing csv to use')
 
-baseline_parser.set_defaults(func=None,
-                             config=Config(),
-                             get_dataset=PathFromDataset('test'),
-                             transforms=Compose([LoadNP(),
-                                                 CloudCenter(),
-                                                 CloudIntensityClip(max_intensity_bound),
-                                                 CloudIntensityNormalize(max_intensity_bound),
-                                                 ToTensor()]))
+baseline_parser.set_defaults(
+        func=None,
+        config=Config(),
+        get_dataset=PathFromDataset('test'),
+        transforms=Compose([
+            LoadNP(),
+            CloudCenter(),         
+            CloudIntensityNormalize(max_intensity_bound),
+            ToTensor()]))
 
 baseline_subparsers = baseline_parser.add_subparsers(help='baseline methods')
 second_closest_point_parser = baseline_subparsers.add_parser(
@@ -155,16 +146,17 @@ del kwargs['func']
 kwargs['dataset_csv'] = kwargs['get_dataset'](kwargs['dataset_csv'])
 del kwargs['get_dataset']
 
-if 'state_dict' in kwargs:
-    mode = ""
-    if kwargs['no_center']:
-        mode += '_nc'
-    if kwargs['no_scan_angle']:
-        mode += '_nsa'
-    m = ModelFromDataset(mode)
-    
-    
-    kwargs['state_dict'] = m(kwargs['state_dict'])
-    del kwargs['no_center']
+if 'get_model' in kwargs:
+    neighborhood_size = kwargs['neighborhood_size']
+    dataset = kwargs['dataset_csv']
+    is_df = kwargs['dual_flight']
+    if is_df and neighborhood_size == 0:
+        model_path = f"results/current/{neighborhood_size}_sf/model.pt" 
+    elif is_df and neighborhood_size > 0:
+        model_path = f"results/current/{neighborhood_size}_df/model.pt"
+    else:
+        model_path = f"results/current/{neighborhood_size}_mf/model.pt"
+    kwargs['state_dict'] = model_path
+    del kwargs['get_model']
 
 func(**kwargs)

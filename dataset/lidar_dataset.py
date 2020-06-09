@@ -17,12 +17,10 @@ class LidarDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        gt, alt, flight_num, flight_path = self.df.iloc[idx, 1:].values
-        
-        sample = (gt, alt, flight_num, flight_path)
+        gt, alt = self.df.iloc[idx, 1:].values
 
         if self.transform:
-            sample = self.transform(sample)
+            sample = self.transform((gt, alt))
 
         return sample
 
