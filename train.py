@@ -91,7 +91,7 @@ def train(config=None,
                             cycle_momentum=False)
 
     metrics = Metrics(["mae"], None, batch_size)
-    
+    flight_metrics = {}    
     for epoch in range(epochs):
         epoch_time = time.time()
         print('\nEpoch {}/{}'.format(epoch+1, epochs)); print('-' * 10)
@@ -123,7 +123,13 @@ def train(config=None,
                 # Extract the pt_src_id 
                 fid = alt[:,:,8][:, 0].long().to(config.device)
                 alt = alt[:,:,:8]  # remove pt_src_id from input feature vector
-                        
+                my_fid = int(fid[0])
+
+                if my_fid not in flight_metrics:
+                    flight_metrics[my_fid] = 0
+                else:
+                    flight_metrics[my_fid] += 1
+
                 alt = alt.transpose(1, 2).to(config.device)
                 
                 optimizer.zero_grad()
@@ -183,7 +189,8 @@ def train(config=None,
 
 
             
-
+    print("Flights we trained on: ")
+    print(f"{flight_metrics}")
     print(f"finished in {time.time() - start_time}")
     print("Training complete")        
 

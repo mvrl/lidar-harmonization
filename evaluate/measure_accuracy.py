@@ -9,8 +9,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torchvision.transforms import Compose
-from util.transforms import CloudNormalizeBD, ToTensorBD
 from dataset.lidar_dataset import LidarDataset
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
@@ -55,7 +53,7 @@ def measure_accuracy(config=None,
         batch_size=100,
         num_workers=config.num_workers,
         drop_last=True)
-
+    fid_values = []
     mae_output = []
     alt_values = []
     fixed_values = []
@@ -72,6 +70,7 @@ def measure_accuracy(config=None,
         for batch_idx, batch in enumerate(dataloader):
             eval_time = time.time()
             gt, alt = batch
+            
             
             # Get the intensity of the ground truth point
             i_gt = gt[:,0,3].to(config.device)
@@ -92,6 +91,8 @@ def measure_accuracy(config=None,
             fid = alt[:, :, 8][:, 0].long().to(config.device)
             alt = alt[:, :, :8]  # remove pt_src_id from input feature vector
             
+            fid_values.append(fid)
+
             gt_values.append(i_gt)
                 
             alt = alt.transpose(1, 2).to(config.device)
@@ -106,6 +107,21 @@ def measure_accuracy(config=None,
     alt_values = np.stack([i.cpu().numpy() for i in alt_values]).flatten()
     gt_values = np.stack([i.cpu().numpy() for i in gt_values]).flatten()
     fixed_values = np.stack([i.cpu().numpy() for i in fixed_values]).flatten()
+
+    fid_values = torch.cat(fid_values).cpu().numpy()
+    flights = {}
+    for i in fid_values:
+        if i not in flights:
+            flights[i] = 0
+        else:
+            flights[i] += 1
+
+    # create bar chart for fid values
+    plt.bar(np.arange(len(flights.keys())), flights.values())
+    plt.xticks(np.arange(len(flights.keys())), flights.keys())
+            
+    plt.savefig(results_path / "fid_distribution.png")
+
     print(f"Alt values: {len(alt_values)}")
     print(f"GT Values: {len(gt_values)}")
     print(f"Fixed values: {len(fixed_values)}")

@@ -16,7 +16,7 @@ def make_csv(path, example_count):
     
     flight_path = [None] * len(gts)
     flight_num = [None] * len(gts)
-    flight_files = [flight for flight in Path(r"dublin_flights").glob("*.npy")]
+    flight_files = [flight for flight in Path(r"dublin_flights/npy").glob("*.npy")]
 
     gt_ordered_list = [None] * len(gts)
     alt_ordered_list = [None] * len(gts)
@@ -33,7 +33,6 @@ def make_csv(path, example_count):
             exit("ERROR: wrong filename")
         else:
             altered = alts[i]
-
         flight_path[i] = (flight_files[int(filename[:filename.find("_")])].absolute())
         gt_ordered_list[i] = gts[i]
         alt_ordered_list[i] = altered
@@ -46,48 +45,33 @@ def make_csv(path, example_count):
     df['alt'] = alt_ordered_list
     df['flight_num'] = flight_num
     df['flight_path_file'] = flight_path
+    df.to_csv(dataset_path / "master.csv")
 
     # Create new dataframe with the ~required number of samples, 
     # evenly sampled from each flight
     #
-    df_new = pd.DataFrame(columns=['gt', 'alt'])
+    df_new = pd.DataFrame(columns=['gt', 'alt', 'flight_num', 'flight_path_file'])
     
     # get a list of unique flights from the dataframe
-    uf = (df.flight_num.unique())
+    uf = df.flight_num.unique()
 
-    # calculate how many samples exist for each flight 
-    remaining_samples = {f:len(df.flight_num[df.flight_num == f]) for f in uf}
-    
-    # estimate the number of samples needed from each flight
-    z = int(example_count//len(remaining_samples))
+    # sample each flight 
+    sample = 8000
 
-    # if a flight doesn't have enough samples, remove it
-    viable_flights = {key: value//z for key,value in remaining_samples.items()}
-    keys_to_remove = []
-    for key,value in viable_flights.items():
-        if value == 0:
-            keys_to_remove.append(key)
-
-    for key in keys_to_remove:
-        del viable_flights[key]
+    for flight in uf:
+        df_flight = df.loc[df['flight_num'] == flight]
+        df_new = df_new.append(df_flight.sample(n=sample), ignore_index=True)
+  
+    df_new = df_new.loc[:, 'gt':'flight_num']
     
-    viable_flights = list(viable_flights.keys())
-    
-    # sample from the list of viable flights,
-    # create a new dataframe to hold this data
-    for flight in viable_flights:
-        tdf = df[df.flight_num == flight]
-        df_new = df_new.append(tdf.sample(n=z).loc[:, 'gt':'alt'], ignore_index=True)
-    code.interact(local=locals()) 
     df = df_new
     df = df.sample(frac=1).reset_index(drop=True)
-  
+    print(df.columns) 
     # create train/test split
     sample_count = len(df)
     split_point = sample_count - sample_count//5
-    print(f"split point: {split_point}")
-    df_train = df.iloc[:split_point, :]
-    df_test = df.iloc[split_point:, :]
+    df_train = df.iloc[:split_point, :].reset_index(drop=True)
+    df_test = df.iloc[split_point:, :].reset_index(drop=True)
 
     df_train.to_csv(dataset_path / "train_dataset.csv")
     df_test.to_csv(dataset_path / "test_dataset.csv")
@@ -96,6 +80,6 @@ def make_csv(path, example_count):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("200_78000", 78000)
+    make_csv("150_190000", 8000)
 
         

@@ -17,7 +17,7 @@ class LidarDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        gt, alt = self.df.iloc[idx, 1:].values
+        gt, alt, _ = self.df.iloc[idx, 1:].values
 
         if self.transform:
             sample = self.transform((gt, alt))
@@ -25,16 +25,16 @@ class LidarDataset(Dataset):
         return sample
 
 class BigMapDataset(Dataset):
-    def __init__(self, clouds, flight_ids, transform=None):
-        self.clouds = clouds
-        self.flight_ids = flight_ids
+    def __init__(self, gt_cloud, alt_cloud, transform=None):
+        self.gt_cloud = gt_cloud
+        self.alt_cloud = alt_cloud
         self.transform = transform
 
     def __len__(self):
-        return len(self.flight_ids)
+        return len(self.gt_cloud)
 
     def __getitem__(self, idx):
-        sample = (self.clouds[idx], self.flight_ids[idx])
+        sample = self.gt_cloud[idx], self.alt_cloud[idx]
         if self.transform:
             sample = self.transform(sample)
 

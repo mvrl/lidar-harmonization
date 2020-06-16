@@ -9,7 +9,7 @@ from torchvision.transforms import Compose
 from train import train
 from evaluate.generate_map import generate_map
 from evaluate.measure_accuracy import measure_accuracy
-from evaluate.baseline import second_closest_point_baseline
+from evaluate.baseline import second_closest_point_baseline, average_points_baseline
 from config import Config
 from util.transforms import *
 
@@ -86,14 +86,10 @@ parser_train.set_defaults(func=train,
 
 
 parser_eval = subparsers.add_parser('eval', help='evaluate the network')
-parser_eval.add_argument('dataset_csv', help='testing csv to use')
 parser_eval.add_argument('neighborhood_size', type=int, help='neighborhood size')
-
 parser_eval.set_defaults(
         func=None,
         config=Config(),
-        get_dataset=PathFromDataset('test'),
-        get_model=True,
         transforms=Compose([
             LoadNP(),
             CloudCenter(),
@@ -103,17 +99,22 @@ parser_eval.set_defaults(
         dual_flight=False
         )
 
-eval_subparsers = parser_eval.add_subparsers(help='evaluation experiment')
+eval_subparsers = parser_eval.add_subparsers(help='evaluation experiments')
 
 map_parser = eval_subparsers.add_parser('gen_map', help="create big map")
+map_parser.add_argument('state_dict', help="model to use for map harmonization")
 map_parser.set_defaults(func=generate_map,
-                        dataset=r"dataset/big_tile/")
+                        tileset_directory=r"dataset/big_tile/")
 
 acc_parser = eval_subparsers.add_parser('measure_acc', help='meausre accuracy on tileset')
+acc_parser.add_argument('dataset_csv', help='testing csv to use')
 acc_parser.add_argument(
         '-d','--dual_flight', type=str2bool,
         nargs='?', const=True, default=False, help="use dual-flight dataset")
-acc_parser.set_defaults(func=measure_accuracy)
+acc_parser.set_defaults(
+        func=measure_accuracy,
+        get_model=True,
+        get_dataset=PathFromDataset('test'))
 
 baseline_parser = subparsers.add_parser('baseline', help='measure baseline')
 baseline_parser.add_argument('dataset_csv', help='testing csv to use')
@@ -134,8 +135,15 @@ second_closest_point_parser = baseline_subparsers.add_parser(
     help='baseline with second closest point')
 
 second_closest_point_parser.set_defaults(func=second_closest_point_baseline)
-args = parser.parse_args()
 
+average_points_parser = baseline_subparsers.add_parser(
+        "average_neighborhood", help="baseline via averaging")
+average_points_parser.add_argument("neighborhood_size", type=int, help="neighborhood size")
+average_points_parser.set_defaults(func=average_points_baseline)
+
+
+
+args = parser.parse_args()
 
 # handle various options before submitting to function
 kwargs = vars(args)
@@ -143,8 +151,9 @@ print(kwargs)
 func = kwargs['func']
 del kwargs['func']
 
-kwargs['dataset_csv'] = kwargs['get_dataset'](kwargs['dataset_csv'])
-del kwargs['get_dataset']
+if 'dataset_csv' in kwargs:
+    kwargs['dataset_csv'] = kwargs['get_dataset'](kwargs['dataset_csv'])
+    del kwargs['get_dataset']
 
 if 'get_model' in kwargs:
     neighborhood_size = kwargs['neighborhood_size']

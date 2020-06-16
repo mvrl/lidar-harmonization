@@ -13,8 +13,8 @@ def make_dataset(neighborhood_size, example_count,  sample_size, output_suffix="
                    sanity_check=False)
 
     
-    create_altered_tiles(f"{neighborhood_size}_{example_count}{output_suffix}",
-                         random_mapping())
+    # create_altered_tiles(f"{neighborhood_size}_{example_count}{output_suffix}",
+#                         random_mapping())
 
     make_csv(f"{neighborhood_size}_{example_count}{output_suffix}", example_count)
 

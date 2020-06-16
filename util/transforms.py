@@ -35,20 +35,7 @@ class ToTensor(object):
         gt, alt = sample
         return (torch.from_numpy(gt),
                 torch.from_numpy(alt))
-
-class ToTensorBD(object):
-    def __call__(self, sample):
-        cloud, flight_ids = sample
-        return (torch.from_numpy(cloud), torch.tensor(flight_ids))
-
-    
-class CloudNormalizeBD(object):
-    def __call__(self, sample):
-        cloud, flight_id = sample
-        centered_cloud = np.copy(cloud)
-        centered_cloud[:,:3] = cloud[:,:3] - cloud[0][:3]
-        return (centered_cloud, flight_id)
-
+        
     
 class CloudAugment(object):
     def __init__(self):
