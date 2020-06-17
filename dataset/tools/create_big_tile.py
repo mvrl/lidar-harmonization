@@ -2,6 +2,8 @@ import time
 import code
 import json
 import numpy as np
+from util.metrics import create_kde
+print("got metrics")
 from pathlib import Path
 from pptk import kdtree, viewer
 import matplotlib.pyplot as plt
@@ -61,6 +63,7 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     plt.margins(y=0)
     plt.title("Response function on the big tile")
     plt.savefig("big_tile/response_plot_bt.png")
+    print("Saved response plot")
 
     flight1 = np.load(laz_files_path / (str(base_flight)+".npy"))
     print(f"Loaded flight {flight1[0, 8]}")
@@ -91,12 +94,15 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
    
     
     sample = np.random.choice(len(tile_f2), size=5000)
-    print(sample.shape)
-    print(tile_f2.shape)
-    print("making graph")
-    plt.scatter(tile_f2[sample][:, 3], tile_f2_alt[sample][:, 3])
-    plt.savefig("gt_vs_alt_bt.png")
-
+    create_kde(
+            tile_f2[sample][:, 3],
+            tile_f2_alt[sample][:, 3],
+            "ground truth",
+            "altered values",
+            "big_tile/post_response_curve.png")
+            
+    print("Created post response curve kde")  # check
+    
     attr1 = tile[:, 3]
     attr2 = tile[:, 8]
     attr3 = np.concatenate((tile_f1[:, 3], tile_f2_alt[:, 3]))
@@ -108,6 +114,9 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
         attr4 = np.concatenate((tile_f1[:, 3], fixed_tile[:, 3]*512))
         print("Loaded fixed tile!")
         v.attributes(attr1, attr2, attr3, attr4)
+        v.set(bg_color=(1,1,1,1))
+        v.set(show_axis=False, show_grid=False, show_info=False)
+
 
     else:
         v.attributes(attr1, attr2, attr3)
