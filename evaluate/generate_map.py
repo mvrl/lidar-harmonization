@@ -48,8 +48,16 @@ def generate_map(config=None,
         ToTensor()])
     
     big_tile_alt_ = np.load("dataset/big_tile/big_tile_alt.npy")
-    big_tile_gt = np.load("dataset/big_tile/big_tile_gt.npy")
+    big_tile_gt_ = np.load("dataset/big_tile/big_tile_gt.npy")
     
+    sample = np.random.choice(len(big_tile_gt_[:, 3]), size=5000)
+    create_kde(
+            big_tile_gt_[sample][:, 3],
+            big_tile_alt_[sample][:, 3],
+            "pre ground truth",
+            "pre altered values",
+            "results/big_tile/gen_map_kde_pre_alt_vs_gt.png")
+    print("Saved pre-generation measured response curve")  # check
     kd = kdtree._build(big_tile_alt_[:, :3])  # build tree
 
     # query every point for its 10 nearest neighbors
@@ -60,9 +68,27 @@ def generate_map(config=None,
             big_tile_alt_[:, :3], 
             k=neighborhood_size)
 
-    big_tile_alt = big_tile_alt_[query]
-    big_tile_gt = big_tile_gt[query]
+    # only some points have 10 neighbors within dmax, lowering 
+    # dmax may increase accuracy of qualitative evaluation, but
+    # less points will be evaluated overall. 
+    my_query = []
+    for i in query:
+        if len(i) == 10:
+            my_query.append(i)
     
+    good_sample_ratio = ((len(query) - len(my_query))/len(query)) * 100
+    print(f"Found {good_sample_ratio} percent of points with not enough close neighbors!")
+    query = my_query
+
+    # get neighborhoods
+    big_tile_alt = big_tile_alt_[query]
+    big_tile_gt = big_tile_gt_[query]
+
+    # realign gt and alt with query
+    big_tile_alt_ = big_tile_alt[:, 0, :]
+    big_tile_gt_ = big_tile_gt[:, 0, :]
+
+   
     dataset = BigMapDataset(big_tile_gt, big_tile_alt, transform=transform)
     dataloader = DataLoader(
             dataset,
@@ -104,42 +130,62 @@ def generate_map(config=None,
             print(f"[{batch_idx}/{max_batch}: MAE: {mae}")
             fix_values.append(output)
             
-    
-    code.interact(local=locals())
     # create kde plots
     
     count = len(alt_values)
     indices = np.arange(count)
     my_indices = np.random.choice(indices, size=5000)
 
-    alt_values = torch.cat(alt_values).cpu().numpy()[my_indices]
-    gt_values = torch.cat(gt_values).cpu().numpy()[my_indices]
-    fix_values = torch.cat(fix_values).cpu().numpy()[my_indices]
+    alt_values = torch.cat(alt_values).cpu().numpy()
+    gt_values = torch.cat(gt_values).cpu().numpy()
+    fix_values = torch.cat(fix_values).cpu().numpy() * 512
 
     final_mae = torch.mean(torch.tensor(mae_values)).item()
 
     # altered vs gt
-    create_kde(gt_values,
-            alt_values,
+    create_kde(gt_values[my_indices],
+            alt_values[my_indices],
             "ground truth",
             "altered values",
             "results/big_tile/gen_map_kde_alt_vs_gt.png")
 
     # fixed vs gt
-    create_kde(gt_values,
-            fix_values,
+    create_kde(gt_values[my_indices],
+            fix_values[my_indices],
             "ground truth",
             "fixed values",
             "results/big_tile/gen_map_kde_evaluation.png",
             text=f"MAE: {final_mae}")
 
     
-
-    code.interact(local=locals())
-    fix_values = torch.cat(fix_values)
     big_tile_alt_fixed = big_tile_alt_.copy()
-    big_tile_alt_fixed[:, 3] = fix_values.cpu().numpy()
+    big_tile_alt_fixed[:, 3] = fix_values
     np.save("dataset/big_tile/big_tile_alt_fixed.npy", big_tile_alt_fixed)
-
-
+    print("Saved the fixed point cloud!")
     
+    # Generate fixed version
+    print("Generating view...")
+    base_flight_tile = np.load("dataset/big_tile/base_flight_tile.npy")
+
+    # spatial dimensions
+    tile = np.concatenate((base_flight_tile, big_tile_gt_))
+    v = viewer(tile[:, :3])
+
+    # attributes
+    attr0 = tile[:, 8]  # flight numbers
+    attr1 = tile[:, 3]  # ground truth
+    attr2 = np.concatenate((base_flight_tile[:, 3], big_tile_alt_[:, 3])) # alt 
+    attr3 = np.concatenate((base_flight_tile[:, 3], big_tile_alt_fixed[:, 3])) # fix
+
+    v.attributes(attr0, attr1, attr2, attr3)
+    v.set(bg_color=(1,1,1,1), show_axis=False, show_grid=False, show_info=False)
+    v.set(lookat=(316330.094, 234122.562, 6.368))
+    v.set(phi=-1.57079637, theta=1.57079637, r=170.17500305)
+    v.capture("results/big_tile/0_flights.png")
+    v.set(curr_attribute_id=1)
+    v.capture("results/big_tile/3_gt_comparison.png")
+    v.set(curr_attribute_id=2)
+    v.capture("results/big_tile/1_alt_comparison.png")
+    v.set(curr_attribute_id=3)
+    v.capture("results/big_tile/2_fixed_comparison.png")
+    v.close()
