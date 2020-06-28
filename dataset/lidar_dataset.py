@@ -17,7 +17,11 @@ class LidarDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        gt, alt, _ = self.df.iloc[idx, 1:].values
+        batch = self.df.iloc[idx, 1:].values
+        if len(batch) == 3:
+            gt, alt, _ = self.df.iloc[idx, 1:].values
+        else:
+            gt, alt = self.df.iloc[idx, 1:].values
 
         if self.transform:
             sample = self.transform((gt, alt))

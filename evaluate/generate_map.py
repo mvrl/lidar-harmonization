@@ -10,7 +10,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from torchvision.transforms import Compose
-from util.transforms import CloudCenter, ToTensor, CloudIntensityNormalize
+from util.transforms import CloudCenter, ToTensor, CloudIntensityNormalize, LoadNP
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import matplotlib
@@ -18,12 +18,12 @@ matplotlib.use('Agg')
 from scipy.stats import gaussian_kde
 
 from pptk import kdtree, viewer
-from laspy.file import File
-from util.apply_rf import apply_rf
+
+
 from util.metrics import create_kde
 
 from model import IntensityNet
-from dataset.lidar_dataset import BigMapDataset
+from dataset.lidar_dataset import LidarDataset
 
 import resource
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -42,82 +42,48 @@ def generate_map(config=None,
     model.load_state_dict(torch.load(state_dict))
     model.eval()
 
+    batch_size = 1000
     transform = Compose([
+        LoadNP(),
         CloudCenter(), 
         CloudIntensityNormalize(512), 
         ToTensor()])
     
-    big_tile_alt_ = np.load("dataset/big_tile/big_tile_alt.npy")
-    big_tile_gt_ = np.load("dataset/big_tile/big_tile_gt.npy")
+    dataset = LidarDataset("dataset/big_tile/big_tile_dataset.csv", transform=transform)
     
-    sample = np.random.choice(len(big_tile_gt_[:, 3]), size=5000)
-    create_kde(
-            big_tile_gt_[sample][:, 3],
-            big_tile_alt_[sample][:, 3],
-            "pre ground truth",
-            "pre altered values",
-            "results/big_tile/gen_map_kde_pre_alt_vs_gt.png")
-    print("Saved pre-generation measured response curve")  # check
-    kd = kdtree._build(big_tile_alt_[:, :3])  # build tree
-
-    # query every point for its 10 nearest neighbors
-    # Note: we add one to the neighborhood size since 
-    #   the query point will be included in the query
-    query = kdtree._query(
-            kd, 
-            big_tile_alt_[:, :3], 
-            k=neighborhood_size)
-
-    # only some points have 10 neighbors within dmax, lowering 
-    # dmax may increase accuracy of qualitative evaluation, but
-    # less points will be evaluated overall. 
-    my_query = []
-    for i in query:
-        if len(i) == 10:
-            my_query.append(i)
-    
-    good_sample_ratio = ((len(query) - len(my_query))/len(query)) * 100
-    print(f"Found {good_sample_ratio} percent of points with not enough close neighbors!")
-    query = my_query
-
-    # get neighborhoods
-    big_tile_alt = big_tile_alt_[query]
-    big_tile_gt = big_tile_gt_[query]
-
-    # realign gt and alt with query
-    big_tile_alt_ = big_tile_alt[:, 0, :]
-    big_tile_gt_ = big_tile_gt[:, 0, :]
-
-   
-    dataset = BigMapDataset(big_tile_gt, big_tile_alt, transform=transform)
     dataloader = DataLoader(
             dataset,
-            batch_size=1000,
+            batch_size=batch_size,
             num_workers=config.num_workers)
 
     fix_values = []
+    fix_tile = []
     alt_values = []
     gt_values = []
     mae_values = []
+    fid_values = []
+
     print(f"starting inference for tileset of length {len(dataset)}")
-    print(f"batch_size = 1000")
-    print(f"number of iterations = {len(dataset)/1000}")
-    max_batch = len(dataset)//1000
+    print(f"batch_size = {batch_size}")
+    print(f"number of iterations = {len(dataset)/batch_size}")
+    max_batch = len(dataset)//batch_size
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
             gt, alt = batch
+            sample = np.random.choice(len(gt), size=batch_size//4)
 
             # get center point true intensity
             i_gt = gt[:, 0, 3]
-            gt_values.append(i_gt)
+            gt_values.append(i_gt[sample])
             
             # extract pt_src_id information
-            fid = alt[:, :, 8][:, 0].long().to(config.device)
+            fid = alt[:, :, 8][:, 0]
+            fid_values.append(fid[sample])
+            fid = fid.long().to(config.device)
 
-            # remove pt_src_id column
-            # centerpoint stays as it is a real test value
-            alt_values.append(alt[:, 0, 3])
-            alt = alt[:, 1:, :8]
+            # centerpoint stays for qualitative evaluation as it is a real value
+            alt_values.append(alt[:, 0, 3][sample])
+            alt = alt[:, 0:, :8]
             
             # put channels first
             alt = alt.transpose(1, 2).to(config.device)
@@ -128,7 +94,10 @@ def generate_map(config=None,
             mae = torch.mean(torch.abs(output - i_gt.to(config.device))).item()
             mae_values.append(mae)
             print(f"[{batch_idx}/{max_batch}: MAE: {mae}")
-            fix_values.append(output)
+            fix = gt.clone()[:, 0, :]
+            fix[:, 3] = output
+            fix_values.append(output[sample])
+            fix_tile.append(fix)
             
     # create kde plots
     
@@ -138,7 +107,8 @@ def generate_map(config=None,
 
     alt_values = torch.cat(alt_values).cpu().numpy()
     gt_values = torch.cat(gt_values).cpu().numpy()
-    fix_values = torch.cat(fix_values).cpu().numpy() * 512
+    fix_values = torch.cat(fix_values).cpu().numpy()
+    fid_values = torch.cat(fid_values).cpu().numpy()
 
     final_mae = torch.mean(torch.tensor(mae_values)).item()
 
@@ -157,10 +127,25 @@ def generate_map(config=None,
             "results/big_tile/gen_map_kde_evaluation.png",
             text=f"MAE: {final_mae}")
 
+    # bar plot for fid values
+    flights = {}
+    for i in fid_values:
+        if i not in flights:
+            flights[i] = 0
+        else:
+            flights[i] += 1
+
+    plt.bar(np.arange(len(flights.keys())), flights.values())
+    plt.xticks(np.arange(len(flights.keys())), flights.keys())
+    plt.savefig("results/big_tile/fid_distribution.png")
+
+    # load in tile assets
+    big_tile_gt = np.load("dataset/big_tile/big_tile_gt.npy")
+    big_tile_alt = np.load("dataset/big_tile/big_tile_alt.npy")
+    big_tile_fix = torch.cat(fix_tile).cpu().numpy()
     
-    big_tile_alt_fixed = big_tile_alt_.copy()
-    big_tile_alt_fixed[:, 3] = fix_values
-    np.save("dataset/big_tile/big_tile_alt_fixed.npy", big_tile_alt_fixed)
+    big_tile_fix[:, 3] *= 512 # scale intensity to 0-512
+    np.save("dataset/big_tile/big_tile_alt_fixed.npy", big_tile_fix)
     print("Saved the fixed point cloud!")
     
     # Generate fixed version
@@ -168,14 +153,14 @@ def generate_map(config=None,
     base_flight_tile = np.load("dataset/big_tile/base_flight_tile.npy")
 
     # spatial dimensions
-    tile = np.concatenate((base_flight_tile, big_tile_gt_))
+    tile = np.concatenate((base_flight_tile, big_tile_gt))
     v = viewer(tile[:, :3])
 
     # attributes
     attr0 = tile[:, 8]  # flight numbers
     attr1 = tile[:, 3]  # ground truth
-    attr2 = np.concatenate((base_flight_tile[:, 3], big_tile_alt_[:, 3])) # alt 
-    attr3 = np.concatenate((base_flight_tile[:, 3], big_tile_alt_fixed[:, 3])) # fix
+    attr2 = np.concatenate((base_flight_tile[:, 3], big_tile_alt[:, 3])) # alt 
+    attr3 = np.concatenate((base_flight_tile[:, 3], big_tile_fix[:, 3])) # fix
 
     v.attributes(attr0, attr1, attr2, attr3)
     v.set(bg_color=(1,1,1,1), show_axis=False, show_grid=False, show_info=False)
@@ -188,4 +173,5 @@ def generate_map(config=None,
     v.capture("results/big_tile/1_alt_comparison.png")
     v.set(curr_attribute_id=3)
     v.capture("results/big_tile/2_fixed_comparison.png")
+    code.interact(local=locals())
     v.close()

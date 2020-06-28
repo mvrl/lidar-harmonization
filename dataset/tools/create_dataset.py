@@ -113,7 +113,9 @@ def create_dataset(path,
         for idx, query in enumerate(queries):  # only get full neighborhoods
             if len(query) == neighborhood_size:
                 fi_query = fi[query]
-
+                target_point = f1_sample[idx]
+                target_intensity = int(target_point[3])
+                
                 if sanity_check:
                     check = np.linalg.norm(f1_sample[idx][:3] - fi_query[:,:3])
                     if check.any() > 1:
@@ -123,7 +125,7 @@ def create_dataset(path,
                     (np.expand_dims(f1_sample[idx], 0), fi_query)
                 )   
         
-                np.save(gt_path / f"{flight_num}_{idx_count}.npy", sample)
+                np.save(gt_path / f"{flight_num}_{str(target_intensity)}_{idx_count}.npy", sample)
                 altered_sample = apply_rf(
                         "dorfCurves.json", 
                         sample, 
@@ -131,7 +133,7 @@ def create_dataset(path,
                         512,
                         rf_data=rf_data)
 
-                np.save(alt_path / f"{flight_num}_{idx_count}.npy", altered_sample)
+                np.save(alt_path / f"{flight_num}_{str(target_intensity)}_{idx_count}.npy", altered_sample)
 
                 idx_count += 1
                 flight_counts[flight_num] += 1

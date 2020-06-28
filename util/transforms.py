@@ -37,7 +37,8 @@ class ToTensor(object):
                 torch.from_numpy(alt))
         
     
-class CloudAugment(object):
+class CloudRotate(object):
+    # https://en.wikipedia.org/wiki/Rotation_matrix#In_three_dimensions
     def __init__(self):
         pass
 
@@ -46,31 +47,32 @@ class CloudAugment(object):
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
-        rotation_matrix = np.array([[cosval, 0, sinval],
-                                    [0, 1, 0],
-                                    [-sinval, 0, cosval]])
+        rotation_matrix = np.array([[cosval, -sinval, 0],
+                                    [sinval, cosval, 0],
+                                    [0, 0, 1]])
         gt[:,:3] = np.dot(gt[:,:3], rotation_matrix)
         alt[:,:3] = np.dot(alt[:,:3], rotation_matrix)
         
         return (gt, alt)
 
 
-# not implemented below this point 
 class CloudJitter(object):
     def __init__(self, sigma=0.01, clip=0.05):
         self.sigma = sigma
         self.clip = clip
 
     def __call__(self, sample):
-        gt, alt, num, path = sample
+        gt, alt = sample
         jittered_data = np.clip(
             self.sigma*np.random.randn(
                  gt.shape[0], 3),
             -1*self.clip,
             self.clip)
         
-        cloud[:3,:] = jittered_data + cloud[:3,:]
-        return cloud
+        gt[:,:3] += jittered_data
+        alt[:, :3] += jittered_data
+        
+        return (gt, alt)
 
     
 

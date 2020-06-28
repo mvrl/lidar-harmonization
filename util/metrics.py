@@ -18,13 +18,18 @@ def mae(predictions, targets):
     mae = torch.mean(torch.abs(targets - predictions))
     return mae
 
-def create_kde(x, y, xlabel, ylabel, output_path, sample_ratio=1, text=None):
+def create_kde(x, y, xlabel, ylabel, output_path, sample_size=5000, text=None):
     x = torch_to_numpy(x)
     y = torch_to_numpy(y)
-
+    if sample_size and len(x) > sample_size:
+        sample = np.random.choice(len(x), size=sample_size)
+        x = x[sample]
+        y = y[sample]
     xy = np.vstack([y, x])
     z = gaussian_kde(xy)(xy)
-    N = 50
+    
+    idx = z.argsort()
+    x, y, z = x[idx], y[idx], z[idx]
 
     fig, ax = plt.subplots()
     ax.scatter(x, y, c=z, s=10, edgecolor='')

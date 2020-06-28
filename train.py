@@ -16,6 +16,7 @@ from util.visdomviewer import VisdomLinePlotter
 def train(config=None,
           dataset_csv=None,
           transforms=None,
+          val_transforms=None,
           neighborhood_size=None,
           epochs=None,
           batch_size=None,
@@ -25,13 +26,13 @@ def train(config=None,
     
     start_time = time.time()
     if dual_flight:
-        dataset_csv = dataset_csv[:-4] + "_df" + ".csv"
-    dataset = LidarDataset(dataset_csv, transform=transforms)
+        dataset_csv = dataset_csv[:-4] + "_df.csv"
+        
+    dataset = {}
+    dataset['train'] = LidarDataset(dataset_csv, transform=transforms)
     input_features=8
     neighborhood_size = int(neighborhood_size)
-    sample_count = len(dataset)
-    indices_list = list(range(sample_count))
-    indices = {}
+    
 
     if neighborhood_size == 0:
         save_suffix = "_sf"
@@ -43,21 +44,21 @@ def train(config=None,
         exit("ERROR: this does not appear to be a valid configuration, check neighborhood size: {neighborhood_size} and dual_flight: {dual_flight}")
     
     # FUTURE: it might be useful to have a way to only include specific input
-    #tfor comparison purposes
+    # for comparison purposes
     
     results_path = Path(f"results/current/{neighborhood_size}{save_suffix}")
     results_path.mkdir(parents=True, exist_ok=True)
-    plotter = VisdomLinePlotter(f"{neighborhood_size}{save_suffix}")
+    # plotter = VisdomLinePlotter(f"{neighborhood_size}{save_suffix}")
         
-
+    indices = {}
     if "val" in phases:
-        split = sample_count // 5
-        indices['val'] = np.random.choice(indices_list, size=split, replace=False)
-        indices['train'] = list(set(indices_list) - set(indices['val']))
+        val_dataset_csv = Path(dataset_csv).parents[0] / "val_dataset.csv"
+        if dual_flight:
+            val_dataset_csv = str(val_dataset_csv)[:-4] + "_df.csv"
+        print(f"Loading validation dataset: {str(val_dataset_csv)}")
+        dataset['val']= LidarDataset(val_dataset_csv, transform=val_transforms)
 
-    else:
-        indices['train'] = indices_list
-    
+    indices = {phase: list(range(len(dataset[phase]))) for phase in phases}
     dataset_sizes = {phase : len(indices[phase]) for phase in phases}
     for phase in phases:
         print(f"{phase.capitalize()} samples: {dataset_sizes[phase]} => "
@@ -66,7 +67,7 @@ def train(config=None,
     samplers = {phase : SubsetRandomSampler(indices[phase]) for phase in phases}
     dataloaders = {
         phase : DataLoader(
-            dataset,
+            dataset[phase],
             batch_size=batch_size,
             num_workers=config.num_workers,
             sampler=sampler,
@@ -143,16 +144,16 @@ def train(config=None,
                         loss.backward()
                         optimizer.step()
                         lr_scheduler.step()
-                        plotter.plot('lr',
-                                     'val',
-                                     'Learning Rate',
-                                     iterations,
-                                     lr_scheduler.get_lr()[0])            
+                        # plotter.plot('lr',
+                        #             'val',
+                        #             'Learning Rate',
+                        #             iterations,
+                        #             lr_scheduler.get_lr()[0])            
     
                 running_loss += loss.item()*x.shape[0]
                 total += x.size(0)
 
-                if batch_idx % ((len(samplers[phase])/batch_size)//10) == 0:
+                if batch_idx % ((len(samplers[phase])/batch_size)//3) == 0:
                     metrics.compute_metrics()
                     # code.interact(local=locals())
                     print(f"[{batch_idx}/{len(dataloaders[phase])}] "
@@ -176,12 +177,13 @@ def train(config=None,
 
                     create_kde(metrics.targ_,
                                metrics.pred_,
-                               "ground truths",
+                               f"ground truths, N = {neighborhood_size}",
                                "predictions",
-                               results_path / f"kde_validation{save_suffix}.png")
+                               results_path / f"kde_validation{save_suffix}.png",
+                               text=metrics.metrics['mae'].item())
 
                     
-            plotter.plot(f"{phase}_loss",'val',f"{phase.capitalize()} Loss", epoch, running_loss)
+           # plotter.plot(f"{phase}_loss",'val',f"{phase.capitalize()} Loss", epoch, running_loss)
 
 
         print(f"Epoch finished in {(time.time() - epoch_time):.3f} seconds")

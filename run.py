@@ -77,9 +77,15 @@ parser_train.set_defaults(func=train,
                               [LoadNP(),
                                CloudCenter(),                               
                                CloudIntensityNormalize(max_intensity_bound),
-                               CloudAugment(),
+                               # CloudRotate(),
+                               CloudJitter(),
                                ToTensor()]
                           ),
+                          val_transforms=Compose([
+                              LoadNP(),
+                              CloudCenter(),
+                              CloudIntensityNormalize(max_intensity_bound),
+                              ToTensor()]),                            
                           epochs=50,                       
                           phases=["train", "val"],
                           dual_flight=False)

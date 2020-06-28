@@ -142,16 +142,14 @@ if __name__=='__main__':
     
     # Create a big tile with manual point input
     create_big_tile_manual('dublin_flights/npy', 1, 37, 
-    #        np.array([[316300.656, 234122.562, 6.368]]))
+           np.array([[316340.656, 234122.562, 6.368]]))
     
-      np.array([[316330.094, 234151.875, 2.642]]))
-    
-    exit()
+    # exit()
     # Show the overlapping flights over flight 1
-    visualize_n_flights(
-            'dublin_flights/npy', 
-             # [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39]))
-             [1, 37], sample_size=None)
+    # visualize_n_flights(
+    #        'dublin_flights/npy', 
+    #         [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
+    #         [1, 37], sample_size=None)
 
     
                  
