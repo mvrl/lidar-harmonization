@@ -77,8 +77,6 @@ parser_train.set_defaults(func=train,
                               [LoadNP(),
                                CloudCenter(),                               
                                CloudIntensityNormalize(max_intensity_bound),
-                               # CloudRotate(),
-                               CloudJitter(),
                                ToTensor()]
                           ),
                           val_transforms=Compose([
@@ -100,10 +98,10 @@ parser_eval.set_defaults(
             LoadNP(),
             CloudCenter(),
             CloudIntensityNormalize(max_intensity_bound),
-            ToTensor()
-            ]),
+            ToTensor()]
+        ),
         dual_flight=False
-        )
+    )
 
 eval_subparsers = parser_eval.add_subparsers(help='evaluation experiments')
 

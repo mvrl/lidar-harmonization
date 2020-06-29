@@ -108,18 +108,17 @@ def train(config=None,
 
             for batch_idx, batch in enumerate(dataloaders[phase]):
                 train_time = time.time()
-                gt, alt = batch
-
+                
                 # Get the intensity of the ground truth point
-                i_gt = gt[:,0,3].to(config.device)
+                i_gt = batch[:,0,3].to(config.device)
 
                 if neighborhood_size == 0:
                     # the altered flight is just an altered copy of the gt center
-                    alt = alt[:, 0, :]
+                    alt = batch[:, 0, :]  # this is broken atm
                     alt = alt.unsqueeze(1)
                 else:
                     # chop out the ground truth and only take the neighborhood
-                    alt = alt[:, 1:neighborhood_size+1, :]
+                    alt = batch[:, 1:neighborhood_size+1, :]
 
                 # Extract the pt_src_id 
                 fid = alt[:,:,8][:, 0].long().to(config.device)

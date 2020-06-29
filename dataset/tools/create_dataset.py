@@ -41,7 +41,6 @@ def create_dataset(path,
     mapping = load_mapping() # random_mapping()
     flight_counts = {}  
 
-
     # get flight path files:
     laz_files_path = Path(path)
 
@@ -50,15 +49,12 @@ def create_dataset(path,
     # save path
     save_path = Path(r"%s_%s%s/" % (neighborhood_size, example_count, output_suffix))
     save_path.mkdir(parents=True, exist_ok=True)
-    gt_path = save_path / "gt"
-    alt_path = save_path / "alt"
-    gt_path.mkdir(parents=True, exist_ok=True)
-    alt_path.mkdir(parents=True, exist_ok=True)
-
+    example_path = save_path / "neighborhoods"
+    
+    example_path.mkdir(parents=True, exist_ok=True)
     print(f"Created path: {save_path}")
 
-    # plot the response functions
-    
+    # plot the response functions    
     for f in contains_flights:
         x = np.linspace(0, 1, 1000)
         m = mapping[f]
@@ -115,25 +111,25 @@ def create_dataset(path,
                 fi_query = fi[query]
                 target_point = f1_sample[idx]
                 target_intensity = int(target_point[3])
-                
-                if sanity_check:
-                    check = np.linalg.norm(f1_sample[idx][:3] - fi_query[:,:3])
-                    if check.any() > 1:
-                        print("ERROR: points too far away")
-                
-                sample = np.concatenate(
-                    (np.expand_dims(f1_sample[idx], 0), fi_query)
-                )   
-        
-                np.save(gt_path / f"{flight_num}_{str(target_intensity)}_{idx_count}.npy", sample)
-                altered_sample = apply_rf(
+                ground_truth = np.concatenate(
+                        (np.expand_dims(target_point, 0), fi_query))
+                alteration = apply_rf(
                         "dorfCurves.json", 
-                        sample, 
+                        ground_truth, 
                         mapping[flight_num],
                         512,
                         rf_data=rf_data)
+               
+                
+                alteration = np.concatenate(
+                    (np.expand_dims(target_point, 0), fi_query)
+                )   
 
-                np.save(alt_path / f"{flight_num}_{str(target_intensity)}_{idx_count}.npy", altered_sample)
+                # Alteration will be of size (152, 9), with index=0 being
+                # the ground truth target center, and index=1 being the 
+                # altered copy of g.t. target center.
+
+                np.save(example_path / f"{flight_num}_{str(target_intensity)}_{idx_count}.npy", alteration)
 
                 idx_count += 1
                 flight_counts[flight_num] += 1
@@ -151,7 +147,6 @@ def create_dataset(path,
     print(f"finished in {time.time() - start_time} seconds")        
 
 if __name__ == '__main__':
-    import argparse
     
     create_dataset('dublin_flights/npy',
                    150,

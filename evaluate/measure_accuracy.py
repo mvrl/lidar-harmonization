@@ -34,6 +34,7 @@ def measure_accuracy(config=None,
                      **kwargs):
 
     print(f"measuring accuracy on {dataset_csv}")
+    print(f"using model {state_dict}")
     if dual_flight:
         dataset_csv = dataset_csv[:-4] + "_df.csv"
     dataset = LidarDataset(dataset_csv, transform=transforms)
@@ -68,24 +69,19 @@ def measure_accuracy(config=None,
     
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
-            eval_time = time.time()
-            gt, alt = batch
-            
+            eval_time = time.time()          
             
             # Get the intensity of the ground truth point
-            i_gt = gt[:,0,3].to(config.device)
-            alt_values.append(alt[:, 0, 3]) # save it for later
+            i_gt = batch[:,0,3].to(config.device)
+            alt_values.append(batch[:, 0, 3]) # save it for later
             
             if neighborhood_size == 0:
                 # the altered flight is just a copy of the gt center
-                alt = alt[:, 0, :]
+                alt = batch[:, 0, :]
                 alt = alt.unsqueeze(1)
             else:
                 # chop out the target point
-                alt = alt[:, 1:, :]
-
-                # only take the neighborhood
-                alt = alt[:, 0:neighborhood_size, :]
+                alt = batch[:, 1:neighborhood_size+1, :]
 
             # Extract the pt_src_id
             fid = alt[:, :, 8][:, 0].long().to(config.device)
@@ -129,7 +125,7 @@ def measure_accuracy(config=None,
     # total measurement
     total_mae_output = np.mean(np.array(mae_output))
 
-
+    """
     # altered vs ground truth
     create_kde(gt_values,
                alt_values,
@@ -145,6 +141,6 @@ def measure_accuracy(config=None,
                results_path / "kde_evaluation.png",
                text=f"MAE: {total_mae_output:.5f}")
     
-
+    """
     print(f"MAE: {total_mae_output}")
     

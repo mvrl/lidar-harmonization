@@ -11,52 +11,30 @@ def make_csv(path, example_count):
     print(f"building csv on {path}")
     dataset_path = Path(path)
 
-    alts = [f.absolute() for f in (dataset_path / "alt").glob("*.npy")]
-    gts = [f.absolute() for f in (dataset_path / "gt").glob("*.npy")]
+    examples = [f.absolute() for f in (dataset_path / "neighborhoods").glob("*.npy")]
+    intensities = [None] * len(examples)
+    flight_num = [None] * len(examples)
     
-    flight_path = [None] * len(gts)
-    intensities = [None] * len(gts)
-    flight_num = [None] * len(gts)
-    flight_files = [flight for flight in Path(r"dublin_flights/npy").glob("*.npy")]
 
-    gt_ordered_list = [None] * len(gts)
-    alt_ordered_list = [None] * len(gts)
-    # sanity check that there is an altered version of each ground truth
-    for i in trange(len(gts), desc="processing", ascii=True):
-        filename = gts[i].stem
+    for i in trange(len(examples), desc="processing", ascii=True):
+        filename = examples[i].stem
         flight_num[i] = filename.split("_")[0]
         target_intensity = filename.split("_")[1]
-        
-        alt_name = None
-        altered = None
-
-        # Check that our files are what we expect
-        alt_name = alts[i].stem
-        if alt_name != filename:
-            exit("ERROR: wrong filename")
-        else:
-            altered = alts[i]
-        flight_path[i] = (flight_files[int(filename[:filename.find("_")])].absolute())
-        gt_ordered_list[i] = gts[i]
-        alt_ordered_list[i] = altered
         intensities[i] = target_intensity
     
 
-    print("SUCCESS")
     print("creating csv...")
     df = pd.DataFrame()
-    df['gt'] = gt_ordered_list
-    df['alt'] = alt_ordered_list
+    df['examples'] = examples
     df['flight_num'] = flight_num
     df['target_intensity'] = intensities
-    df['flight_path_file'] = flight_path
 
     df[['flight_num', 'target_intensity']] = df[['flight_num', 'target_intensity']].apply(pd.to_numeric)
     print("Saving dataset")
     df.to_csv(dataset_path / "master.csv")
     
     # Sample by flight number first
-    df_new = pd.DataFrame(columns=['gt', 'alt', 'flight_num', 'target_intensity', 'flight_path_file'])
+    df_new = pd.DataFrame(columns=['examples', 'flight_num', 'target_intensity'])
     uf = {i: len(df[df.flight_num == i]) for i in df.flight_num.unique()}
     min_flight = uf[min(uf, key=uf.get)]
     
@@ -90,7 +68,7 @@ def make_csv(path, example_count):
     # Use bins of 5 to balance out the intensities
     bin_sizes = []
     bin_size = 10
-    df_new = pd.DataFrame(columns=['gt', 'alt', 'flight_num', 'target_intensity', 'flight_path_file'])
+    df_new = pd.DataFrame(columns=['examples', 'flight_num', 'target_intensity', 'flight_path_file'])
     bin_boundaries = [(i, i+bin_size) for i in range(5, 515, bin_size)]
 
     # Calcualte bin sizes
@@ -112,11 +90,19 @@ def make_csv(path, example_count):
         print(f"{l}-{h}: {len(new_df)} | {len(new_sample)}")
     
     
-    code.interact(local=locals())
-    df_new = df_new.loc[:, 'gt':'flight_num']    
-    df_train = df_new
-    df_test = df_test.loc[:, 'gt':'flight_num']
-    df_val = df_val.loc[:, 'gt':'flight_num']
+    df_train = df_new.loc[:, 'examples':'flight_num']    
+    df_val = df_val.loc[:, 'examples':'flight_num']
+    df_test = df_test.loc[:, 'examples':'flight_num']
+
+    # sanity check that no values from df_train exist in df_val or df_test
+    for my_df in (df_val, df_test):
+        test = pd.merge(my_df, df_train)
+        if len(test) > 0:
+            print(f"SANITY CHECK FAILED: there is overlap from training in testing/validation")
+            code.interact(local=locals())
+
+    print("Sanity Check: Success!")
+
     df_train.to_csv(dataset_path / "train_dataset.csv")
     df_val.to_csv(dataset_path / "val_dataset.csv")
     df_test.to_csv(dataset_path / "test_dataset.csv")

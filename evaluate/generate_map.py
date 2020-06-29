@@ -38,17 +38,22 @@ def generate_map(config=None,
                  **kwargs):
 
     start_time = time.time() 
-    model = IntensityNet(num_classes=config.num_classes).to(config.device).double()
+    model = IntensityNet(
+            num_classes=config.num_classes,
+            input_features=8).to(config.device).double()
     model.load_state_dict(torch.load(state_dict))
     model.eval()
 
-    batch_size = 1000
+    batch_size = 100
     transform = Compose([
         LoadNP(),
         CloudCenter(), 
         CloudIntensityNormalize(512), 
         ToTensor()])
-    
+    dataset_eval = LidarDataset("dataset/150_190000/test_dataset_df.csv")
+
+    code.interact(local=locals())
+
     dataset = LidarDataset("dataset/big_tile/big_tile_dataset.csv", transform=transform)
     
     dataloader = DataLoader(
@@ -64,6 +69,7 @@ def generate_map(config=None,
     fid_values = []
 
     print(f"starting inference for tileset of length {len(dataset)}")
+    print(f"using model: {state_dict}")
     print(f"batch_size = {batch_size}")
     print(f"number of iterations = {len(dataset)/batch_size}")
     max_batch = len(dataset)//batch_size
@@ -126,7 +132,9 @@ def generate_map(config=None,
             "fixed values",
             "results/big_tile/gen_map_kde_evaluation.png",
             text=f"MAE: {final_mae}")
-
+    
+    plt.close()
+    plt.clf()
     # bar plot for fid values
     flights = {}
     for i in fid_values:

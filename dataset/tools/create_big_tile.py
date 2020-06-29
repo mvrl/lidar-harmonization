@@ -79,8 +79,8 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     kd1 = kdtree._build(flight1[:, :3])
     kd2 = kdtree._build(flight2[:, :3])
 
-    q1 = kdtree._query(kd1, manual_point, k=1e6)
-    q2 = kdtree._query(kd2, manual_point, k=1e6)
+    q1 = kdtree._query(kd1, manual_point, k=1e4)
+    q2 = kdtree._query(kd2, manual_point, k=1e4)
 
     tile_f1 = flight1[tuple(q1)]
     tile_f2 = flight2[tuple(q2)]
@@ -98,8 +98,8 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     # Fill in missing points from overlap
     tile_f2_1 = tile_f2_1[np.logical_not(tile_f2_1[:, my_axis] <= manual_point[0, my_axis])]
     tile_f1_2 = tile_f1_2[np.logical_not(tile_f1_2[:, my_axis] > manual_point[0, my_axis])]
-    tile_f1 = np.concatenate((tile_f1, tile_f2_1))
-    tile_f2 = np.concatenate((tile_f2, tile_f1_2))
+    # tile_f1 = np.concatenate((tile_f1, tile_f2_1))
+    # tile_f2 = np.concatenate((tile_f2, tile_f1_2))
 
     # create corrupted tile_f2
     tile_f2_alt = apply_rf(

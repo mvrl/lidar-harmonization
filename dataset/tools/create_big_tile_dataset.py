@@ -1,9 +1,10 @@
-from code import interact
+import code
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from pptk import kdtree
 from util.metrics import create_kde
+from tqdm import tqdm, trange
 
 def create_big_tile_dataset(path, neighborhood_size=150):
     path = Path(path)
@@ -41,25 +42,33 @@ def create_big_tile_dataset(path, neighborhood_size=150):
     print(f"Found {good_sample_ratio} perecent of points with not enough close neighbors!")
 
     query = my_query
+    gt = [None] * len(query)
+    alt = [None] * len(query)
+    fid = [None] * len(query)
 
     # get neighborhoods
-    for i in range(len(query)):
-        gt = big_tile_gt[query[i]]
-        alt = big_tile_alt[query[i]]
+    for i in trange(len(query), desc="querying neighborhoods", ascii=True):
+        gt_query = big_tile_gt[query[i]]
+        alt_query = big_tile_alt[query[i]]
         
-        np.save(gt_path / f"{i}.npy", gt)
-        np.save(alt_path / f"{i}.npy", alt)
+        # Sanity check that these are the same
+        if (np.allclose(gt_query[:, :3], alt_query[:, :3]) != True and
+                np.allclose(gt_query[:, 4:], alt_query[:, 4:]) != True and
+                np.allclose(gt_query[:, 3], alt_query[:, 3] != False)):
+            exit("mismatch elements!")
+        
+        np.save(gt_path / f"{i}.npy", gt_query)
+        gt[i] = (gt_path / f"{i}.npy").absolute()
+        np.save(alt_path / f"{i}.npy", alt_query)
+        alt[i] = (alt_path / f"{i}.npy").absolute()
+        fid[i] = gt_query[0, 8]  # flight number
+
 
     # create csv
-    gt_files = [f.absolute() for f in gt_path.glob("*.npy")]
-    alt_files = [f.absolute() for f in alt_path.glob("*.npy")]
-    
-    gt_files.sort()
-    alt_files.sort()
-
     df = pd.DataFrame()
-    df["gt"] = gt_files
-    df["alt"] = alt_files
+    df["gt"] = gt
+    df["alt"] = alt
+    df["flight_num"] = fid
 
     # Sanity check!
     for idx, row in df.iterrows():
