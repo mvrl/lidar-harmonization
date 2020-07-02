@@ -122,9 +122,9 @@ def create_dataset(path,
                
                 
                 alteration = np.concatenate(
-                    (np.expand_dims(target_point, 0), fi_query)
+                    (np.expand_dims(target_point, 0), alteration)
                 )   
-
+                
                 # Alteration will be of size (152, 9), with index=0 being
                 # the ground truth target center, and index=1 being the 
                 # altered copy of g.t. target center.

@@ -42,10 +42,7 @@ def train(config=None,
         save_suffix = "_mf"
     else:
         exit("ERROR: this does not appear to be a valid configuration, check neighborhood size: {neighborhood_size} and dual_flight: {dual_flight}")
-    
-    # FUTURE: it might be useful to have a way to only include specific input
-    # for comparison purposes
-    
+       
     results_path = Path(f"results/current/{neighborhood_size}{save_suffix}")
     results_path.mkdir(parents=True, exist_ok=True)
     # plotter = VisdomLinePlotter(f"{neighborhood_size}{save_suffix}")
@@ -73,7 +70,7 @@ def train(config=None,
             sampler=sampler,
             drop_last=True)
         for phase, sampler in samplers.items()}
-
+    
     # Instantiate Model(s)
     model = IntensityNet(
         num_classes=config.num_classes,
@@ -109,16 +106,22 @@ def train(config=None,
             for batch_idx, batch in enumerate(dataloaders[phase]):
                 train_time = time.time()
                 
+                # Each batch is a (2+150,9) point cloud, where the first two
+                # elements are the ground truth center and an altered copy
+                # of the ground truth center. These must be removed prior to
+                # training, unless the single-flight copy experiment is being run.
+
                 # Get the intensity of the ground truth point
                 i_gt = batch[:,0,3].to(config.device)
 
                 if neighborhood_size == 0:
-                    # the altered flight is just an altered copy of the gt center
-                    alt = batch[:, 0, :]  # this is broken atm
-                    alt = alt.unsqueeze(1)
+                    # single flight copy, just take the g.t. copy as the altered
+                    # point cloud.
+                    alt = batch[:, 1, :]
+                    alt = alt.unsqueeze(1) # (B, 9) -> (B, 1, 9)
                 else:
-                    # chop out the ground truth and only take the neighborhood
-                    alt = batch[:, 1:neighborhood_size+1, :]
+                    # chop out the ground truth + copy, and only take the neighborhood
+                    alt = batch[:, 2:neighborhood_size+1, :]
 
                 # Extract the pt_src_id 
                 fid = alt[:,:,8][:, 0].long().to(config.device)
@@ -130,7 +133,7 @@ def train(config=None,
                 else:
                     flight_metrics[my_fid] += 1
 
-                alt = alt.transpose(1, 2).to(config.device)
+                alt = alt.transpose(1, 2).to(config.device)  # (B, N, C) -> (B, C, N)
                 
                 optimizer.zero_grad()
                 iterations += 1
@@ -188,8 +191,6 @@ def train(config=None,
         print(f"Epoch finished in {(time.time() - epoch_time):.3f} seconds")
         metrics.clear_metrics()
 
-
-            
     print("Flights we trained on: ")
     print(f"{flight_metrics}")
     print(f"finished in {time.time() - start_time}")

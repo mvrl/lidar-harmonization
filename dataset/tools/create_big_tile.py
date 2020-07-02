@@ -54,7 +54,10 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     rf_data = json.load(json_file)
     mapping = load_mapping("mapping.npy")
 
-    # plot the response function
+    # plot the response function - this plot should show the transformation
+    # that is applied to the source flight in the generated tile. Compare this
+    # with post_response_curve generated at the end. 
+
     x = np.linspace(0, 1, 1000)
     m = mapping[intersecting_flight]
     plt.plot(
@@ -68,7 +71,7 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     plt.margins(x=0)
     plt.margins(y=0)
     plt.title("Response function on the big tile")
-    plt.savefig("big_tile/response_plot_bt.png")
+    plt.savefig("big_tile/pre_response_curve.png")
     print("Saved response plot")
 
     flight1 = np.load(laz_files_path / (str(base_flight)+".npy"))
@@ -79,15 +82,15 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     kd1 = kdtree._build(flight1[:, :3])
     kd2 = kdtree._build(flight2[:, :3])
 
-    q1 = kdtree._query(kd1, manual_point, k=1e4)
-    q2 = kdtree._query(kd2, manual_point, k=1e4)
+    q1 = kdtree._query(kd1, manual_point, k=5e4)
+    q2 = kdtree._query(kd2, manual_point, k=5e4)
 
     tile_f1 = flight1[tuple(q1)]
     tile_f2 = flight2[tuple(q2)]
     tile_f2_1 = tile_f2.copy()
     tile_f1_2 = tile_f1.copy()
-    tile_f2_1[:, 8] = 1.0
-    tile_f1_2[:, 8] = 37.0
+    tile_f2_1[:, 8] = float(base_flight)
+    tile_f1_2[:, 8] = float(intersecting_flight)
      
     # threshold the axis values to create a "clean" divide
     # 0 = x axis, 1 = y axis, 2 = z axis (??)
@@ -116,7 +119,7 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
             "altered values",
             "big_tile/post_response_curve.png")
             
-    print("Created post response curve kde")  # check
+    print("Created post response curve kde")
     
     tile_gt = np.concatenate((tile_f1, tile_f2))
     tile_alt = np.concatenate((tile_f1, tile_f2_alt))
@@ -132,8 +135,6 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     np.save("big_tile/big_tile_alt.npy", tile_f2_alt)
 
     code.interact(local=locals())
-
-
 
 if __name__=='__main__':
     

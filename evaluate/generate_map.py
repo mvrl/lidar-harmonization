@@ -15,11 +15,8 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-from scipy.stats import gaussian_kde
 
 from pptk import kdtree, viewer
-
-
 from util.metrics import create_kde
 
 from model import IntensityNet
@@ -32,78 +29,80 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
 
 def generate_map(config=None,
                  state_dict=None,
-                 tileset_directory=None,
-                 viewer_sample=3,
+                 dataset_csv=None,
+                 transforms=None,
                  neighborhood_size=None,
                  **kwargs):
 
     start_time = time.time() 
+    print("generating fix for big_tile dataset")
+    print(f"using model {state_dict}")
+    batch_size=100
+    results_path = Path("results/big_tile/{neighborhood_size}/")
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    dataset = LidarDataset(dataset_csv, transform=transforms)
+
+    dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=config.num_workers)
+
+    fixed_values = []
+    fixed_tile = []
+    alt_values = []
+    gt_values = []
+    mae_values = []
+    fid_values = []
+
     model = IntensityNet(
             num_classes=config.num_classes,
             input_features=8).to(config.device).double()
     model.load_state_dict(torch.load(state_dict))
     model.eval()
 
-    batch_size = 100
-    transform = Compose([
-        LoadNP(),
-        CloudCenter(), 
-        CloudIntensityNormalize(512), 
-        ToTensor()])
-    dataset_eval = LidarDataset("dataset/150_190000/test_dataset_df.csv")
-
-    code.interact(local=locals())
-
-    dataset = LidarDataset("dataset/big_tile/big_tile_dataset.csv", transform=transform)
-    
-    dataloader = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            num_workers=config.num_workers)
-
-    fix_values = []
-    fix_tile = []
-    alt_values = []
-    gt_values = []
-    mae_values = []
-    fid_values = []
-
-    print(f"starting inference for tileset of length {len(dataset)}")
-    print(f"using model: {state_dict}")
-    print(f"batch_size = {batch_size}")
-    print(f"number of iterations = {len(dataset)/batch_size}")
     max_batch = len(dataset)//batch_size
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
-            gt, alt = batch
-            sample = np.random.choice(len(gt), size=batch_size//4)
+            sample = np.random.choice(len(batch), size=batch_size//4)
 
             # get center point true intensity
-            i_gt = gt[:, 0, 3]
-            gt_values.append(i_gt[sample])
+            i_gt = batch[:, 0, 3].to(config.device)
+            i_alt = batch[:, 1, 3].to(config.device)
             
-            # extract pt_src_id information
-            fid = alt[:, :, 8][:, 0]
-            fid_values.append(fid[sample])
-            fid = fid.long().to(config.device)
+            if neighborhood_size == 0:
+                # the altered flight is just a copy of the gt center
+                alt = batch[:, 1, :]
+                alt = alt.unsqueeze(1)
+            else:
+                # chop out the target point
+                alt = batch[:, 1:neighborhood_size+1, :]
 
-            # centerpoint stays for qualitative evaluation as it is a real value
-            alt_values.append(alt[:, 0, 3][sample])
-            alt = alt[:, 0:, :8]
-            
-            # put channels first
+            # Extract the pt_src_id 
+            fid = alt[:, :, 8][:, 0].long().to(config.device)
+            alt = alt[:, :, :8]  # remove pt_src_id from input feature vector
+            my_fid = int(fid[0])
+
+            gt_values.append(i_gt)
+            alt_values.append(i_alt)
+            fid_values.append(fid)
+
             alt = alt.transpose(1, 2).to(config.device)
             
             output, _, _ = model(alt, fid)
-            output = torch.clamp(output.squeeze(), 0, 1)
-            
-            mae = torch.mean(torch.abs(output - i_gt.to(config.device))).item()
-            mae_values.append(mae)
-            print(f"[{batch_idx}/{max_batch}: MAE: {mae}")
-            fix = gt.clone()[:, 0, :]
+            output = output.squeeze()
+            fixed_values.append(output)
+            mae = torch.mean(torch.abs(i_gt - output))
+            mae_values.append(mae)            
+
+            # create new fixed tile
+            fix = batch[:, 0, :].clone()
             fix[:, 3] = output
-            fix_values.append(output[sample])
-            fix_tile.append(fix)
+            fixed_tile.append(fix)
+
+            # output = torch.clamp(output.squeeze(), 0, 1)
+            print(f"[{batch_idx}/{max_batch}: MAE: {mae}")
+            
             
     # create kde plots
     
@@ -113,28 +112,11 @@ def generate_map(config=None,
 
     alt_values = torch.cat(alt_values).cpu().numpy()
     gt_values = torch.cat(gt_values).cpu().numpy()
-    fix_values = torch.cat(fix_values).cpu().numpy()
+    fixed_values = torch.cat(fixed_values).cpu().numpy()
     fid_values = torch.cat(fid_values).cpu().numpy()
 
     final_mae = torch.mean(torch.tensor(mae_values)).item()
 
-    # altered vs gt
-    create_kde(gt_values[my_indices],
-            alt_values[my_indices],
-            "ground truth",
-            "altered values",
-            "results/big_tile/gen_map_kde_alt_vs_gt.png")
-
-    # fixed vs gt
-    create_kde(gt_values[my_indices],
-            fix_values[my_indices],
-            "ground truth",
-            "fixed values",
-            "results/big_tile/gen_map_kde_evaluation.png",
-            text=f"MAE: {final_mae}")
-    
-    plt.close()
-    plt.clf()
     # bar plot for fid values
     flights = {}
     for i in fid_values:
@@ -147,10 +129,27 @@ def generate_map(config=None,
     plt.xticks(np.arange(len(flights.keys())), flights.keys())
     plt.savefig("results/big_tile/fid_distribution.png")
 
+    # altered vs gt
+    create_kde(gt_values[my_indices],
+            alt_values[my_indices],
+            "ground truth",
+            "altered values",
+            "results/big_tile/gen_map_kde_alt_vs_gt.png")
+
+    # fixed vs gt
+    create_kde(gt_values[my_indices],
+            fixed_values[my_indices],
+            "ground truth",
+            "fixed values",
+            "results/big_tile/gen_map_kde_evaluation.png",
+            text=f"MAE: {final_mae}")
+    
+    
+
     # load in tile assets
     big_tile_gt = np.load("dataset/big_tile/big_tile_gt.npy")
     big_tile_alt = np.load("dataset/big_tile/big_tile_alt.npy")
-    big_tile_fix = torch.cat(fix_tile).cpu().numpy()
+    big_tile_fix = torch.cat(fixed_tile).cpu().numpy()
     
     big_tile_fix[:, 3] *= 512 # scale intensity to 0-512
     np.save("dataset/big_tile/big_tile_alt_fixed.npy", big_tile_fix)

@@ -107,8 +107,10 @@ eval_subparsers = parser_eval.add_subparsers(help='evaluation experiments')
 
 map_parser = eval_subparsers.add_parser('gen_map', help="create big map")
 map_parser.add_argument('state_dict', help="model to use for map harmonization")
-map_parser.set_defaults(func=generate_map,
-                        tileset_directory=r"dataset/big_tile/")
+map_parser.set_defaults(
+        func=generate_map,
+        no_get_dataset=True,
+        dataset_csv=r"dataset/big_tile/big_tile_dataset.csv")
 
 acc_parser = eval_subparsers.add_parser('measure_acc', help='meausre accuracy on tileset')
 acc_parser.add_argument('dataset_csv', help='testing csv to use')
@@ -155,7 +157,7 @@ print(kwargs)
 func = kwargs['func']
 del kwargs['func']
 
-if 'dataset_csv' in kwargs:
+if 'dataset_csv' in kwargs and 'no_get_dataset' not in kwargs:
     kwargs['dataset_csv'] = kwargs['get_dataset'](kwargs['dataset_csv'])
     del kwargs['get_dataset']
 
