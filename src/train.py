@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings('ignore')
 from src.dataset.tools.callbacks.create_kde import CreateKDE
+from src.dataset.tools.callbacks.create_tile import CreateTile
 from src.harmonization.model import IntensityNet
 from src.ex_pl.extended_trainer import ExtendedTrainer as Trainer
 import code
@@ -14,7 +15,7 @@ if __name__ == '__main__':
             neighborhood_size=17,
             dual_flight=37).double()
 
-    callbacks = [CreateKDE()]
+    callbacks = [CreateKDE(), CreateTile()]
     trainer = Trainer(gpus=1, max_epochs=1, callbacks=callbacks)
 
     trainer.fit(net)

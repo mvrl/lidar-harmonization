@@ -52,6 +52,9 @@ class IntensityNet(ExtendedLightningModule):
         self.test_dataset_csv = test_dataset_csv
         self.qual_dataset_csv = qual_dataset_csv
 
+        # Misc:
+        self.xyzi = None
+
         # Network Layers
         self.feature_transform = feature_transform
         self.feat = PointNetfeat(global_feat=True,
@@ -70,6 +73,10 @@ class IntensityNet(ExtendedLightningModule):
         self.debug = Debug()
 
     def forward(self, batch):
+        # Center the point cloud
+        xyz = batch[:, :, :3]
+        centered_xyz = xyz - xyz[:, 0, None]
+        batch[:, :, :3] = centered_xyz
 
         if self.neighborhood_size == 0:
             alt = batch[:, 0, :]
@@ -95,7 +102,7 @@ class IntensityNet(ExtendedLightningModule):
         self.criterion = nn.SmoothL1Loss()
         transformations = Compose([
             LoadNP(),
-            CloudCenter(),
+            # CloudCenter(),
             CloudIntensityNormalize(512),
             GetTargets()])
 
@@ -154,7 +161,6 @@ class IntensityNet(ExtendedLightningModule):
         data, target = batch
         alt = data[:, 0, 3]
         my_fid = int(data[0, 0, 8])
-        print("train step")
         output = self.forward(data)
         loss = self.criterion(output.squeeze(), target)
         return {'loss': loss, 
@@ -164,7 +170,6 @@ class IntensityNet(ExtendedLightningModule):
     def validation_step(self, batch, batch_idx):
         data, target = batch
         output = self.forward(data.double())
-        print("validation step")
         loss = self.criterion(output.squeeze(), target.double())
 
         return {'val_loss': loss, 
@@ -175,14 +180,24 @@ class IntensityNet(ExtendedLightningModule):
         data, target = batch
         alt = data[:, 0, 3]
         output = self.forward(data.double())
-        print("test_step")
         return {'metrics': {'target': target, 'output': output.squeeze()}}
 
     def qual_step(self, batch, batch_idx):
         data, target = batch
-        code.interact(local=locals())
-        print("qual_step") 
-        output = self.forward(data.double())
+        output = self.forward(data.clone().double())
+
+        # We want to save the information here so that we can reconstruct the tile
+        # see dataset/tools/callbacks/create_tile.py for more information
+        
+        xyzi = data[:, 0, :4]  # get the xyzi data from the corrupted gt-copy
+        
+        # append the corrupted version and the predicted intensity
+        xyzi = torch.cat((xyzi, target.unsqueeze(1)), dim=1) 
+        xyzi = torch.cat((xyzi, output), dim=1)
+        if self.xyzi is not None: 
+            self.xyzi = torch.cat((self.xyzi, xyzi.cpu()))
+        else:
+            self.xyzi = xyzi.cpu()
 
         return {'metrics': {'target': target, 'output': output.squeeze()}}
 
@@ -217,8 +232,6 @@ class IntensityNet(ExtendedLightningModule):
         self.predictions = torch.stack([x['metrics']['output'] for x in outputs])
 
         self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()
-        x = "qual_epoch_end"
-        code.interact(local=locals())
     
     def configure_optimizers(self):
         optimizer = Adam(self.parameters())

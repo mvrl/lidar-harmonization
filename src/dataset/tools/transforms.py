@@ -26,13 +26,12 @@ class GetTargets(object):
     def __call__(self, example):
         i_gt = example[0, 3]
         example = example[1:, :]
-        return example, i_gt
+        return (example, i_gt)
         
 class ToTensor(object):
     def __call__(self, example):
         return torch.from_numpy(example)
                 
-
 class CloudRotateX(object):
     def __init__(self):
         pass
