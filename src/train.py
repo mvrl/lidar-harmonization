@@ -11,11 +11,11 @@ if __name__ == '__main__':
             "dataset/150_190000/val_dataset.csv",
             "dataset/150_190000/test_dataset.csv",
             "dataset/big_tile/big_tile_dataset.csv",
-            neighborhood_size=150,
+            neighborhood_size=17,
             dual_flight=37).double()
 
     callbacks = [CreateKDE()]
-    trainer = Trainer(gpus=1, max_epochs=30, callbacks=callbacks)
+    trainer = Trainer(gpus=1, max_epochs=1, callbacks=callbacks)
 
     trainer.fit(net)
     trainer.test(net)

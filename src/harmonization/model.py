@@ -154,7 +154,7 @@ class IntensityNet(ExtendedLightningModule):
         data, target = batch
         alt = data[:, 0, 3]
         my_fid = int(data[0, 0, 8])
-
+        print("train step")
         output = self.forward(data)
         loss = self.criterion(output.squeeze(), target)
         return {'loss': loss, 
@@ -164,6 +164,7 @@ class IntensityNet(ExtendedLightningModule):
     def validation_step(self, batch, batch_idx):
         data, target = batch
         output = self.forward(data.double())
+        print("validation step")
         loss = self.criterion(output.squeeze(), target.double())
 
         return {'val_loss': loss, 
@@ -174,12 +175,13 @@ class IntensityNet(ExtendedLightningModule):
         data, target = batch
         alt = data[:, 0, 3]
         output = self.forward(data.double())
-
+        print("test_step")
         return {'metrics': {'target': target, 'output': output.squeeze()}}
 
     def qual_step(self, batch, batch_idx):
         data, target = batch
-        alt = data[: 0, 3]
+        code.interact(local=locals())
+        print("qual_step") 
         output = self.forward(data.double())
 
         return {'metrics': {'target': target, 'output': output.squeeze()}}
@@ -215,6 +217,8 @@ class IntensityNet(ExtendedLightningModule):
         self.predictions = torch.stack([x['metrics']['output'] for x in outputs])
 
         self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()
+        x = "qual_epoch_end"
+        code.interact(local=locals())
     
     def configure_optimizers(self):
         optimizer = Adam(self.parameters())

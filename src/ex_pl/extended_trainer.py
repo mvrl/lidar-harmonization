@@ -330,9 +330,9 @@ class ExtendedTrainerEvaluationLoopMixin(TrainerEvaluationLoopMixin):
                 # -----------------
                 if self.use_amp and NATIVE_AMP_AVALAIBLE and not self.use_tpu:
                     with torch.cuda.amp.autocast():
-                        output = self.evaluation_forward(model, batch, batch_idx, dataloader_idx, test_mode)
+                        output = self.evaluation_forward(model, batch, batch_idx, dataloader_idx, test_mode, qual_mode)
                 else:
-                    output = self.evaluation_forward(model, batch, batch_idx, dataloader_idx, test_mode)
+                    output = self.evaluation_forward(model, batch, batch_idx, dataloader_idx, test_mode, qual_mode)
 
                 # on dp / ddp2 might still want to do something with the batch parts
                 if test_mode:
@@ -526,7 +526,7 @@ class ExtendedTrainerEvaluationLoopMixin(TrainerEvaluationLoopMixin):
 
         if (test_mode and len(self.test_dataloaders) > 1) \
                 or (qual_mode and len(self.qual_dataloaders) > 1) \
-                or (not test_mode and len(self.val_dataloaders) > 1):
+                or (not (test_mode or qual_mode) and len(self.val_dataloaders) > 1):
             args.append(dataloader_idx)
 
         # handle DP, DDP forward
