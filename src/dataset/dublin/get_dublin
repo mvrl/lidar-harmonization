@@ -1,0 +1,74 @@
+#!/usr/bin/bash
+
+urls=( 
+	https://archive.nyu.edu/retrieve/80235/nyu_2451_38683_pc_F_150326_161223.zip 
+	https://archive.nyu.edu/retrieve/80230/nyu_2451_38682_pc_F_150326_161001.zip
+	# https://archive.nyu.edu/retrieve/80225/nyu_2451_38681_pc_F_150326_160709.zip
+	#https://archive.nyu.edu/retrieve/80220/nyu_2451_38680_pc_F_150326_160443.zip
+	#https://archive.nyu.edu/retrieve/80215/nyu_2451_38679_pc_F_150326_160149.zip
+	#https://archive.nyu.edu/retrieve/80210/nyu_2451_38678_pc_F_150326_155833.zip
+	#https://archive.nyu.edu/retrieve/80205/nyu_2451_38677_pc_F_150326_155529.zip
+	#https://archive.nyu.edu/retrieve/80200/nyu_2451_38676_pc_F_150326_155238.zip
+	#https://archive.nyu.edu/retrieve/80195/nyu_2451_38675_pc_F_150326_154909.zip
+	#https://archive.nyu.edu/retrieve/80190/nyu_2451_38674_pc_F_150326_151542.zip
+	#https://archive.nyu.edu/retrieve/80143/nyu_2451_38673_pc_F_150326_151147.zip
+	#https://archive.nyu.edu/retrieve/80138/nyu_2451_38672_pc_F_150326_150906.zip
+	#https://archive.nyu.edu/retrieve/80133/nyu_2451_38671_pc_F_150326_150519.zip
+	#https://archive.nyu.edu/retrieve/80128/nyu_2451_38670_pc_F_150326_150215.zip
+	#https://archive.nyu.edu/retrieve/80123/nyu_2451_38669_pc_F_150326_145809.zip
+	#https://archive.nyu.edu/retrieve/80118/nyu_2451_38668_pc_F_150326_145523.zip
+	#https://archive.nyu.edu/retrieve/80113/nyu_2451_38667_pc_F_150326_145143.zip
+	#https://archive.nyu.edu/retrieve/80108/nyu_2451_38666_pc_F_150326_134430.zip
+	#https://archive.nyu.edu/retrieve/80103/nyu_2451_38665_pc_F_150326_133955.zip
+	#https://archive.nyu.edu/retrieve/80098/nyu_2451_38664_pc_F_150326_133445.zip
+	#https://archive.nyu.edu/retrieve/80093/nyu_2451_38663_pc_F_150326_132905.zip
+	#https://archive.nyu.edu/retrieve/80088/nyu_2451_38662_pc_F_150326_132400.zip
+	#https://archive.nyu.edu/retrieve/80083/nyu_2451_38661_pc_F_150326_131905.zip
+	#https://archive.nyu.edu/retrieve/80078/nyu_2451_38660_pc_F_150326_131440.zip
+	#https://archive.nyu.edu/retrieve/80073/nyu_2451_38659_pc_F_150326_131220.zip
+	#https://archive.nyu.edu/retrieve/80068/nyu_2451_38658_pc_F_150326_130840.zip
+	#https://archive.nyu.edu/retrieve/80063/nyu_2451_38657_pc_F_150326_130401.zip
+	#https://archive.nyu.edu/retrieve/80058/nyu_2451_38656_pc_F_150326_125917.zip
+	#https://archive.nyu.edu/retrieve/80053/nyu_2451_38655_pc_F_150326_125429.zip
+	#https://archive.nyu.edu/retrieve/80048/nyu_2451_38654_pc_F_150326_124922.zip
+	#https://archive.nyu.edu/retrieve/80043/nyu_2451_38653_pc_F_150326_124415.zip
+	#https://archive.nyu.edu/retrieve/80038/nyu_2451_38652_pc_F_150326_123922.zip
+	#https://archive.nyu.edu/retrieve/80033/nyu_2451_38651_pc_F_150326_123430.zip
+	#https://archive.nyu.edu/retrieve/80028/nyu_2451_38650_pc_F_150326_122941.zip
+	#https://archive.nyu.edu/retrieve/80023/nyu_2451_38649_pc_F_150326_122222.zip
+	#https://archive.nyu.edu/retrieve/80018/nyu_2451_38648_pc_F_150326_121724.zip
+	#https://archive.nyu.edu/retrieve/80013/nyu_2451_38647_pc_F_150326_121253.zip
+	#https://archive.nyu.edu/retrieve/80008/nyu_2451_38646_pc_F_150326_120854.zip
+	#https://archive.nyu.edu/retrieve/80003/nyu_2451_38645_pc_F_150326_120403.zip
+	#https://archive.nyu.edu/retrieve/79998/nyu_2451_38644_pc_F_150326_120025.zip
+	#https://archive.nyu.edu/retrieve/79993/nyu_2451_38625_pc_F_150326_115601.zip
+)
+
+
+mkdir laz
+cd laz
+
+for i in "${urls[@]}"
+do
+	wget --no-check-certificate $i &
+	wait;
+done
+
+echo "Finished Downloading Dublin Dataset"
+echo "now extracting..."
+
+for laz_zip in *
+do 
+	echo "$laz_zip"
+	unzip "$laz_zip"
+	rm "$laz_zip"
+done
+
+for laz_dir in *
+do
+	cd $laz_dir
+	mv * ..
+	cd ..
+	rm -rf $laz_dir
+done
+

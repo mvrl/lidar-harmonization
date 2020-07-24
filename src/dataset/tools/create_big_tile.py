@@ -47,13 +47,17 @@ def visualize_n_flights(path, flights, sample_size=500000):
     # code.interact(local=locals())
 
 
-def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point):
+def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point, num_points=1e6, in_overlap=True):
 
     laz_files_path = Path(path)
     json_file = open("dorf.json")
     rf_data = json.load(json_file)
     mapping = load_mapping("mapping.npy")
-    save_dir = Path("big_tile")
+    if in_overlap:
+        save_dir = Path("big_tile_in_overlap")
+    else:
+        save_dir = Path("big_tile_no_overlap")
+
     save_dir.mkdir(parents=True, exist_ok=True)
 
     # plot the response function - this plot should show the transformation
@@ -75,36 +79,39 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
     plt.title("Response function on the big tile")
     plt.savefig(save_dir / "pre_response_curve.png")
     print("Saved response plot")
-
-    flight1 = np.load(laz_files_path / (str(base_flight)+".npy"))
-    print(f"Loaded flight {flight1[0, 8]}")
+    
+    # if we are in the overlap, we have to process two kd trees, 
+    # otherwise we can just do 1. 
+    if in_overlap:
+        flight1 = np.load(laz_files_path / (str(base_flight)+".npy"))
+        print(f"Loaded flight {flight1[0, 8]}")
+        kd1 = kdtree._build(flight1[:, :3])
+        q1 = kdtree._query(kd1, manual_point, k=1e6)
+        tile_f1 = flight1[tuple(q1)]
     flight2 = np.load(laz_files_path / (str(intersecting_flight)+".npy"))
     print(f"Loaded flight {flight2[0, 8]}")
     
-    kd1 = kdtree._build(flight1[:, :3])
     kd2 = kdtree._build(flight2[:, :3])
-
-    q1 = kdtree._query(kd1, manual_point, k=5e4)
-    q2 = kdtree._query(kd2, manual_point, k=5e4)
-
-    tile_f1 = flight1[tuple(q1)]
+    q2 = kdtree._query(kd2, manual_point, k=1e6)
     tile_f2 = flight2[tuple(q2)]
-    tile_f2_1 = tile_f2.copy()
-    tile_f1_2 = tile_f1.copy()
-    tile_f2_1[:, 8] = float(base_flight)
-    tile_f1_2[:, 8] = float(intersecting_flight)
-     
-    # threshold the axis values to create a "clean" divide
-    # 0 = x axis, 1 = y axis, 2 = z axis (??)
-    my_axis=0
-    tile_f1 = tile_f1[np.logical_not(tile_f1[:, my_axis] <= manual_point[0, my_axis])]
-    tile_f2 = tile_f2[np.logical_not(tile_f2[:, my_axis] > manual_point[0, my_axis])]
 
-    # Fill in missing points from overlap
-    tile_f2_1 = tile_f2_1[np.logical_not(tile_f2_1[:, my_axis] <= manual_point[0, my_axis])]
-    tile_f1_2 = tile_f1_2[np.logical_not(tile_f1_2[:, my_axis] > manual_point[0, my_axis])]
-    # tile_f1 = np.concatenate((tile_f1, tile_f2_1))
-    # tile_f2 = np.concatenate((tile_f2, tile_f1_2))
+    if in_overlap:
+        tile_f2_1 = tile_f2.copy()
+        tile_f1_2 = tile_f1.copy()
+        tile_f2_1[:, 8] = float(base_flight)
+        tile_f1_2[:, 8] = float(intersecting_flight)
+     
+        # threshold the axis values to create a "clean" divide
+        # 0 = x axis, 1 = y axis, 2 = z axis (??)
+        my_axis=0
+        tile_f1 = tile_f1[np.logical_not(tile_f1[:, my_axis] <= manual_point[0, my_axis])]
+        tile_f2 = tile_f2[np.logical_not(tile_f2[:, my_axis] > manual_point[0, my_axis])]
+
+        # Fill in missing points from overlap
+        tile_f2_1 = tile_f2_1[np.logical_not(tile_f2_1[:, my_axis] <= manual_point[0, my_axis])]
+        tile_f1_2 = tile_f1_2[np.logical_not(tile_f1_2[:, my_axis] > manual_point[0, my_axis])]
+        tile_f1 = np.concatenate((tile_f1, tile_f2_1))
+        tile_f2 = np.concatenate((tile_f2, tile_f1_2))
 
     # create corrupted tile_f2
     tile_f2_alt = apply_rf(
@@ -123,18 +130,30 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point)
             
     print("Created post response curve kde")
     
-    tile_gt = np.concatenate((tile_f1, tile_f2))
-    tile_alt = np.concatenate((tile_f1, tile_f2_alt))
-    attr1 = tile_gt[:, 3]
-    attr2 = tile_alt[:, 8]
-    attr3 = tile_alt[:, 3]
-    v = viewer(tile_gt[:, :3])
+    if in_overlap:
+        tile_gt = np.concatenate((tile_f1, tile_f2))
+        tile_alt = np.concatenate((tile_f1, tile_f2_alt))
+        attr1 = tile_gt[:, 3]
+        attr2 = tile_alt[:, 8]
+        attr3 = tile_alt[:, 3]
+        v = viewer(tile_gt[:, :3])
+
+    else:
+        attr1 = tile_f2[:, 3]
+        attr2 = tile_f2[:, 8]
+        attr3 = tile_f2_alt[:, 3]
+        v = viewer(tile_f2[:, :3])
     
     v.attributes(attr1, attr2, attr3)
     v.set(lookat=manual_point[0])
-    np.save(save_dir / "base_flight_tile.npy", tile_f1)
+
+    if in_overlap:
+
+        np.save(save_dir / "base_flight_tile.npy", tile_f1)
+
     np.save(save_dir / "gt.npy", tile_f2)
     np.save(save_dir / "alt.npy", tile_f2_alt)
+
 
     code.interact(local=locals())
 
@@ -143,16 +162,19 @@ if __name__=='__main__':
     # Automatic big tile creation
     # create_big_tile('dublin_flights', 4, 1000000)
     
-    # Create a big tile with manual point input
+    # Create a big tile with manual point input in the overlap region
     create_big_tile_manual('dublin/npy', 1, 37, 
-           np.array([[316340.656, 234122.562, 6.368]]))
+          np.array([[316340.656, 234122.562, 6.368]]))
     
     # exit()
+    # create a big tile with manual point input outside the overlap region
+    # create_big_tile_manual('dublin/npy', 1, 37,
+    #         np.array([[316557.094, 234186.656, 1.191]]), in_overlap=False)
     # Show the overlapping flights over flight 1
     # visualize_n_flights(
-    #        'dublin_flights/npy', 
-    #         [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
-    #         [1, 37], sample_size=None)
+    #       'dublin/npy', 
+    #        [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
+    #        [1, 37], sample_size=None)
 
     
                  

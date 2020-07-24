@@ -47,10 +47,10 @@ class IntensityNet(ExtendedLightningModule):
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
         # Dataset Definitions
-        self.train_dataset_csv = train_dataset_csv
-        self.val_dataset_csv = val_dataset_csv
-        self.test_dataset_csv = test_dataset_csv
-        self.qual_dataset_csv = qual_dataset_csv
+        self.train_dataset_csv = Path(train_dataset_csv)
+        self.val_dataset_csv = Path(val_dataset_csv)
+        self.test_dataset_csv = Path(test_dataset_csv)
+        self.qual_dataset_csv = Path(qual_dataset_csv)
 
         # Misc:
         self.xyzi = None
@@ -235,15 +235,16 @@ class IntensityNet(ExtendedLightningModule):
     
     def configure_optimizers(self):
         optimizer = Adam(self.parameters())
-        # scheduler = CyclicLR(
-        #       optimizer,
-        #       1e-6,
-        #       1e-3,
-        #       step_size_up=len(self.train_dataset)//self.batch_size//2,
-        #       scale_fn = lambda x: 1 / ((5/4.) ** (x-1)),
-        #       cycle_momentum=False)
+        scheduler = CyclicLR(
+              optimizer,
+              1e-6,
+              1e-3,
+              step_size_up=len(self.train_dataset)//self.batch_size//2,
+              mode='triangular2',
+              #scale_fn = lambda x: 1 / ((5/4.) ** (x-1)), # can't pickle this :\
+              cycle_momentum=False)
 
-        scheduler = StepLR(optimizer, step_size=1)
+        # scheduler = StepLR(optimizer, step_size=1)
         return [optimizer], [scheduler]
 
 

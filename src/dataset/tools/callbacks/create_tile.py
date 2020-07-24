@@ -20,19 +20,32 @@ class CreateTile(Callback):
         pl_module.xyzi = pl_module.xyzi.numpy()
         np.save(pl_module.results_dir / "tile.npy", pl_module.xyzi)
 
-        # Load the other half
-        base = np.load("dataset/big_tile/base_flight_tile.npy") 
+        # Load the other half if in-overlap
+        if (pl_module.qual_dataset_csv.parents[0] / "base_flight_tile.npy").exists():
+            print("found base tile for in-overlap dataset")
+            base = np.load(pl_module.qual_dataset_csv.parents[0] / "base_flight_tile.npy") 
 
-        # Concatenate these together:
-        combined_tile = np.concatenate((base[:, :3], pl_module.xyzi[:, :3]))
+            # Concatenate these together:
+            combined_tile = np.concatenate((base[:, :3], pl_module.xyzi[:, :3]))
         
-        # Build attributes. Multiply the predictions by 512 to rescale to real values
-        attr1 = np.concatenate((base[:, 3], pl_module.xyzi[:, 3]*512)) # alt
-        attr2 = np.concatenate((base[:, 3], pl_module.xyzi[:, 4]*512)) # gt
-        attr3 = np.concatenate((base[:, 3], pl_module.xyzi[:, 5]*512)) # prediction
-        attr3 = np.clip(attr3, 0, 512) 
+            # Build attributes. Multiply the predictions by 512 to rescale to real values
+            attr1 = np.concatenate((base[:, 3], pl_module.xyzi[:, 3]*512)) # alt
+            attr2 = np.concatenate((base[:, 3], pl_module.xyzi[:, 4]*512)) # gt
+            attr3 = np.concatenate((base[:, 3], pl_module.xyzi[:, 5]*512)) # prediction
+            attr3 = np.clip(attr3, 0, 512) 
 
-        v = pptk.viewer(combined_tile)
+            v = pptk.viewer(combined_tile)
+
+        # Otherwise just load the tile
+        else:
+            print("no base tile found!")
+            attr1 = pl_module.xyzi[:, 3]*512 # alt
+            attr2 = pl_module.xyzi[:, 4]*512 # gt
+            attr3 = pl_module.xyzi[:, 5]*512 # prediction
+            attr3 = np.clip(attr3, 0, 512)
+
+            v = pptk.viewer(pl_module.xyzi[:, :3])
+
         v.attributes(attr1, attr2, attr3)
         code.interact(local=locals())
 

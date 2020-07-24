@@ -132,9 +132,10 @@ old/*
 src.egg-info/*
 src/results/*
 src/dataset/[0-9]*/*
-src/dataset/big_tile/*
+src/dataset/big_tile_in_overlap/*
+src/dataset/big_tile_no_overlap/*
 src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*
 src/dataset/dublin/old/*
-src/lightning_logs/
+src/lightning_logs/*
 

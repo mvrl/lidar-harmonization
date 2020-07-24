@@ -88,7 +88,8 @@ def create_big_tile_dataset(path, neighborhood_size=150):
 
 if __name__ == "__main__":
     print('starting...')
-    create_big_tile_dataset(r"big_tile")
+    create_big_tile_dataset(r"big_tile_in_overlap")
+    create_big_tile_dataset(r"big_tile_no_overlap")
 
 
 
