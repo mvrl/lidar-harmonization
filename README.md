@@ -33,7 +33,7 @@ To produce a more qualitative evaluation, we run the following scripts to genera
 This will create two new datasets. One is firmly in the overlap region (`big_tile_in_overlap`) and one is well outside of it (`big_tile_no_overlap`). PPTK will launch the viewer at the end of the first script, this can be used to explore the tile. Or, it can be simply be closed. 
 
 ### Important Note
-To make things easier I have extended pytorch lightning's base classes to make the "qualitative" evaluation more simple. However, this requires one addition to the library's callbacks functionality. Navigate to your conda installation directory and open `pkgs/pytorch-lightning-0.8.5-py_0/site-packages/pytorch_lightning/callbacks/base.py`. Add the following to the bottom of the class:
+To make things easier I have extended pytorch lightning's base classes to make the "qualitative" evaluation more simple. However, this requires one addition to the library's callbacks functionality. Navigate to your conda installation directory (most likely `~/.conda`)and open `pkgs/pytorch-lightning-0.8.5-py_0/site-packages/pytorch_lightning/callbacks/base.py`. Add the following to the bottom of the class:
 ```
 # For Harmonization
 def on_qual_batch_start(self, trainer, pl_module):
