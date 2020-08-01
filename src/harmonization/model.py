@@ -41,16 +41,20 @@ class IntensityNet(ExtendedLightningModule):
         self.num_workers = num_workers 
         self.dual_flight = dual_flight 
 
-        # prepare results directory
-        self.results_root = Path(results_dir)
-        self.results_dir = self.results_root /  f"{self.neighborhood_size}"
-        self.results_dir.mkdir(parents=True, exist_ok=True)
-
         # Dataset Definitions
         self.train_dataset_csv = Path(train_dataset_csv)
         self.val_dataset_csv = Path(val_dataset_csv)
         self.test_dataset_csv = Path(test_dataset_csv)
         self.qual_dataset_csv = Path(qual_dataset_csv)
+        
+        # prepare results directory
+        self.results_root = Path(results_dir)
+        self.results_dir = self.results_root /  f"{self.neighborhood_size}_df" if self.dual_flight else (
+                self.results_root / f"{self.neighborhood_size}")
+
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.qual_in = True if "_in_" in str(self.qual_dataset_csv) else False
+        
 
         # Misc:
         self.xyzi = None
@@ -68,7 +72,7 @@ class IntensityNet(ExtendedLightningModule):
         self.bn1 = nn.BatchNorm1d(512)
         self.bn2 = nn.BatchNorm1d(256)
         self.relu = nn.ReLU()
-        
+        self.sigmoid = nn.Sigmoid()
         self.embed = nn.Embedding(50, embed_dim)
         self.debug = Debug()
 
@@ -94,7 +98,7 @@ class IntensityNet(ExtendedLightningModule):
         x = torch.cat((x, fid_embed), dim=1)
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.dropout(self.fc2(x))))
-        x = self.fc3(x)
+        x = self.sigmoid(self.fc3(x))
         
         return x #, trans, trans_feat
 

@@ -11,11 +11,13 @@ if __name__ == '__main__':
             "dataset/150_190000/train_dataset.csv",
             "dataset/150_190000/val_dataset.csv",
             "dataset/150_190000/test_dataset.csv",
-            # Choose one of the below:
-            # "dataset/big_tile_in_overlap/big_tile_dataset.csv",
+            # The of the following is in-sample just like the test dataset before it
+            # so it makes more sense to only do the no_overlap:
+            #"dataset/big_tile_in_overlap/big_tile_dataset.csv",
+
             "dataset/big_tile_no_overlap/big_tile_dataset.csv",
-            neighborhood_size=0,
-            dual_flight=37).double()
+            neighborhood_size=1,
+            dual_flight=None).double()  # scan 37 has the most examples 
 
     callbacks = [CreateKDE(), CreateTile()]
     trainer = Trainer(gpus=1, max_epochs=50, callbacks=callbacks)

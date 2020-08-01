@@ -138,4 +138,5 @@ src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*
 src/dataset/dublin/old/*
 src/lightning_logs/*
-
+*.laz
+*lidar.txt

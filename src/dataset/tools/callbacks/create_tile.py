@@ -47,10 +47,22 @@ class CreateTile(Callback):
             v = pptk.viewer(pl_module.xyzi[:, :3])
 
         v.attributes(attr1, attr2, attr3)
+        v.set(bg_color=(1,1,1,1))
+        v.set(show_grid=False)
+        v.set(show_info=False)
+        v.set(show_axis=False)
+        v.set(theta = 1.53398085)
+        v.set(phi = 1.61374784)
+        v.set(r = 239.49221802)
+        print("try to line up the image correctly!")
+        qual_results_dir = pl_module.results_dir / "overlap" if pl_module.qual_in else pl_module.results_dir / "no_overlap"
+        qual_results_dir.mkdir(parents=True, exist_ok=True)
+        v.set(curr_attribute_id=0)
+        
+        v.capture(qual_results_dir / "qual_alt_capture.png")
+        v.set(curr_attribute_id=1)
+        v.capture(qual_results_dir / "qual_gt_capture.png")
+        v.set(curr_attribute_id=2)
+        v.capture(qual_results_dir / "qual_pred_capture.png")
         code.interact(local=locals())
-
-    
-
-        # additionally we need the original xyz data where this data comes from
-
-
+        v.close()

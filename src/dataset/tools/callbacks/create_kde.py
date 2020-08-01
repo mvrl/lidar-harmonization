@@ -38,12 +38,13 @@ class CreateKDE(Callback):
                 text=f"MAE = {pl_module.mae}")
     
     def on_qual_end(self, trainer, pl_module):
+        suffix = "_in_overlap.png" if pl_module.qual_in else "_no_overlap.png"
         create_kde(
                 pl_module.targets.flatten(),
                 pl_module.predictions.flatten(),
                 "Ground Truth",
                 "Predictions (Qualitative)",
-                pl_module.results_dir / "qual_kde_predictions.png",
+                pl_module.results_dir / ("qual_kde_predictions"+suffix),
                 sample_size=5000,
                 text=f"MAE = {pl_module.mae}")
 
