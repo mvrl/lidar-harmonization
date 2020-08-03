@@ -36,7 +36,7 @@ def create_dataset(path,
     
     start_time = time.time()
     
-    json_file = open("dorfCurves.json")
+    json_file = open("dorf.json")
     rf_data = json.load(json_file)
     mapping = load_mapping() # random_mapping()
     flight_counts = {}  
@@ -61,15 +61,13 @@ def create_dataset(path,
         plt.plot(
                 x, 
                 np.interp(x, 
-                    np.fromstring(rf_data[str(m)]['B'],sep=' '), 
+                    np.fromstring(rf_data[str(m)]['B'], sep=' '), 
                     np.fromstring(rf_data[str(m)]['I'], sep=' ')))
     plt.plot(x, x, 'k')
     plt.margins(x=0)
     plt.margins(y=0)
     plt.title("Response Functions in this dataset")
     plt.savefig("response_plots.png")
-
-
 
     # load the first flight file
     f1 = np.load(laz_files_path / (str(base_flight)+".npy"))
@@ -78,7 +76,6 @@ def create_dataset(path,
     base_flight_num = f1[:, 8][0]
     print(f"Base flight is {base_flight_num} with {len(f1)} points")
     assert int(base_flight_num) == base_flight
-
 
     # Randomly sample the first flight
     sample = np.random.choice(len(f1), size=samples)

@@ -22,12 +22,20 @@ class CloudIntensityNormalize(object):
         example[:, 3]/=self.max
         return example
 
+class CloudAngleNormalize(object):
+    # values go from -90 to 90
+    # transform this to -1 to 1
+    def __call__(self, example):
+        example[:, 4]/=90.0
+        return example
+
 class GetTargets(object):
     def __call__(self, example):
         i_gt = example[0, 3]
         example = example[1:, :]
         return (example, i_gt)
-        
+
+
 class ToTensor(object):
     def __call__(self, example):
         return torch.from_numpy(example)
