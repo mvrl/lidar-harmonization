@@ -2,12 +2,12 @@ import warnings
 warnings.filterwarnings('ignore')
 from src.dataset.tools.callbacks.create_kde import CreateKDE
 from src.dataset.tools.callbacks.create_tile import CreateTile
-from src.harmonization.model import IntensityNet
+from src.harmonization.model import HarmonizationNet
 from src.ex_pl.extended_trainer import ExtendedTrainer as Trainer
 import code
 
 if __name__ == '__main__':
-    net = IntensityNet(
+    net = HarmonizationNet(
             "dataset/150_190000/train_dataset.csv",
             "dataset/150_190000/val_dataset.csv",
             "dataset/150_190000/test_dataset.csv",

@@ -11,13 +11,13 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 from src.dataset.tools.lidar_dataset import LidarDataset
-from src.dataset.tools.transforms import LoadNP, CloudCenter, CloudIntensityNormalize, CloudRotateX, CloudRotateY, CloudRotateZ, CloudJitter, GetTargets
+from src.dataset.tools.transforms import LoadNP, CloudCenter, CloudIntensityNormalize, CloudRotateX, CloudRotateY, CloudRotateZ, CloudJitter, GetTargets, CloudAngleNormalize
 
 from src.dataset.tools.metrics import create_kde, create_bar
-from src.harmonization.pointnet import PointNetfeat, STNkd, Debug
+from src.harmonization.intensitynet import IntensityNet
 from src.ex_pl.extended_lightning import ExtendedLightningModule        
         
-class IntensityNet(ExtendedLightningModule):
+class HarmonizationNet(ExtendedLightningModule):
     def __init__(self,
                  train_dataset_csv,
                  val_dataset_csv,
@@ -33,7 +33,7 @@ class IntensityNet(ExtendedLightningModule):
                  feature_transform=False,
                  results_dir=r"results/"):
 
-        super(IntensityNet, self).__init__()
+        super(HarmonizationNet, self).__init__()
 
         # Configuration Options
         self.neighborhood_size = neighborhood_size
@@ -60,47 +60,10 @@ class IntensityNet(ExtendedLightningModule):
         self.xyzi = None
 
         # Network Layers
-        self.feature_transform = feature_transform
-        self.feat = PointNetfeat(global_feat=True,
-                                 feature_transform=feature_transform,
-                                 num_features=input_features)
-
-        self.fc1 = nn.Linear(1024+embed_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, num_classes)
-        self.dropout = nn.Dropout(p=0.0)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
-        self.embed = nn.Embedding(50, embed_dim)
-        self.debug = Debug()
+        self.net = IntensityNet(input_features, embed_dim, feature_transform, num_classes, self.neighborhood_size)
 
     def forward(self, batch):
-        # Center the point cloud
-        xyz = batch[:, :, :3]
-        centered_xyz = xyz - xyz[:, 0, None]
-        batch[:, :, :3] = centered_xyz
-
-        if self.neighborhood_size == 0:
-            alt = batch[:, 0, :]
-            alt = alt.unsqueeze(1)
-        else:
-            alt = batch[:, 1:self.neighborhood_size+1, :]
-
-        fid = alt[:, :, 8][:, 0].long()
-        alt = alt[:, :, :8]
-        
-        alt = alt.transpose(1, 2)
-
-        fid_embed = self.embed(fid)
-        x, trans, trans_feat = self.feat(alt)
-        x = torch.cat((x, fid_embed), dim=1)
-        x = F.relu(self.bn1(self.fc1(x)))
-        x = F.relu(self.bn2(self.dropout(self.fc2(x))))
-        x = self.sigmoid(self.fc3(x))
-        
-        return x #, trans, trans_feat
+        return self.net(batch)
 
     def prepare_data(self):
         self.criterion = nn.SmoothL1Loss()
@@ -108,6 +71,7 @@ class IntensityNet(ExtendedLightningModule):
             LoadNP(),
             # CloudCenter(),
             CloudIntensityNormalize(512),
+            CloudAngleNormalize(),
             GetTargets()])
 
         self.train_dataset = LidarDataset(
