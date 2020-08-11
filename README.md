@@ -55,3 +55,8 @@ Note that this will **not** break compatibility with other projects.
 ## Training the model
 
 Training is very straightforward. Simply run `python train.py` from the `src` directory. This should run training, validation, testing, and one of the qualitative datasets. One caveat at this point is that you must choose which one to run each time. Training a model produces results in the results directory (by default) under the chosen neighborhood size (e.g., `results/50/`). 
+
+## Troubleshooting
+
+### Installing Custom Pointnet++ CUDA Kernels with Anaconda
+If you are using Anaconda and you receive errors messages stating that .o files are not a recognized file format, it is because Anaconda comes with it's own `ld` linker. Find the folder `$HOME/.conda/envs/lidar/compiler_compat` and rename `ld` to `ld-old` temporarily. Then try to install the dependencies.

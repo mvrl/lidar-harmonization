@@ -16,7 +16,7 @@ if __name__ == '__main__':
             #"dataset/big_tile_in_overlap/big_tile_dataset.csv",
 
             "dataset/big_tile_no_overlap/big_tile_dataset.csv",
-            neighborhood_size=1,
+            neighborhood_size=2,
             dual_flight=None).double()  # scan 37 has the most examples 
 
     callbacks = [CreateKDE(), CreateTile()]

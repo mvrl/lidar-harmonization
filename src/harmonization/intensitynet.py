@@ -1,26 +1,32 @@
 import torch
 import torch.nn as nn
-from src.harmonization.pointnet import STNkd, PointNetfeat, Debug
+from src.harmonization.pointnet.pointnet import STNkd, PointNetfeat, Debug
+from src.harmonization.pointnet2.pointnet2_ssg_cls import PointNet2ClassificationSSG
 import torch.nn.functional as F
+import code
 
 
 class IntensityNet(nn.Module):
     def __init__(self, input_features, embed_dim, feature_transform, num_classes, neighborhood_size):
         super(IntensityNet, self).__init__()
         self.neighborhood_size = neighborhood_size
-        self.feature_transform = feature_transform
-        self.feat = PointNetfeat(global_feat=True,
-                feature_transform=feature_transform,
-                num_features=input_features)
-
-        self.fc1 = nn.Linear(1024+embed_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, num_classes)
-        self.dropout = nn.Dropout(p=0.0)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.relu = nn.ReLU(),
-        self.sigmoid = nn.Sigmoid()
+        # self.feature_transform = feature_transform
+        # self.feat = PointNetfeat(global_feat=True,
+        #        feature_transform=feature_transform,
+        #        num_features=input_features)
+        
+        self.pointnet2 = PointNet2ClassificationSSG()
+        self.fc_layer = nn.Sequential(
+                nn.Linear(1024+embed_dim, 512, bias=False),
+                nn.BatchNorm1d(512),
+                nn.ReLU(True),
+                nn.Linear(512, 256, bias=False),
+                nn.BatchNorm1d(256),
+                nn.ReLU(True),
+                nn.Dropout(0.5),
+                nn.Linear(256, 1),
+                ).float()
+        
         self.embed = nn.Embedding(50, embed_dim)
         self.debug = Debug()
 
@@ -39,15 +45,14 @@ class IntensityNet(nn.Module):
         fid = alt[:, :, 8][:, 0].long()
         alt = alt[:, :, :8]
 
-        alt = alt.transpose(1, 2)
-
+        # alt = alt.transpose(1, 2)  # for pointnet1
         fid_embed = self.embed(fid)
-        x, trans, trans_feat = self.feat(alt)
-        x = torch.cat((x, fid_embed), dim=1)
-        x = F.relu(self.bn1(self.fc1(x)))
-        x = F.relu(self.bn2(self.dropout(self.fc2(x))))
-        x = self.sigmoid(self.fc3(x))
+        alt = alt.float()  # for pointnet2
+        xyz, features = self.pointnet2(alt)
+        features = torch.cat((features.squeeze(-1), fid_embed.float()), dim=1)
+        x = self.fc_layer(features.double())
+        
 
-        return x #, trans, trans_feat
+        return F.sigmoid(x)
 
         

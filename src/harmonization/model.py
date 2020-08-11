@@ -60,7 +60,7 @@ class HarmonizationNet(ExtendedLightningModule):
         self.xyzi = None
 
         # Network Layers
-        self.net = IntensityNet(input_features, embed_dim, feature_transform, num_classes, self.neighborhood_size)
+        self.net = IntensityNet(input_features, embed_dim, feature_transform, num_classes, self.neighborhood_size).float()
 
     def forward(self, batch):
         return self.net(batch)
@@ -137,8 +137,8 @@ class HarmonizationNet(ExtendedLightningModule):
 
     def validation_step(self, batch, batch_idx):
         data, target = batch
-        output = self.forward(data.double())
-        loss = self.criterion(output.squeeze(), target.double())
+        output = self.forward(data)
+        loss = self.criterion(output.squeeze(), target)
 
         return {'val_loss': loss, 
                 'metrics': {'target':target, 'output':output.squeeze()}}   
@@ -147,12 +147,12 @@ class HarmonizationNet(ExtendedLightningModule):
     def test_step(self, batch, batch_idx):
         data, target = batch
         alt = data[:, 0, 3]
-        output = self.forward(data.double())
+        output = self.forward(data)
         return {'metrics': {'target': target, 'output': output.squeeze()}}
 
     def qual_step(self, batch, batch_idx):
         data, target = batch
-        output = self.forward(data.clone().double())
+        output = self.forward(data.clone())
 
         # We want to save the information here so that we can reconstruct the tile
         # see dataset/tools/callbacks/create_tile.py for more information
