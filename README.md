@@ -7,6 +7,12 @@ This is the lidar harmonization repo. See below for results and how to get setup
 
 Conda is recommended. The `environment.yml` file contains the required dependencies. Create a new environemnt with `conda env create --file environment.yml`. The environment name is `lidar`. 
 
+After cloning the directory:
+```
+cd harmonization
+pip install -e .
+```
+to install the src module.
 
 ## Building the datasets
 
