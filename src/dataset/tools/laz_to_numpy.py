@@ -51,7 +51,7 @@ def laz_to_np(path):
 
 if __name__ == '__main__':
     start_time = time.time()
-    laz_to_np('dublin_flights')
+    laz_to_np('dublin')
     print(f"Finished in {time.time() - start_time} seconds")
         
     
