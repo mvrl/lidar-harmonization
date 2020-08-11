@@ -28,7 +28,8 @@ def laz_to_np(path):
     path = Path(path)
     files = [f for f in path.glob("laz/*.laz")]
     indices = np.arange(0, len(files))
-   
+    save_path = path / 'npy'
+    save_path.mkdir(parents=True, exist_ok=True)
     for data in zip(files, indices):
         
         pts, pt_src_id, f = build_np(data)
