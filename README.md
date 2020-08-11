@@ -10,6 +10,7 @@ Conda is recommended. The `environment.yml` file contains the required dependenc
 After cloning the directory:
 ```
 cd harmonization
+conda env create -f environment.yml
 pip install -e .
 ```
 to install the src module.
