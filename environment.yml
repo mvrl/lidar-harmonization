@@ -13,5 +13,14 @@ dependencies:
   - scipy
   - tqdm
   - pytorch-lightning
+  - lastools
+  - notebook
+  - scikit-learn
+  - h5py
+  - lmdb
+  - msgpack-numpy
+  - laspy
+  - pip:
+          - pptk
 prefix: /home/david/.conda/envs/lidar
 

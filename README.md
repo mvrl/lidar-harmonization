@@ -10,6 +10,7 @@ Conda is recommended. The `environment.yml` file contains the required dependenc
 After cloning the directory:
 ```
 cd harmonization
+conda env create -f environment.yml
 pip install -e .
 ```
 to install the src module.
@@ -20,14 +21,21 @@ There are two primary datasets for this project:
 - Dublin
 - KY From Above
 
-To get started with Dublin, use the included download script `src/dataset/dublin/get_dublin`. This will download the dublin scans into `src/dataset/dublin/laz/` (~6 GB). 
+To get started with Dublin, navigate to `src/dataset/dublin/get_dublin`. To download dublin and produce uncompressed npy versions, run 
+```
+bash get_dublin
+cd ..
+python tools/laz_to_numpy.py
+```
 
-Next, each of these can be trimmed down into a numpy file by running `python tools/laz_to_numpy.py` from within `src/dataset`. This process converts each laz file into a numpy file containing only the XYZ coordinates, the intensity, and the scan angle. Additionally, the normals are estimated and the `pt_src_id` is set. The files will be saved as `dublin/npy/pt_src_id.npy` for whichever source id is applied at the time. (96 GB)
+This will download the dublin scans into `src/dataset/dublin/laz/` and the uncompressed numpy versions into `dublin/npy/pt_src_id.npy`. The numpy versions only contain spatial coordinates (X, Y, Z), intensity, scan angle rank, surface normals (X, Y, Z), and the point source id. The numpy files will be named by point source. 
 
 Now that we have more efficient files in place, it is time to create the training examples. These scripts are not especially organized. To generate a set of training examples, we will run a set of scripts in this order from the `dataset` directory:
 
-`python tools/create_dataset.py`
-`python tools/make_csv.py`
+```
+python tools/create_dataset.py
+python tools/make_csv.py
+```
 
 The preceding scripts first query a series of neighborhoods in the overlap regions. The neighborhoods along with their ground truth centers are saved in a new dataset directory (default: `150_190000`) under `neighborhoods`. The second script will then produce a csv file listing these neighborhoods. Of particular note is that this script is also responsible for class balancing. Currently, the training examples are being undersampled by source. Then, they are oversampled by target intensity. These training examples will be divided into a train/validation/test split. They are in no way connected to each other, they simply exist somewhere in the overlap regions between the base flight (default source 1) and the other flights that overlap with the base flight.
 
