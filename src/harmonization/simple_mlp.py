@@ -8,7 +8,7 @@ class SimpleMLP(nn.Module):
     """ 
     Ablation study on features
     """
-    def __init__(self, neighborhood_size=0, embed_dim=3, num_classes=1):
+    def __init__(self, neighborhood_size=0, embed_dim=3, num_features, num_classes=1):
         super(SimpleMLP, self).__init__()
         self.neighborhood_size = 0  # neighborhood_size
         self.mlp = nn.Sequential(
@@ -25,11 +25,11 @@ class SimpleMLP(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, batch):
+        
         # Center the point cloud
         xyz = batch[:, :, :3]
         centered_xyz = xyz - xyz[:, 0, None]
         batch[:, :, :3] = centered_xyz
-
         
         if self.neighborhood_size == 0:
             alt = batch[:, 0, :]
@@ -42,6 +42,9 @@ class SimpleMLP(nn.Module):
 
         # alt = alt.transpose(1, 2)
         alt = alt.squeeze()
+
+        # chop out unwanted features (scan angle, surface normals)
+        alt = alt[:, :num_features, :]
         fid_embed = self.embed(fid)
         x = torch.cat((alt, fid_embed), dim=1)
         x = self.mlp(x)
