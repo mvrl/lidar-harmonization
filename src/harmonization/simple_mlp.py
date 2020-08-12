@@ -8,11 +8,12 @@ class SimpleMLP(nn.Module):
     """ 
     Ablation study on features
     """
-    def __init__(self, neighborhood_size=0, embed_dim=3, num_features, num_classes=1):
+    def __init__(self, neighborhood_size=0, embed_dim=3, num_features=4, num_classes=1):
         super(SimpleMLP, self).__init__()
         self.neighborhood_size = 0  # neighborhood_size
+        self.num_features = num_features
         self.mlp = nn.Sequential(
-                nn.Linear(8+embed_dim, 6),
+                nn.Linear(8-num_features+embed_dim, 6),
                 nn.ReLU(True),
                 nn.Linear(6, 4),
                 nn.ReLU(True),
@@ -44,7 +45,8 @@ class SimpleMLP(nn.Module):
         alt = alt.squeeze()
 
         # chop out unwanted features (scan angle, surface normals)
-        alt = alt[:, :num_features, :]
+        alt = alt[:, :self.num_features]
+        
         fid_embed = self.embed(fid)
         x = torch.cat((alt, fid_embed), dim=1)
         x = self.mlp(x)
