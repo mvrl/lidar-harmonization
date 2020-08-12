@@ -14,7 +14,11 @@ from src.dataset.tools.lidar_dataset import LidarDataset
 from src.dataset.tools.transforms import LoadNP, CloudCenter, CloudIntensityNormalize, CloudRotateX, CloudRotateY, CloudRotateZ, CloudJitter, GetTargets, CloudAngleNormalize
 
 from src.dataset.tools.metrics import create_kde, create_bar
-from src.harmonization.intensitynet import IntensityNet
+
+from src.harmonization.simple_mlp import SimpleMLP
+from src.harmonization.inet_pn1 import IntensityNetPN1
+from src.harmonization.inet_pn2 import IntensityNetPN2
+
 from src.ex_pl.extended_lightning import ExtendedLightningModule        
         
 class HarmonizationNet(ExtendedLightningModule):
@@ -23,12 +27,10 @@ class HarmonizationNet(ExtendedLightningModule):
                  val_dataset_csv,
                  test_dataset_csv,
                  qual_dataset_csv,
+                 model_name="pointnet1",
                  neighborhood_size=0,  # set N=0 for single flight test cases
-                 num_classes=1,
                  batch_size=50,
                  num_workers=8,
-                 embed_dim=3,
-                 input_features=8,
                  dual_flight=None,
                  feature_transform=False,
                  results_dir=r"results/"):
@@ -59,8 +61,13 @@ class HarmonizationNet(ExtendedLightningModule):
         # Misc:
         self.xyzi = None
 
-        # Network Layers
-        self.net = IntensityNet(input_features, embed_dim, feature_transform, num_classes, self.neighborhood_size).float()
+        # Network
+        if model_name is "pointnet1":
+            self.net = IntensityNetPN1(self.neighborhood_size).float()
+        if model_name is "pointnet2":
+            self.net = IntensityNetPN2(self.neighborhood_size).float()
+        if model_name is "simple_mlp":
+            self.net = SimpleMLP(self.neighborhood_size).float()
 
     def forward(self, batch):
         return self.net(batch)
@@ -202,7 +209,7 @@ class HarmonizationNet(ExtendedLightningModule):
         self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()
     
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters())
+        optimizer = Adam(self.net.parameters())
         scheduler = CyclicLR(
               optimizer,
               1e-6,

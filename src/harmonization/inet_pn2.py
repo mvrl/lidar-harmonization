@@ -1,19 +1,14 @@
 import torch
 import torch.nn as nn
-from src.harmonization.pointnet.pointnet import STNkd, PointNetfeat, Debug
 from src.harmonization.pointnet2.pointnet2_ssg_cls import PointNet2ClassificationSSG
 import torch.nn.functional as F
 import code
 
 
-class IntensityNet(nn.Module):
-    def __init__(self, input_features, embed_dim, feature_transform, num_classes, neighborhood_size):
-        super(IntensityNet, self).__init__()
+class IntensityNetPN2(nn.Module):
+    def __init__(self, neighborhood_size, input_features=8, embed_dim=3, num_classes=1):
+        super(IntensityNetPN2, self).__init__()
         self.neighborhood_size = neighborhood_size
-        # self.feature_transform = feature_transform
-        # self.feat = PointNetfeat(global_feat=True,
-        #        feature_transform=feature_transform,
-        #        num_features=input_features)
         
         self.pointnet2 = PointNet2ClassificationSSG()
         self.fc_layer = nn.Sequential(
@@ -24,11 +19,10 @@ class IntensityNet(nn.Module):
                 nn.BatchNorm1d(256),
                 nn.ReLU(True),
                 nn.Dropout(0.5),
-                nn.Linear(256, 1),
+                nn.Linear(256, num_classes),
                 ).float()
         
         self.embed = nn.Embedding(50, embed_dim)
-        self.debug = Debug()
 
     def forward(self, batch):
         # Center the point cloud
@@ -54,5 +48,3 @@ class IntensityNet(nn.Module):
         
 
         return F.sigmoid(x)
-
-        

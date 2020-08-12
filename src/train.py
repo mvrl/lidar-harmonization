@@ -17,6 +17,7 @@ if __name__ == '__main__':
 
             "dataset/big_tile_no_overlap/big_tile_dataset.csv",
             neighborhood_size=2,
+            model_name="simple_mlp",
             dual_flight=None).double()  # scan 37 has the most examples 
 
     callbacks = [CreateKDE(), CreateTile()]
@@ -26,5 +27,3 @@ if __name__ == '__main__':
     trainer.test(net)
     trainer.qualitative_test(net)
     
-
-

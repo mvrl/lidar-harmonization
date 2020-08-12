@@ -5,11 +5,6 @@ import torch.nn.parallel
 import torch.nn.functional as F
 
 
-class Debug(nn.Module):
-    def forward(self, x):
-        print(x.shape)
-
-
 class STNkd(nn.Module):
     def __init__(self, k=64):
         super(STNkd, self).__init__()
@@ -91,3 +86,4 @@ class PointNetfeat(nn.Module):
         else:
             x = x.view(-1, 1024, 1).repeat(1, 1, n_pts)
             return torch.cat([x, pointfeat], 1), trans, trans_feat
+
