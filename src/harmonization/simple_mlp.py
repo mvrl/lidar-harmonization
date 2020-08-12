@@ -13,14 +13,12 @@ class SimpleMLP(nn.Module):
         self.neighborhood_size = 0  # neighborhood_size
         self.num_features = num_features
         self.mlp = nn.Sequential(
-                nn.Linear(8-num_features+embed_dim, 6),
+                nn.Linear(1, 1),
                 nn.ReLU(True),
-                nn.Linear(6, 4),
-                nn.ReLU(True),
-                nn.Dropout(0.1),
-                nn.Linear(4, 2),
-                nn.ReLU(True),
-                nn.Linear(2, 1))
+                nn.Linear(1, 1),
+                # nn.ReLU(True),
+                # nn.Linear(4, 1)
+                )
         
         self.embed = nn.Embedding(50, embed_dim)
         self.sigmoid = nn.Sigmoid()
@@ -42,14 +40,13 @@ class SimpleMLP(nn.Module):
         alt = alt[:, :, :8]
 
         # alt = alt.transpose(1, 2)
-        alt = alt.squeeze()
 
         # chop out unwanted features (scan angle, surface normals)
-        alt = alt[:, :self.num_features]
+        alt = alt[:, :, 4].unsqueeze(-1)  # literally just look at intensity and nothing else
         
-        fid_embed = self.embed(fid)
-        x = torch.cat((alt, fid_embed), dim=1)
-        x = self.mlp(x)
+        # fid_embed = self.embed(fid)
+        # x = torch.cat((alt, fid_embed), dim=1)
+        x = self.mlp(alt)
         x = self.sigmoid(x)
 
         return x #, trans, trans_feat

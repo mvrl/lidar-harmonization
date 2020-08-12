@@ -16,9 +16,9 @@ if __name__ == '__main__':
             #"dataset/big_tile_in_overlap/big_tile_dataset.csv",
 
             "dataset/big_tile_no_overlap/big_tile_dataset.csv",
-            neighborhood_size=2,
+            neighborhood_size=0,
             model_name="simple_mlp",
-            dual_flight=None).double()  # scan 37 has the most examples 
+            dual_flight=37).double()  # scan 37 has the most examples 
 
     callbacks = [CreateKDE(), CreateTile()]
     trainer = Trainer(gpus=1, max_epochs=50, callbacks=callbacks)

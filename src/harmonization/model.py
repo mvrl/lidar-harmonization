@@ -215,7 +215,7 @@ class HarmonizationNet(ExtendedLightningModule):
               1e-6,
               1e-3,
               step_size_up=len(self.train_dataset)//self.batch_size//2,
-              mode='triangular2',
+              mode='triangular',
               #scale_fn = lambda x: 1 / ((5/4.) ** (x-1)), # can't pickle this :\
               cycle_momentum=False)
 

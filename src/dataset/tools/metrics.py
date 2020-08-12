@@ -26,7 +26,11 @@ def create_kde(x, y, xlabel, ylabel, output_path, sample_size=5000, text=None):
         x = x[sample]
         y = y[sample]
     xy = np.vstack([y, x])
-    z = gaussian_kde(xy)(xy)
+    try:
+        z = gaussian_kde(xy)(xy)
+    except np.linalg.LinAlgError:
+        return
+
     
     idx = z.argsort()
     x, y, z = x[idx], y[idx], z[idx]
