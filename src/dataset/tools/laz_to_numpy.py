@@ -11,16 +11,23 @@ from patch.patch import patch_mp_connection_bpo_17560
 def build_np(args):
     path, idx = args
     with File(path, mode='r') as laz:
-        pt_src_id = laz.pt_src_id.copy()
-        pt_src_id.fill(idx)
-
+        
         pts = np.stack([laz.x,
                         laz.y,
                         laz.z,
-                        np.clip(laz.intensity, 0, 512),
+                        laz.intensity,
+                        # np.clip(laz.intensity, 0, 512),
                         laz.scan_angle_rank]).T
 
-        return pts, pt_src_id, path
+        filtered_pts = pts[pts[:, 3] <= 512]
+        
+        pt_src_id = np.zeros(shape=filtered_pts.shape[0])
+        pt_src_id.fill(idx)
+
+        print(f"filtered {len(pts)-len(filtered_pts)} points" 
+                f" out of {len(pts)} total"
+                f" ({((len(pts)-len(filtered_pts))/len(pts))*100:2f} %)")
+        return filtered_pts, pt_src_id, path    
 
 
 def laz_to_np(path):

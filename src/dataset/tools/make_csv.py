@@ -7,7 +7,7 @@ from tqdm import tqdm, trange
 # N/A
 
 
-def make_csv(path, example_count):
+def make_csv(path, example_count, resample_flights=True):
     print(f"building csv on {path}")
     dataset_path = Path(path)
 
@@ -33,24 +33,28 @@ def make_csv(path, example_count):
     print("Saving dataset")
     df.to_csv(dataset_path / "master.csv")
     
-    # Sample by flight number first
-    df_new = pd.DataFrame(columns=['examples', 'flight_num', 'target_intensity'])
-    uf = {i: len(df[df.flight_num == i]) for i in df.flight_num.unique()}
-    min_flight = uf[min(uf, key=uf.get)]
+    # Resample by flight number first
+    if resample_flights:
+        df_new = pd.DataFrame(columns=['examples', 'flight_num', 'target_intensity'])
+        uf = {i: len(df[df.flight_num == i]) for i in df.flight_num.unique()}
+        min_flight = uf[min(uf, key=uf.get)]
     
-    for flight in uf:
-        df_flight = df.loc[df['flight_num'] == flight]
-        df_new = df_new.append(df_flight.sample(n=min_flight), ignore_index=True, sort=False)
+        for flight in uf:
+            df_flight = df.loc[df['flight_num'] == flight]
+            df_new = df_new.append(
+                    df_flight.sample(n=min_flight), 
+                    ignore_index=True, 
+                    sort=False)
      
-    df = df_new
+        df = df_new
     
     
     df = df.sample(frac=1).reset_index(drop=True) # randomize rows
     print(df.columns)
 
-    # Note: oversampling only works AFTER you create train/test splits, otherwise 
-    #       evaluation samples will bleed into the training set. This means a
-    #       training-validation set must also be built. 
+    # Note: oversampling only works after train/val/test splits, otherwise 
+    #       evaluation samples will bleed into the training set.
+
     # Create new dataframe with samples evenly distributed for target intensities
     # create train/test split
     sample_count = len(df)
@@ -67,28 +71,29 @@ def make_csv(path, example_count):
 
     # Use bins of 5 to balance out the intensities
     bin_sizes = []
-    bin_size = 10
+    bin_size = 5
     df_new = pd.DataFrame(columns=['examples', 'flight_num', 'target_intensity', 'flight_path_file'])
-    bin_boundaries = [(i, i+bin_size) for i in range(5, 515, bin_size)]
+    bin_boundaries = [(i, i+bin_size) for i in range(0, 515, bin_size)]
 
     # Calcualte bin sizes
     for (l, h) in bin_boundaries:
-        if l >= 505:
-            continue
-        else:
             bin_sizes.append(len(df_train[(df_train.target_intensity >= l) & (df_train.target_intensity < h)]))
     bin_sizes = np.array(bin_sizes)
     
-    # sample size as maximum bin size? Perhaps it would be best to undersample the top bin since it is not 
-    # representative of what that bin actually is. 
-    sample_size = bin_sizes.max()
-    print("Sample Counts:")
-    for (l, h) in bin_boundaries:
-        new_df =  df_train[(df_train.target_intensity >= l) & (df_train.target_intensity < h)]
-        new_sample = new_df.sample(n=sample_size, replace=True)
+    # the intensities are clipped at 512, so there are a 
+    # disproportionate number of examples in the last bin
+    desired_bin_size = int(bin_sizes[:-1].mean())
+
+    for i, bin_size in enumerate(bin_sizes):
+        new_df = df_train[
+            (df_train.target_intensity >= bin_boundaries[i][0]) & 
+            (df_train.target_intensity  < bin_boundaries[i][1])]
+        if len(new_df) <= 0:
+            continue
+        r = True if bin_size < desired_bin_size else False
+        new_sample = new_df.sample(n=desired_bin_size, replace=r)
         df_new = df_new.append(new_sample, ignore_index=True, sort=False)
-        print(f"{l}-{h}: {len(new_df)} | {len(new_sample)}")
-    
+
     
     df_train = df_new.loc[:, 'examples':'flight_num']    
     df_val = df_val.loc[:, 'examples':'flight_num']
@@ -112,6 +117,6 @@ def make_csv(path, example_count):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("150_190000", 8000)
+    make_csv("150_35M", 21000, resample_flights=True)
 
         

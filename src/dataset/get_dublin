@@ -44,6 +44,8 @@ urls=(
 	https://archive.nyu.edu/retrieve/79993/nyu_2451_38625_pc_F_150326_115601.zip
 )
 
+[ ! -d "dublin" ] && echo "Directory 'dublin' DOES NOT exists." && exit
+
 cd dublin
 mkdir laz
 cd laz

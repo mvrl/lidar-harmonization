@@ -132,11 +132,14 @@ old/*
 src.egg-info/*
 src/results/*
 src/dataset/[0-9]*/*
+src/dataset/combined/*
+src/dataset/interpolation_dataset/*
 src/dataset/big_tile_in_overlap/*
 src/dataset/big_tile_no_overlap/*
 src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*
 src/dataset/dublin/old/*
+src/dataset/notebooks/lidar/*
 src/lightning_logs/*
 *.laz
 *lidar.txt

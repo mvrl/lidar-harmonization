@@ -36,17 +36,13 @@ class STNkd(nn.Module):
         x = F.relu(self.bn5(self.fc2(x)))
         x = self.fc3(x)
 
-        #iden = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1,self.k*self.k).repeat(batchsize,1)
-        iden = torch.eye(self.k, self.k).flatten().repeat(batchsize,1).double()
-        iden = iden.to(x.device)
-        #if x.is_cuda:
-        #    iden = iden.cuda()
+        iden = torch.eye(self.k).flatten().repeat(batchsize,1).double().to(x.device)
         x = x + iden
         x = x.view(-1, self.k, self.k)
         return x
 
 class PointNetfeat(nn.Module):
-    def __init__(self, global_feat = True, feature_transform = False, num_features=4):
+    def __init__(self, global_feat = True, feature_transform = False, num_features=8):
         super(PointNetfeat, self).__init__()
         self.stn = STNkd(k=num_features)
         self.conv1 = torch.nn.Conv1d(num_features, 64, 1)
@@ -61,6 +57,7 @@ class PointNetfeat(nn.Module):
             self.fstn = STNkd(k=64)
 
     def forward(self, x):
+        # Input: (B, C, N)
         n_pts = x.size()[2]
         trans = self.stn(x)
         x = x.transpose(2, 1)

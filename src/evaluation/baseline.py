@@ -1,11 +1,63 @@
 import code
 import torch
 import numpy as np
-from dataset.lidar_dataset import LidarDataset
+from src.dataset.tools.lidar_dataset import LidarDataset
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import pandas as pd
+from src.dataset.tools.metrics import create_kde
+from scipy.interpolate import griddata
+from tqdm import tqdm
+from multiprocessing import Pool
+from pathlib import Path
 
-from util.metrics import create_kde
+N_SIZE=20
+METHOD='linear'
+
+def do_work(ex_path):
+    ex = np.load(ex_path)
+    ex[:, :3] -= ex[0, :3]  # center point cloud
+    ex[:, 3] /= 512  # normalize intensity 0-1
+    try:
+        pred = griddata(ex[1:N_SIZE, :3], ex[1:N_SIZE, 3], (0, 0, 0), method=METHOD)
+        return (pred, ex[0, 3])
+    except:
+        pass
+
+def interpolate_baseline(dataset_csv=None):
+
+    df = pd.read_csv(dataset_csv)
+    save_path = Path(f"results/{N_SIZE}/")
+    save_path.mkdir(parents=True, exist_ok=True)
+    predictions = []
+    targets = []
+    unused_count = 0
+    pool = Pool(8)
+    for data in tqdm(pool.imap_unordered(do_work, df["examples"]), total=len(df)):
+        if data:
+            if not np.isnan(data[0]).any():
+                predictions.append(data[0])
+                targets.append(data[1])
+        else:
+            unused_count+=1 
+    
+    predictions = np.array(predictions).squeeze()
+    targets = np.array(targets)
+    residuals = targets - predictions
+    # residuals = residuals[~np.isnan(residuals)]
+    MAE = np.mean(np.abs(residuals))
+    print(predictions.shape)
+    print(targets.shape)
+    create_kde(
+            targets,
+            predictions,
+            "Ground Truth",
+            "Fixed Values (baseline)",
+            save_path / f"baseline_interpolation.png",
+            text=f"MAE: {str(MAE)}")
+
+    print(f"MAE: {MAE}")
+    print(f"There were {unused_count} unused test examples")
 
 def second_closest_point_baseline(config=None,
                     dataset_csv=None,
@@ -100,3 +152,5 @@ def average_points_baseline(
                "Fixed Values",
                f"results/kde_baseline_average_{neighborhood_size}.png",
                text=f"MAE: {total_mae_output:.5f}")
+
+interpolate_baseline("dataset/interpolation_dataset/test_dataset.csv")

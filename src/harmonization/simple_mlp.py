@@ -8,16 +8,15 @@ class SimpleMLP(nn.Module):
     """ 
     Ablation study on features
     """
-    def __init__(self, neighborhood_size=0, embed_dim=3, num_features=4, num_classes=1):
+    def __init__(self, neighborhood_size=0, embed_dim=3, num_features=4, num_classes=1, use_surface_characteristics=True, use_scan_angle=True):
         super(SimpleMLP, self).__init__()
-        self.neighborhood_size = 0  # neighborhood_size
-        self.num_features = num_features
+        self.neighborhood_size = neighborhood_size  # neighborhood_size
+        self.num_features = 5
+
         self.mlp = nn.Sequential(
-                nn.Linear(1, 1),
+                nn.Linear(self.num_features+embed_dim, 10),
                 nn.ReLU(True),
-                nn.Linear(1, 1),
-                # nn.ReLU(True),
-                # nn.Linear(4, 1)
+                nn.Linear(10, 1),
                 )
         
         self.embed = nn.Embedding(50, embed_dim)
@@ -40,13 +39,12 @@ class SimpleMLP(nn.Module):
         alt = alt[:, :, :8]
 
         # alt = alt.transpose(1, 2)
-
         # chop out unwanted features (scan angle, surface normals)
-        alt = alt[:, :, 4].unsqueeze(-1)  # literally just look at intensity and nothing else
-        
-        # fid_embed = self.embed(fid)
-        # x = torch.cat((alt, fid_embed), dim=1)
-        x = self.mlp(alt)
-        x = self.sigmoid(x)
+        # alt = alt[:, :, 3] # literally just look at intensity and nothing else
+        # alt = alt[:, :, 3:5] # look at intensity, scan angle
+        alt = alt[:, :, 3:8] # look at intensity, scan angle, normals
+        fid_embed = self.embed(fid)
+        x = torch.cat((alt.squeeze(), fid_embed), dim=1)
+        x = self.mlp(x)
 
         return x #, trans, trans_feat

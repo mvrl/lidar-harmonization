@@ -12,14 +12,14 @@ class IntensityNetPN2(nn.Module):
         
         self.pointnet2 = PointNet2ClassificationSSG()
         self.fc_layer = nn.Sequential(
-                nn.Linear(1024+embed_dim, 512, bias=False),
+                nn.Linear(1024, 512, bias=False), # B, 1024 -> B, 512
                 nn.BatchNorm1d(512),
                 nn.ReLU(True),
                 nn.Linear(512, 256, bias=False),
                 nn.BatchNorm1d(256),
                 nn.ReLU(True),
                 nn.Dropout(0.5),
-                nn.Linear(256, num_classes),
+                nn.Linear(256, num_classes), # B, 256 -> B, num_classes
                 ).float()
         
         self.embed = nn.Embedding(50, embed_dim)
@@ -43,7 +43,9 @@ class IntensityNetPN2(nn.Module):
         fid_embed = self.embed(fid)
         alt = alt.float()  # for pointnet2
         xyz, features = self.pointnet2(alt)
-        features = torch.cat((features.squeeze(-1), fid_embed.float()), dim=1)
+        features = features.squeeze()  # B, 1024
+        # code.interact(local=locals())
+        # features = torch.cat((features.squeeze(-1), fid_embed.float()), dim=1)
         x = self.fc_layer(features.double())
         
 

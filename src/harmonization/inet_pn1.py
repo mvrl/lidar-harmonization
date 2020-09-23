@@ -1,6 +1,7 @@
+import code
 import torch
 import torch.nn as nn
-from src.harmonization.pointnet.pointnet import STNkd, PointNetfeat
+from src.models.pointnet.pointnet import STNkd, PointNetfeat
 import torch.nn.functional as F
 
 
@@ -8,19 +9,33 @@ class IntensityNetPN1(nn.Module):
     def __init__(self, neighborhood_size, input_features=8, embed_dim=3, num_classes=1):
         super(IntensityNetPN1, self).__init__()
         self.neighborhood_size = neighborhood_size
+        self.input_features = input_features
+        self.camera_embed = nn.Embedding(100, embed_dim)
         self.feat = PointNetfeat(global_feat=True,
                 feature_transform=False,
-                num_features=input_features)
+                num_features=self.input_features)
 
-        self.fc1 = nn.Linear(1024+embed_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, num_classes)
-        self.dropout = nn.Dropout(p=0.0)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.relu = nn.ReLU(),
-        self.sigmoid = nn.Sigmoid()
-        self.embed = nn.Embedding(50, embed_dim)
+        self.fc_layer = nn.Sequential(
+                nn.Linear(1024, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Linear(512, 256),
+                nn.Dropout(p=0.3),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+                nn.Linear(256, num_classes))
+
+        self.harmonization = nn.Sequential(
+                nn.Linear(num_classes+embed_dim+embed_dim, 8),
+                nn.ReLU(),
+                nn.Linear(8, num_classes))
+
+        
+        # Initializing harmonization weights to
+        # identity speeds up convergence greatly
+        self.harmonization[0].weight.data.copy_(torch.eye(8, num_classes+embed_dim+embed_dim))
+        self.harmonization[2].weight.data.copy_(torch.eye(1, 8))
+
 
     def forward(self, batch):
         # Center the point cloud
@@ -33,17 +48,30 @@ class IntensityNetPN1(nn.Module):
             alt = alt.unsqueeze(1)
         else:
             alt = batch[:, 1:self.neighborhood_size+1, :]
-
-        fid = alt[:, :, 8][:, 0].long()
-        alt = alt[:, :, :8]
+         
+        target_camera = alt[:, 0, -1].long()
+        source_camera = alt[:, 1, -1].long()
+        alt = alt[:, :, :-1]
 
         alt = alt.transpose(1, 2)
-
-        fid_embed = self.embed(fid)
+        
+        # extract features 
         x, trans, trans_feat = self.feat(alt)
-        x = torch.cat((x, fid_embed), dim=1)
-        x = F.relu(self.bn1(self.fc1(x)))
-        x = F.relu(self.bn2(self.dropout(self.fc2(x))))
-        x = self.sigmoid(self.fc3(x))
 
-        return x #, trans, trans_feat
+        # interpolate value at center point
+        interpolation = self.fc_layer(x)
+
+        # append source/target cameras
+        x = torch.cat(
+                (
+                    interpolation, 
+                    self.camera_embed(source_camera), 
+                    self.camera_embed(target_camera)
+                )
+            , dim=1)
+
+        # harmonize intensity to target camera
+        harmonization = self.harmonization(x)
+        return harmonization, interpolation
+
+

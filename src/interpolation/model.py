@@ -11,30 +11,15 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 from src.dataset.tools.lidar_dataset import LidarDataset
-from src.dataset.tools.transforms import LoadNP, CloudCenter, CloudIntensityNormalize, CloudRotateX, CloudRotateY, CloudRotateZ, CloudJitter, GetTargets, CloudAngleNormalize, GetTargets2
+from src.dataset.tools.transforms import LoadNP, CloudCenter, CloudIntensityNormalize, CloudRotateX, CloudRotateY, CloudRotateZ, CloudJitter, GetTargets, GetTargetsInterp, CloudAngleNormalize
 
 from src.dataset.tools.metrics import create_kde, create_bar
-
-from src.harmonization.simple_mlp import SimpleMLP
-from src.harmonization.inet_pn1 import IntensityNetPN1
-from src.harmonization.inet_pn2 import IntensityNetPN2
-from src.harmonization.inet_pc import IntensityNetPC
+from src.interpolation.interp_net_pn1 import IntensityNetPN1
+from src.interpolation.interp_net_pn2 import IntensityNetPN2
 
 from src.ex_pl.extended_lightning import ExtendedLightningModule        
-
-def get_metrics(outputs):
-    h_targets = torch.stack([x['metrics']['h_target'] for x in outputs])
-    h_preds = torch.stack([x['metrics']['harmonization'] for x in outputs])
-    h_mae = torch.mean(torch.abs(h_targets.flatten() - h_preds.flatten())).item()
-    
-    i_targets = torch.stack([x['metrics']['i_target'] for x in outputs])
-    i_preds = torch.stack([x['metrics']['interpolation'] for x in outputs])
-    i_mae = torch.mean(torch.abs(i_targets.flatten() - i_preds.flatten())).item()
-
-    return h_targets, h_preds, h_mae, i_targets, i_preds, i_mae
-
-
-class HarmonizationNet(ExtendedLightningModule):
+        
+class InterpolationNet(ExtendedLightningModule):
     def __init__(self,
                  train_dataset_csv,
                  val_dataset_csv,
@@ -43,12 +28,12 @@ class HarmonizationNet(ExtendedLightningModule):
                  model_name="pointnet1",
                  neighborhood_size=0,  # set N=0 for single flight test cases
                  batch_size=50,
-                 num_workers=8,
+                 num_workers=1,
                  dual_flight=None,
                  feature_transform=False,
                  results_dir=r"results/"):
 
-        super(HarmonizationNet, self).__init__()
+        super(InterpolationNet, self).__init__()
 
         # Configuration Options
         self.neighborhood_size = neighborhood_size
@@ -64,12 +49,13 @@ class HarmonizationNet(ExtendedLightningModule):
         
         # prepare results directory
         self.results_root = Path(results_dir)
-        self.results_dir = (self.results_root /  f"{self.neighborhood_size}_df"
-                if self.dual_flight else self.results_root / f"{self.neighborhood_size}")
+        self.results_dir = self.results_root /  f"{self.neighborhood_size}_df" if self.dual_flight else (
+                self.results_root / f"{self.neighborhood_size}")
 
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self.qual_in = True if "_in_" in str(self.qual_dataset_csv) else False
         
+
         # Misc:
         self.xyzi = None
 
@@ -92,7 +78,7 @@ class HarmonizationNet(ExtendedLightningModule):
             LoadNP(),
             CloudIntensityNormalize(512),
             CloudAngleNormalize(),
-            GetTargets2()])
+            GetTargetsInterp()])
 
         self.train_dataset = LidarDataset(
                 self.train_dataset_csv,
@@ -122,6 +108,7 @@ class HarmonizationNet(ExtendedLightningModule):
                 shuffle=True,
                 num_workers=self.num_workers,
                 drop_last=True)
+                # pin_memory=True)
 
 
     def val_dataloader(self):
@@ -146,46 +133,31 @@ class HarmonizationNet(ExtendedLightningModule):
                 drop_last=True)
 
     def training_step(self, batch, batch_idx):
-        data, h_target, i_target = batch
-        harmonization, interpolation = self.forward(data)
-        h_loss = self.criterion(harmonization.squeeze(), h_target)
-        i_loss = self.criterion(interpolation.squeeze(), i_target)
-        loss = h_loss + i_loss
+        data, target = batch
+        output = self.forward(data)
+        loss = self.criterion(output.squeeze(), target)
         return {'loss': loss, 
-                'metrics': {
-                    'h_target': h_target, 
-                    'harmonization': harmonization.squeeze(),
-                    'i_target': i_target,
-                    'interpolation': interpolation.squeeze()}}
+                'metrics': {'target': target, 'output': output.squeeze()}}
 
 
     def validation_step(self, batch, batch_idx):
-        data, h_target, i_target = batch
-        harmonization, interpolation = self.forward(data)
-        h_loss = self.criterion(harmonization.squeeze(), h_target)
-        i_loss = self.criterion(interpolation.squeeze(), i_target)
-        loss = h_loss + i_loss
+        data, target = batch
+        output = self.forward(data)
+        loss = self.criterion(output.squeeze(), target)
+
         return {'val_loss': loss, 
-                'metrics': {
-                    'h_target':h_target, 
-                    'harmonization':harmonization.squeeze(),
-                    'i_target': i_target,
-                    'interpolation': interpolation.squeeze()}}   
+                'metrics': {'target':target, 'output':output.squeeze()}}   
 
 
     def test_step(self, batch, batch_idx):
-        data, h_target, i_target = batch
-        
-        harmonization, interpolation = self.forward(data)
-        return {'metrics': {
-            'h_target': h_target, 
-            'harmonization': harmonization.squeeze(),
-            'i_target': i_target,
-            'interpolation': interpolation.squeeze()}}
+        data, target = batch
+        alt = data[:, 0, 3]
+        output = self.forward(data)
+        return {'metrics': {'target': target, 'output': output.squeeze()}}
 
     def qual_step(self, batch, batch_idx):
-        data, h_target, i_target = batch
-        harmonization, interpolation = self.forward(data.clone())
+        data, target = batch
+        output = self.forward(data.clone())
 
         # We want to save the information here so that we can reconstruct the tile
         # see dataset/tools/callbacks/create_tile.py for more information
@@ -193,50 +165,46 @@ class HarmonizationNet(ExtendedLightningModule):
         xyzi = data[:, 0, :4]  # get the xyzi data from the corrupted gt-copy
         
         # append the corrupted version and the predicted intensity
-        xyzi = torch.cat((xyzi, h_target.unsqueeze(1)), dim=1)
-        if len(harmonization.shape) != 2:
-            harmonization = harmonization.squeeze()
-            harmonization = harmonization.unsqueeze(-1)
-        xyzi = torch.cat((xyzi, harmonization), dim=1)
+        xyzi = torch.cat((xyzi, target.unsqueeze(1)), dim=1) 
+        xyzi = torch.cat((xyzi, output.squeeze(-1)), dim=1)
         if self.xyzi is not None: 
             self.xyzi = torch.cat((self.xyzi, xyzi.cpu()))
         else:
             self.xyzi = xyzi.cpu()
 
-        return {'metrics': {
-            'h_target': h_target, 
-            'harmonization': harmonization.squeeze(),
-            'i_target': i_target,
-            'interpolation': interpolation}}
+        return {'metrics': {'target': target, 'output': output.squeeze()}}
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-       
-        (self.h_targets, self.h_preds, self.h_mae, 
-         self.i_targets, self.i_preds, self.i_mae) = get_metrics(outputs)
-
+        self.targets = torch.stack([x['metrics']['target'] for x in outputs])
+        self.predictions = torch.stack([x['metrics']['output'] for x in outputs])
+        
+        self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()
+        
         return {'avg_train_loss': avg_loss}
         
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        self.targets = torch.stack([x['metrics']['target'] for x in outputs])
+        self.predictions = torch.stack([x['metrics']['output'] for x in outputs])
         
-        (self.h_targets, self.h_preds, self.h_mae, 
-         self.i_targets, self.i_preds, self.i_mae) = get_metrics(outputs)
-        
+        self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()
+
         return {'avg_val_loss': avg_loss}
 
-
     def test_epoch_end(self, outputs):
-        (self.h_targets, self.h_preds, self.h_mae,
-         self.i_targets, self.i_preds, self.i_mae) = get_metrics(outputs)
+        self.targets = torch.stack([x['metrics']['target'] for x in outputs])
+        self.predictions = torch.stack([x['metrics']['output'] for x in outputs])
+
+        self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()
 
 
     def qual_epoch_end(self, outputs):
-        (self.h_targets, self.h_preds, self.h_mae,
-         self.i_targets, self.i_preds, self.i_mae) = get_metrics(outputs)
+        self.targets = torch.stack([x['metrics']['target'] for x in outputs])
+        self.predictions = torch.stack([x['metrics']['output'] for x in outputs])
 
-
+        self.mae = torch.mean(torch.abs(self.targets.flatten() - self.predictions.flatten())).item()    
     def configure_optimizers(self):
         optimizer = Adam(self.net.parameters())
         scheduler = CyclicLR(
@@ -250,4 +218,5 @@ class HarmonizationNet(ExtendedLightningModule):
 
         # scheduler = StepLR(optimizer, step_size=1)
         return [optimizer], [scheduler]
+
 

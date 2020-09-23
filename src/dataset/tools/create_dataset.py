@@ -1,156 +1,209 @@
-import os
 import time
 import code
-from pathlib import Path
 import numpy as np
+import pandas as pd
+from pathlib import Path
 from pptk import kdtree
-from multiprocessing import Pool
-import json
-from util.apply_rf import apply_rf
-import matplotlib.pyplot as plt
-from patch.patch import patch_mp_connection_bpo_17560
+from tqdm import tqdm, trange
+from src.dataset.tools.apply_rf import ApplyResponseFunction
 
-patch_mp_connection_bpo_17560()
 
-def load_laz(path):
-    f = np.load(path)
-    return f
-
-def random_mapping():
-    mapping = np.random.choice(160, size=41)
-    np.save("mapping.npy", mapping)
-    return mapping
-
-def load_mapping():
-    mapping = np.load("mapping.npy")
-    return mapping
-
-def create_dataset(path,
-                   neighborhood_size,
-                   samples,
-                   example_count,
-                   base_flight=1,
-                   contains_flights=None,
-                   output_suffix="",
-                   sanity_check=True):
+def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=10):
+    # Params:
+    #     pc1: point cloud 1 (np array with shape ([m, k1]))
+    #     pc2: point cloud 2 (np array with shape ([n, k2]))
+    #
+    # k1 and k2 must contain at least x and y coordinates. 
     
-    start_time = time.time()
+    #
+    # Returns:
+    #     
     
-    json_file = open("dorf.json")
-    rf_data = json.load(json_file)
-    mapping = load_mapping() # random_mapping()
-    flight_counts = {}  
+    # define a data range
+    pc_combined = np.concatenate((pc1, pc2))
+    data_range = np.array(
+        [[pc_combined[:, 0].min(), pc_combined[:, 0].max()],
+        [pc_combined[:, 1].min(), pc_combined[:, 1].max()],
+        [pc_combined[:, 2].min(), pc_combined[:, 2].max()]])
 
-    # get flight path files:
-    laz_files_path = Path(path)
-
-    idx_count = 0
-        
-    # save path
-    save_path = Path(r"%s_%s%s/" % (neighborhood_size, example_count, output_suffix))
-    save_path.mkdir(parents=True, exist_ok=True)
-    example_path = save_path / "neighborhoods"
+    del pc_combined  # save some mem
     
-    example_path.mkdir(parents=True, exist_ok=True)
-    print(f"Created path: {save_path}")
-
-    # plot the response functions    
-    for f in contains_flights:
-        x = np.linspace(0, 1, 1000)
-        m = mapping[f]
-        plt.plot(
-                x, 
-                np.interp(x, 
-                    np.fromstring(rf_data[str(m)]['B'], sep=' '), 
-                    np.fromstring(rf_data[str(m)]['I'], sep=' ')))
-    plt.plot(x, x, 'k')
-    plt.margins(x=0)
-    plt.margins(y=0)
-    plt.title("Response Functions in this dataset")
-    plt.savefig("response_plots.png")
-
-    # load the first flight file
-    f1 = np.load(laz_files_path / (str(base_flight)+".npy"))
-
-    # Confirm we have flight 1 
-    base_flight_num = f1[:, 8][0]
-    print(f"Base flight is {base_flight_num} with {len(f1)} points")
-    assert int(base_flight_num) == base_flight
-
-    # Randomly sample the first flight
-    sample = np.random.choice(len(f1), size=samples)
-    f1_sample = f1[sample]
-
-    # contains flights will have to be defined
-    flights_container = [laz_files_path / (str(i)+".npy") for i in contains_flights]
+    # define bins based on data_range:
+    x_bins = int((data_range[0][1]-data_range[0][0])/10)
+    y_bins = int((data_range[1][1]-data_range[1][0])/10)
+    z_bins = int((data_range[2][1]-data_range[2][0])/10)
     
-    laz_files_exist = [f.exists() for f in flights_container]
-    if any(laz_files_exist) == False:
-        exit(f"ERROR: files don't exist! Check {laz_files_path}")
-    print(f"Found {len(flights_container)} flights")
-    # Query flights with all points from flight 0
-    # dual and multi flight case, query for neighborhoods 
-    for fidx, flight_i in enumerate(flights_container):
-        print(f"Loading flight file {flight_i}")
-        fi = load_laz(flight_i)
-        flight_num = int(fi[:, 8][0])
-        print(f"Loaded flight #{flight_num}")
+    # Collect some number of points as overlap between these point clouds
+    # build kd tree so we can search for points in pc2
+    kd = kdtree._build(pc2[:, :3])
 
-        flight_counts[flight_num] = 0
-        
-        kd = kdtree._build(fi[:,:3])
-        queries = kdtree._query(kd,
-                f1_sample[:,:3], 
-                k=neighborhood_size, dmax=1/(2**1))
+    # collect a sample of points in pc1 to query in pc2
+    sample_overlap = np.random.choice(len(pc1), size=sample_overlap_size)
+    pc1_sample = pc1[sample_overlap]
 
-        for idx, query in enumerate(queries):  # only get full neighborhoods
-            if len(query) == neighborhood_size:
-                fi_query = fi[query]
-                target_point = f1_sample[idx]
-                target_intensity = int(target_point[3])
-                ground_truth = np.concatenate(
-                        (np.expand_dims(target_point, 0), fi_query))
-                alteration = apply_rf(
-                        "dorfCurves.json", 
-                        ground_truth, 
-                        mapping[flight_num],
-                        512,
-                        rf_data=rf_data)
-               
-                
-                alteration = np.concatenate(
-                    (np.expand_dims(target_point, 0), alteration)
-                )   
-                
-                # Alteration will be of size (152, 9), with index=0 being
-                # the ground truth target center, and index=1 being the 
-                # altered copy of g.t. target center.
+    # query pc1 sample in pc2. note that we want lots of nearby neighbors
+    query = kdtree._query(kd, pc1_sample[:, :3], k=150, dmax=1)
+    
+    # Count the number of neighbors found at each query point
+    counts = np.zeros((len(query), 1))
+    for i in range(len(query)):
+        counts[i][0] = len(query[i])
 
-                np.save(example_path / f"{flight_num}_{str(target_intensity)}_{idx_count}.npy", alteration)
+    # Append this to our sample
+    pc1_sample_with_counts = np.concatenate((pc1_sample[:, :3], counts), axis=1)
 
-                idx_count += 1
-                flight_counts[flight_num] += 1
+    # this needs to be transformed such that the points (X, Y) occur in the
+    # array `count` times. This will make histogram creation easier.
+    rows = []
+    for i in range(len(pc1_sample_with_counts)):
+        row = pc1_sample_with_counts[i, :3]
+        row = np.expand_dims(row, 0)
+        if pc1_sample_with_counts[i, 2]:
+            duplication = np.repeat(row, pc1_sample_with_counts[i, 3], axis=0)
+            rows.append(duplication)
+    
+    pc1_sample_f = np.concatenate(rows, axis=0)
+    
+    # build histogram over data
+    hist, edges = np.histogramdd(
+        pc1_sample_f[:, :3], 
+        bins=[x_bins, y_bins, z_bins],
+        range=data_range)
+
+    return (hist, edges), pc1_sample_f
+
+
+def get_overlap_points(pc, hist_info, c):
+    # this seems slow
+    
+    indices = np.full(pc.shape[0], False)
+    hist, (xedges, yedges, zedges) = hist_info
+
+    for i in range(hist.shape[0]):
+        for j in range(hist.shape[1]):
+            for k in range(hist.shape[2]):
+                if hist[i][j][k] > c:
+                    x1, x2 = xedges[i], xedges[i+1]
+                    y1, y2 = yedges[j], yedges[j+1]
+                    z1, z2 = zedges[k], zedges[k+1]
+                    
+                    new_indices = ((x1 <= pc[:, 0]) & (pc[:, 0] < x2) & 
+                        (y1 <= pc[:, 1]) & (pc[:, 1] < y2) &
+                        (z1 <= pc[:, 2]) & (pc[:, 2] < z2))
+                    
+                    indices = indices | new_indices
+
+    return indices
+
+
+if __name__ == "__main__":
+
+    # Some options to play with
+    sample_overlap_size = int(10e3)
+    sample_not_overlap_size = int(3e3)
+
+    # Setup
+    ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
+    neighborhoods_path = Path("150/neighborhoods")
+    neighborhoods_path.mkdir(parents=True, exist_ok=True)
+
+    # Get point clouds ready to load in 
+    pc_dir = Path("dublin/npy/")
+    pc_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
+
+    # choose a base flight as "target flight"
+    target_scan = '1'
+    pc1 = np.load(pc_paths[target_scan])
+
+    # for each flight: 
+    # 1. detect if there are overlaps
+    # 2. if yes, find neighborhoods in the overlapping scan and 
+    #    save them as examples with the center point from the target scan
+    # 3. for each overlapping scan, also create examples from outside the 
+    #    overlap region
+    # 4. necessary to have examples from target flight?
+    for scan_num in pc_paths:
+        if scan_num is not target_scan:
+
+            # load pc2
+            pc2 = np.load(pc_paths[scan_num])
             
-    print("Training example counts by flight:")
-    print(flight_counts)
-    print(f"Found {idx_count} total examples")
-    if idx_count < example_count:
-        print("Could not find enough examples! Try increasing sample size...")
-        print(f"Only found {idx_count} samples")
-    else:
-        print("Found sufficient training data")
-        print(mapping)
-    
-    print(f"finished in {time.time() - start_time} seconds")        
+            # build histogram on overlap
+            hist_info, _ = get_hist_overlap(pc1, pc2)
 
-if __name__ == '__main__':
+            # collect all points in overlap bins w/ size > 150
+            overlap_indices = get_overlap_points(pc1, hist_info, 150)
+            
+            pc_overlap = pc1[overlap_indices]
+            pc_not_overlap = pc1[~overlap_indices]
+
+            # don't do anyting if no overlap region is found
+            if pc_overlap.shape[0] == 0:
+                continue
     
-    create_dataset('dublin_flights/npy',
-                   150,
-                   20000000,
-                   190000,
-                   base_flight=1,
-                   contains_flights=[0, 2, 4, 7, 10, 15, 20, 21, 30, 35, 37, 39],
-                   # output_prefix="",
-                   sanity_check=True)
+            # get neighborhoods from pc2 that contain 150 neighbors
+            kd = kdtree._build(pc2[:, :3])
+            query = kdtree._query(kd, pc_overlap[:, :3], k=150, dmax=1)
+
+            # any query with len(query) == 150 is a full neighborhood.
+            # Store these in 150/neighborhoods/ with target intensity and
+            # target intensity copy as the first two elements in the array.
+
+            for idx, q in enumerate(query):
+                if len(q) == 150:
+                    neighborhood = pc2[q]
+                    alt_neighborhood = ARF(neighborhood, int(scan_num), 512)
+                    center = np.expand_dims(pc_overlap[idx], 0)
+                    alt_center = ARF(center, int(scan_num), 512)
+
+                    ex = np.concatenate((
+                        center, 
+                        alt_center, 
+                        alt_neighborhood))
+
+                    # save format is 
+                    # neighborhoods/{source}_{target}_{target_intensity}
+                    np.save(neighborhoods_path / 
+                            f"{scan_num}_{target_scan}_{int(alt_center[:, 3])}_{idx}.npy",
+                            ex)
+            
+            # one potential issue from this is that we will inevitably get
+            # a much larger sample from this vs the samples we acquired in the
+            # steps above. Maybe just use a constant value.
+
+            sample_not_overlap_idx = np.random.choice(
+                    len(pc2), 
+                    size=sample_not_overlap_size, 
+                    replace=False)
+            
+            sample_not_overlap = pc2[sample_not_overlap_idx]
+
+            # note that k=151 so we have consistent size with overlap samples
+            query = kdtree._query(kd, sample_not_overlap[:, :3], k=151, dmax=1)
+            for idx, q in enumerate(query):
+                if len(q) == 151:  # not sure why this wouldn't be the case
+                    neighborhood = pc2[q]
+                    center = np.expand_dims(neighborhood[0], 0)
+                    alt_neighborhood = ARF(neighborhood, int(scan_num), 512)
+
+                    ex = np.concatenate((center, alt_neighborhood))
+                    np.save(neighborhoods_path / 
+                            f"{scan_num}_{scan_num}_{int(neighborhood[0, 4])}.npy",
+                            ex)
+
+                    
+                    
+
+
+
+        
+
+
+
+
+
+
+
+
     
+
