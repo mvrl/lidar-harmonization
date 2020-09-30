@@ -8,16 +8,20 @@ from tqdm import tqdm, trange
 from src.dataset.tools.apply_rf import ApplyResponseFunction
 
 
-def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=10):
-    # Params:
-    #     pc1: point cloud 1 (np array with shape ([m, k1]))
-    #     pc2: point cloud 2 (np array with shape ([n, k2]))
-    #
-    # k1 and k2 must contain at least x and y coordinates. 
-    
-    #
-    # Returns:
-    #     
+# Some options to play with
+target_scan = '1'
+overlap_sample_size = 10000
+source_sample_size = 500000
+overlap_threshold=150
+workers=6
+
+# Setup
+ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
+neighborhoods_path = Path("150/neighborhoods")
+neighborhoods_path.mkdir(parents=True, exist_ok=True)
+save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
+
+def get_hist_overlap(pc1, pc2, s=10000, hist_bin_length=10):
     
     # define a data range
     pc_combined = np.concatenate((pc1, pc2))
@@ -33,23 +37,17 @@ def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=10):
     y_bins = int((data_range[1][1]-data_range[1][0])/10)
     z_bins = int((data_range[2][1]-data_range[2][0])/10)
     
-    # Collect some number of points as overlap between these point clouds
-    # build kd tree so we can search for points in pc2
     kd = kdtree._build(pc2[:, :3])
 
-    # collect a sample of points in pc1 to query in pc2
-    sample_overlap = np.random.choice(len(pc1), size=sample_overlap_size)
+    sample_overlap = np.random.choice(len(pc1), size=s)
     pc1_sample = pc1[sample_overlap]
 
-    # query pc1 sample in pc2. note that we want lots of nearby neighbors
     query = kdtree._query(kd, pc1_sample[:, :3], k=150, dmax=1)
     
-    # Count the number of neighbors found at each query point
     counts = np.zeros((len(query), 1))
     for i in range(len(query)):
         counts[i][0] = len(query[i])
 
-    # Append this to our sample
     pc1_sample_with_counts = np.concatenate((pc1_sample[:, :3], counts), axis=1)
 
     # this needs to be transformed such that the points (X, Y) occur in the
@@ -72,14 +70,13 @@ def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=10):
 
     return (hist, edges), pc1_sample_f
 
-
 def get_overlap_points(pc, hist_info, c):
     # this seems slow
     
-    indices = np.full(pc.shape[0], False)
+    indices = np.full(pc.shape[0], False, dtype=bool)
     hist, (xedges, yedges, zedges) = hist_info
 
-    for i in range(hist.shape[0]):
+    for i in trange(hist.shape[0], desc='building overlap region', leave=False):
         for j in range(hist.shape[1]):
             for k in range(hist.shape[2]):
                 if hist[i][j][k] > c:
@@ -96,23 +93,66 @@ def get_overlap_points(pc, hist_info, c):
     return indices
 
 
-if __name__ == "__main__":
+def balance_intensity(pc, example_count=2000):
+    bins = np.arange(0, 520, 5)
+    pc_final = np.empty((0, 9))
+    for i in trange(len(bins)-1, desc='balancing overlap', leave=False):
+        left, right = bins[i], bins[i+1]
+        pc_temp = pc.copy()
+        pc_temp = pc_temp[(pc_temp[:, 3] < right) & (pc_temp[:, 3] >= left)]
 
+        # sample if selection is large, otherwise just take it - oversample later?
+        if pc_temp.shape[0] >= example_count:
+            sample = np.random.choice(
+                    len(pc_temp), 
+                    size=example_count, 
+                    replace=False)
+
+            pc_temp = pc_temp[sample]
+        
+        pc_final = np.concatenate((pc_final, pc_temp))
+
+    return pc_final
+
+
+def save_neighborhood(neighborhood_info):
+    # multiprocessing WIP
+    indices, center, target_num, source_scan, idx = neighborhood_info
+        
+    if len(indices) == 150:  # make this dynamic for source and overlap regions
+        # pc2 = shared_memory.SharedMemory(name=f"{source_scan}_{target_scan}")
+        neighborhood = pc2_shm[indices]
+        alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
+        alt_center = ARF(center, int(source_scan), 512)
+        ex = np.concatenate((center, alt_center, alt_neighborhood))
+
+        save_string = save_format.format(
+            source_scan=source_scan,
+            target_scan=target_scan,
+            center=str(int(center[:,3])),
+            idx=idx)
+
+        np.savetxt(neighborhoods_path / save_string, ex)
+                     
+
+if __name__ == "__main__":
     # Some options to play with
-    sample_overlap_size = int(10e3)
-    sample_not_overlap_size = int(3e3)
+    # target_scan = '1'
+    # overlap_sample_size = 10000
+    # sample_not_overlap_size = 500000
+    # overlap_threshold=150
+    # workers=8
 
     # Setup
-    ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
-    neighborhoods_path = Path("150/neighborhoods")
-    neighborhoods_path.mkdir(parents=True, exist_ok=True)
+    # ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
+    # neighborhoods_path = Path("150/neighborhoods")
+    # neighborhoods_path.mkdir(parents=True, exist_ok=True)
+    # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
 
     # Get point clouds ready to load in 
     pc_dir = Path("dublin/npy/")
     pc_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
-
-    # choose a base flight as "target flight"
-    target_scan = '1'
+    
     pc1 = np.load(pc_paths[target_scan])
 
     # for each flight: 
@@ -121,89 +161,76 @@ if __name__ == "__main__":
     #    save them as examples with the center point from the target scan
     # 3. for each overlapping scan, also create examples from outside the 
     #    overlap region
-    # 4. necessary to have examples from target flight?
-    for scan_num in pc_paths:
-        if scan_num is not target_scan:
 
-            # load pc2
-            pc2 = np.load(pc_paths[scan_num])
-            
-            # build histogram on overlap
-            hist_info, _ = get_hist_overlap(pc1, pc2)
-
-            # collect all points in overlap bins w/ size > 150
-            overlap_indices = get_overlap_points(pc1, hist_info, 150)
-            
-            pc_overlap = pc1[overlap_indices]
-            pc_not_overlap = pc1[~overlap_indices]
-
-            # don't do anyting if no overlap region is found
-            if pc_overlap.shape[0] == 0:
-                continue
-    
-            # get neighborhoods from pc2 that contain 150 neighbors
-            kd = kdtree._build(pc2[:, :3])
-            query = kdtree._query(kd, pc_overlap[:, :3], k=150, dmax=1)
-
-            # any query with len(query) == 150 is a full neighborhood.
-            # Store these in 150/neighborhoods/ with target intensity and
-            # target intensity copy as the first two elements in the array.
-
-            for idx, q in enumerate(query):
-                if len(q) == 150:
-                    neighborhood = pc2[q]
-                    alt_neighborhood = ARF(neighborhood, int(scan_num), 512)
-                    center = np.expand_dims(pc_overlap[idx], 0)
-                    alt_center = ARF(center, int(scan_num), 512)
-
-                    ex = np.concatenate((
-                        center, 
-                        alt_center, 
-                        alt_neighborhood))
-
-                    # save format is 
-                    # neighborhoods/{source}_{target}_{target_intensity}
-                    np.save(neighborhoods_path / 
-                            f"{scan_num}_{target_scan}_{int(alt_center[:, 3])}_{idx}.npy",
-                            ex)
-            
-            # one potential issue from this is that we will inevitably get
-            # a much larger sample from this vs the samples we acquired in the
-            # steps above. Maybe just use a constant value.
-
-            sample_not_overlap_idx = np.random.choice(
-                    len(pc2), 
-                    size=sample_not_overlap_size, 
-                    replace=False)
-            
-            sample_not_overlap = pc2[sample_not_overlap_idx]
-
-            # note that k=151 so we have consistent size with overlap samples
-            query = kdtree._query(kd, sample_not_overlap[:, :3], k=151, dmax=1)
-            for idx, q in enumerate(query):
-                if len(q) == 151:  # not sure why this wouldn't be the case
-                    neighborhood = pc2[q]
-                    center = np.expand_dims(neighborhood[0], 0)
-                    alt_neighborhood = ARF(neighborhood, int(scan_num), 512)
-
-                    ex = np.concatenate((center, alt_neighborhood))
-                    np.save(neighborhoods_path / 
-                            f"{scan_num}_{scan_num}_{int(neighborhood[0, 4])}.npy",
-                            ex)
-
-                    
-                    
-
-
-
+    pbar = tqdm(pc_paths, total=len(pc_paths.keys()))
+    for source_scan in pbar:
+        if source_scan is target_scan:
+            continue  # skip
         
+        pbar.set_description("Total Progress")
 
+        # load pc2 
+        pc2 = np.load(pc_paths[source_scan])
+        
+        # build histogram on overlap
+        hist_info, _ = get_hist_overlap(pc1, pc2, s=overlap_sample_size)
 
+        # collect all points in overlap bins w/ size > overlap_threshold
+        overlap_indices = get_overlap_points(pc1, hist_info, overlap_threshold)
 
+        pc_overlap = pc1[overlap_indices]
 
-
-
-
-
+        if pc_overlap.shape[0] < 200000:
+            continue  # overlap region too small, skip
     
+        pc_overlap = balance_intensity(pc_overlap)
+            
+        # get neighborhoods from pc2 that contain 150 neighbors
+        kd = kdtree._build(pc2[:, :3])
+        query = kdtree._query(kd, pc_overlap[:, :3], k=150, dmax=1)
+
+        # Store these in 150/neighborhoods/ with target intensity and
+        # target intensity copy as the first two elements in the array.
+        desc = "building neighborhoods from overlap"    
+        for idx in trange(len(query), desc=desc, leave=False):
+            q = query[idx]
+
+            if len(q) == 150:
+                neighborhood = pc2[q]
+                alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
+                center = np.expand_dims(pc_overlap[idx], 0)
+                alt_center = ARF(center, int(source_scan), 512)
+                ex = np.concatenate((center, alt_center, alt_neighborhood))
+
+                save_string = save_format.format(
+                    source_scan=source_scan,
+                    target_scan=target_scan,
+                    center=str(int(center[:,3])),
+                    idx=idx)
+                    
+                np.savetxt(neighborhoods_path / save_string, ex)
+         
+        # sample size between source & overlap might be an issue. Fix in post?
+        source_sample_idx = np.random.choice(pc2.shape[0], size=source_sample_size)
+        pc_source = balance_intensity(pc2[source_sample_idx])
+
+        # note that k=151 so we have consistent size with overlap samples
+        query = kdtree._query(kd, pc_source[:, :3], k=151, dmax=1)
+        desc="building neighborhoods from source"
+        for idx in trange(len(query), desc=desc, leave=False):
+            q = query[idx]
+
+            if len(q) == 151:
+                neighborhood = pc2[q]
+                center = np.expand_dims(neighborhood[0], 0)
+                alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
+                ex = np.concatenate((center, alt_neighborhood))
+
+                save_string = save_format.format(
+                    source_scan=source_scan,
+                    target_scan=source_scan,
+                    center=str(int(center[:,3])),
+                    idx=idx)
+
+                np.savetxt(neighborhoods_path / save_string, ex)
 

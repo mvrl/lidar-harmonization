@@ -7,16 +7,12 @@ print("got metrics")
 from pathlib import Path
 from pptk import kdtree, viewer
 import matplotlib.pyplot as plt
-from src.dataset.tools.apply_rf import apply_rf
+from src.dataset.tools.apply_rf import ApplyResponseFunction
 
 
 def load_laz(path):
     f = np.load(path)
     return f
-
-def load_mapping(path):
-    mapping = np.load(path)
-    return mapping
 
 def visualize_n_flights(path, flights, sample_size=500000):
     # flights is a list of numbers representing flights 0-40
@@ -50,9 +46,8 @@ def visualize_n_flights(path, flights, sample_size=500000):
 def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point, num_points=1e6, in_overlap=True):
 
     laz_files_path = Path(path)
-    json_file = open("dorf.json")
-    rf_data = json.load(json_file)
-    mapping = load_mapping("mapping.npy")
+    ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
+    
     if in_overlap:
         save_dir = Path("big_tile_in_overlap")
     else:
@@ -60,25 +55,6 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point,
 
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    # plot the response function - this plot should show the transformation
-    # that is applied to the source flight in the generated tile. Compare this
-    # with post_response_curve generated at the end. 
-
-    x = np.linspace(0, 1, 1000)
-    m = mapping[intersecting_flight]
-    plt.plot(
-            x,
-            np.interp(
-                x,
-                np.fromstring(rf_data[str(m)]['B'], sep=' '),
-                np.fromstring(rf_data[str(m)]['I'], sep=' ')))
-
-    plt.plot(x, x, 'k')
-    plt.margins(x=0)
-    plt.margins(y=0)
-    plt.title("Response function on the big tile")
-    plt.savefig(save_dir / "pre_response_curve.png")
-    print("Saved response plot")
     
     # if we are in the overlap, we have to process two kd trees, 
     # otherwise we can just do 1. 
@@ -114,11 +90,7 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point,
         tile_f2 = np.concatenate((tile_f2, tile_f1_2))
 
     # create corrupted tile_f2
-    tile_f2_alt = apply_rf(
-            "dorf.json", 
-            tile_f2, 
-            mapping[intersecting_flight],
-            512) 
+    tile_f2_alt = ARF(tile_f2, intersecting_flight, 512) 
    
     sample = np.random.choice(len(tile_f2), size=5000)
     create_kde(
@@ -159,22 +131,24 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point,
 
 if __name__=='__main__':
     
-    # Automatic big tile creation
-    # create_big_tile('dublin_flights', 4, 1000000)
     
     # Create a big tile with manual point input in the overlap region
-    create_big_tile_manual('dublin/npy', 1, 37, 
-          np.array([[316340.656, 234122.562, 6.368]]))
+    create_big_tile_manual(
+            'dublin/npy', 
+            1, 
+            15,
+            np.array([[316411.156, 233449.719, 9.964]]), 
+            in_overlap=False)
     
-    # exit()
     # create a big tile with manual point input outside the overlap region
-    # create_big_tile_manual('dublin/npy', 1, 37,
-    #         np.array([[316557.094, 234186.656, 1.191]]), in_overlap=False)
+    # create_big_tile_manual('dublin/npy', 1, 15,
+    #         np.array([[315897.531, 233896.250, 5.033]]), in_overlap=True)
+
     # Show the overlapping flights over flight 1
     # visualize_n_flights(
     #       'dublin/npy', 
     #        [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
-    #        [1, 37], sample_size=None)
+    #        [1, 15], sample_size=None)
 
     
                  

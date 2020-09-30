@@ -4,7 +4,7 @@ import torch
 class LoadNP(object):
     def __call__(self, example):
         # Load the numpy files
-        return np.load(example)
+        return np.loadtxt(example)
 
 
 class CloudCenter(object):
