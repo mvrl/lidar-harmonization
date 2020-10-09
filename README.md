@@ -21,7 +21,7 @@ There are two primary datasets for this project:
 - Dublin
 - KY From Above
 
-To get started with Dublin, navigate to `src/dataset/dublin/get_dublin`. To download dublin and produce uncompressed npy versions, run 
+To get started with Dublin, navigate to `src/dataset`. To download dublin and produce uncompressed npy versions, run 
 ```
 bash get_dublin
 cd ..
@@ -34,7 +34,6 @@ Now that we have more efficient files in place, it is time to create the trainin
 
 ```
 python tools/create_dataset.py
-python tools/make_csv.py
 ```
 
 The preceding scripts first query a series of neighborhoods in the overlap regions. The neighborhoods along with their ground truth centers are saved in a new dataset directory (default: `150_190000`) under `neighborhoods`. The second script will then produce a csv file listing these neighborhoods. Of particular note is that this script is also responsible for class balancing. Currently, the training examples are being undersampled by source. Then, they are oversampled by target intensity. These training examples will be divided into a train/validation/test split. They are in no way connected to each other, they simply exist somewhere in the overlap regions between the base flight (default source 1) and the other flights that overlap with the base flight.
@@ -46,29 +45,10 @@ To produce a more qualitative evaluation, we run the following scripts to genera
 
 This will create two new datasets. One is firmly in the overlap region (`big_tile_in_overlap`) and one is well outside of it (`big_tile_no_overlap`). PPTK will launch the viewer at the end of the first script, this can be used to explore the tile. Or, it can be simply be closed. 
 
-### Important Note
-To make things easier I have extended pytorch lightning's base classes to make the "qualitative" evaluation more simple. However, this requires one addition to the library's callbacks functionality. Navigate to your conda installation directory (most likely `~/.conda`)and open `pkgs/pytorch-lightning-0.8.5-py_0/site-packages/pytorch_lightning/callbacks/base.py`. Add the following to the bottom of the class:
-```
-# For Harmonization
-def on_qual_batch_start(self, trainer, pl_module):
-    pass
-
-def on_qual_batch_end(self, trainer, pl_module):
-    pass
-
-def on_qual_start(self, trainer, pl_module):
-    pass
-
-def on_qual_end(self, trainer, pl_module):
-    pass
-```
-
-Note that this will **not** break compatibility with other projects. 
-
 
 ## Training the model
 
-Training is very straightforward. Simply run `python train.py` from the `src` directory. This should run training, validation, testing, and one of the qualitative datasets. One caveat at this point is that you must choose which one to run each time. Training a model produces results in the results directory (by default) under the chosen neighborhood size (e.g., `results/50/`). 
+Training is very straightforward. Simply run `python training/train.py` from the `src` directory. This will run training. 
 
 ## Troubleshooting
 
