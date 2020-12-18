@@ -134,21 +134,18 @@ if __name__=='__main__':
     
     # Create a big tile with manual point input in the overlap region
     create_big_tile_manual(
-            'dublin/npy', 
+            'dublin/gis', 
             1, 
             15,
             np.array([[316411.156, 233449.719, 9.964]]), 
             in_overlap=False)
     
-    # create a big tile with manual point input outside the overlap region
-    # create_big_tile_manual('dublin/npy', 1, 15,
-    #         np.array([[315897.531, 233896.250, 5.033]]), in_overlap=True)
 
     # Show the overlapping flights over flight 1
     # visualize_n_flights(
-    #       'dublin/npy', 
-    #        [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
-    #        [1, 15], sample_size=None)
+    #      'dublin/gis', 
+    #      [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
+    #      [1, 15], sample_size=None)
 
     
                  

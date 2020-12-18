@@ -131,10 +131,13 @@ dmypy.json
 old/*
 src.egg-info/*
 src/results/*
+src/temp/*
 src/dataset/[0-9]*/*
 src/dataset/combined/*
 src/dataset/interpolation_dataset/*
 src/dataset/big_tile_in_overlap/*
+src/dataset/synth_crptn+shift/*
+src/dataset/synth_crptn/*
 src/dataset/big_tile_no_overlap/*
 src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*

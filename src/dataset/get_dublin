@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 
-urls=( 
+
+flights=( 
 	https://archive.nyu.edu/retrieve/80235/nyu_2451_38683_pc_F_150326_161223.zip 
 	https://archive.nyu.edu/retrieve/80230/nyu_2451_38682_pc_F_150326_161001.zip
 	https://archive.nyu.edu/retrieve/80225/nyu_2451_38681_pc_F_150326_160709.zip
@@ -44,13 +45,50 @@ urls=(
 	https://archive.nyu.edu/retrieve/79993/nyu_2451_38625_pc_F_150326_115601.zip
 )
 
+tiles=( 
+	https://archive.nyu.edu/retrieve/79793/nyu_2451_38588_pc_T_314000_234000.zip
+        https://archive.nyu.edu/retrieve/79797/nyu_2451_38589_pc_T_314500_233000.zip
+	https://archive.nyu.edu/retrieve/79801/nyu_2451_38590_pc_T_314500_233500.zip
+	https://archive.nyu.edu/retrieve/79805/nyu_2451_38591_pc_T_314500_234000.zip
+	https://archive.nyu.edu/retrieve/79962/nyu_2451_38592_pc_T_314500_234500.zip
+	https://archive.nyu.edu/retrieve/79813/nyu_2451_38593_pc_T_315000_233000.zip
+	https://archive.nyu.edu/retrieve/79817/nyu_2451_38594_pc_T_315000_233500.zip
+	https://archive.nyu.edu/retrieve/79822/nyu_2451_38595_pc_T_315000_234000.zip
+	https://archive.nyu.edu/retrieve/79827/nyu_2451_38596_pc_T_315000_234500.zip
+	https://archive.nyu.edu/retrieve/79831/nyu_2451_38597_pc_T_315000_235000.zip
+	https://archive.nyu.edu/retrieve/79835/nyu_2451_38598_pc_T_315500_232500.zip
+	https://archive.nyu.edu/retrieve/79839/nyu_2451_38599_pc_T_315500_233000.zip
+	https://archive.nyu.edu/retrieve/79843/nyu_2451_38600_pc_T_315500_233500.zip
+	https://archive.nyu.edu/retrieve/79848/nyu_2451_38601_pc_T_315500_234000.zip
+	https://archive.nyu.edu/retrieve/79848/nyu_2451_38601_pc_T_315500_234000.zip
+	https://archive.nyu.edu/retrieve/79771/nyu_2451_38586_pc_T_315500-234500.zip
+	https://archive.nyu.edu/retrieve/79853/nyu_2451_38602_pc_T_315500_235000.zip
+	https://archive.nyu.edu/retrieve/79858/nyu_2451_38603_pc_T_316000_232500.zip
+	https://archive.nyu.edu/retrieve/79862/nyu_2451_38604_pc_T_316000_233000.zip
+	https://archive.nyu.edu/retrieve/79891/nyu_2451_38606_pc_T_316000_234000.zip
+	https://archive.nyu.edu/retrieve/79895/nyu_2451_38607_pc_T_316000_234500.zip
+	https://archive.nyu.edu/retrieve/79899/nyu_2451_38608_pc_T_316000_235000.zip
+	https://archive.nyu.edu/retrieve/79902/nyu_2451_38609_pc_T_316000_235500.zip
+	https://archive.nyu.edu/retrieve/79905/nyu_2451_38610_pc_T_316500_232500.zip
+	https://archive.nyu.edu/retrieve/79908/nyu_2451_38611_pc_T_316500_233000.zip
+	https://archive.nyu.edu/retrieve/79911/nyu_2451_38612_pc_T_316500_233500.zip
+	https://archive.nyu.edu/retrieve/79915/nyu_2451_38613_pc_T_316500_234000.zip
+	https://archive.nyu.edu/retrieve/79919/nyu_2451_38614_pc_T_316500_234500.zip
+	https://archive.nyu.edu/retrieve/79923/nyu_2451_38615_pc_T_316500_235000.zip
+	https://archive.nyu.edu/retrieve/79927/nyu_2451_38617_pc_T_317000_232500.zip
+	https://archive.nyu.edu/retrieve/79929/nyu_2451_38618_pc_T_317000_233000.zip
+	https://archive.nyu.edu/retrieve/79932/nyu_2451_38619_pc_T_317000_233500.zip
+	https://archive.nyu.edu/retrieve/79935/nyu_2451_38620_pc_T_317000_234000.zip
+	https://archive.nyu.edu/retrieve/79938/nyu_2451_38621_pc_T_317000_234500.zip
+)
+
 [ ! -d "dublin" ] && echo "Directory 'dublin' DOES NOT exists." && exit
 
 cd dublin
 mkdir laz
 cd laz
 
-for i in "${urls[@]}"
+for i in "${flights[@]}"
 do
 	wget --no-check-certificate $i &
 	wait;

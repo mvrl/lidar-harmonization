@@ -6,7 +6,6 @@ import pandas as pd
 import torch
 
 from tqdm import tqdm
-from src.dataset.tools.metrics import create_kde
 from src.dataset.tools.dataloaders import get_dataloader
 
 
@@ -62,7 +61,7 @@ def hist_match(target, reference):
         x_reference)
     
     # Interpolate values over the combined distributions
-    x = np.arange(g.min(), g.max(), (g.max()-g.min())/10000)
+    x = np.linspace(g.min(), g.max(), 10000)
 
     m = np.interp(target, x, m_vals)
     

@@ -17,7 +17,7 @@ workers=6
 
 # Setup
 ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
-neighborhoods_path = Path("150/neighborhoods")
+neighborhoods_path = Path("gis/150/neighborhoods")
 neighborhoods_path.mkdir(parents=True, exist_ok=True)
 save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
 
@@ -115,26 +115,6 @@ def balance_intensity(pc, example_count=2000):
     return pc_final
 
 
-def save_neighborhood(neighborhood_info):
-    # multiprocessing WIP
-    indices, center, target_num, source_scan, idx = neighborhood_info
-        
-    if len(indices) == 150:  # make this dynamic for source and overlap regions
-        # pc2 = shared_memory.SharedMemory(name=f"{source_scan}_{target_scan}")
-        neighborhood = pc2_shm[indices]
-        alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
-        alt_center = ARF(center, int(source_scan), 512)
-        ex = np.concatenate((center, alt_center, alt_neighborhood))
-
-        save_string = save_format.format(
-            source_scan=source_scan,
-            target_scan=target_scan,
-            center=str(int(center[:,3])),
-            idx=idx)
-
-        np.savetxt(neighborhoods_path / save_string, ex)
-                     
-
 if __name__ == "__main__":
     # Some options to play with
     # target_scan = '1'
@@ -150,7 +130,7 @@ if __name__ == "__main__":
     # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
 
     # Get point clouds ready to load in 
-    pc_dir = Path("dublin/npy/")
+    pc_dir = Path("dublin/gis/")
     pc_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
     
     pc1 = np.load(pc_paths[target_scan])

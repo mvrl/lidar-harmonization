@@ -19,6 +19,8 @@ def fetch_url(entry):
     return path
 
 # TO DO: Convert pg_src and output_path to CLI args
+# TO DO: clean up list.txt to save space  -- done
+# TO DO: test cleaned list.txt
 pg_src = "list.txt"
 output_path = None  # Fill in desired path here
 URL = "ftp://ftp.kymartian.ky.gov/kyaped/LAZ/"
@@ -30,12 +32,8 @@ files = []
 with open(pg_src, "r") as f:
     lines = f.readlines()
 
-for l in lines:
-    s = l.split(" ")
-
-    if s[1][-4:-1] == "laz":
-        filename = s[1].split("\"")[1]
-        files.append(output_path / filesname, URL+filename)
+for filename in lines:
+    files.append(output_path / filename, URL+filename)
 
 print(f"Preparing to download {len(files)}")
 

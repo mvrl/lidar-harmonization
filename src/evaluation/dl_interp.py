@@ -78,4 +78,4 @@ def dl_interp(state_dict):
     np.savetxt(dataset_csv.parents[0] / f"fixed_dl_{n_size}.txt.gz", fixed_tile)
 
 if __name__ == "__main__":
-    dl_interp("results/5/5_epoch=13.pt")
+    dl_interp("results/100/100_epoch=10.pt")

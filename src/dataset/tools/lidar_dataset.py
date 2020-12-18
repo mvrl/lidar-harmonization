@@ -8,7 +8,7 @@ from torchvision.transforms import Compose
 
 
 class LidarDataset(Dataset):
-    def __init__(self, csv_filepath, transform=None, dual_flight=None):
+    def __init__(self, csv_filepath, transform=None, dual_flight=None, limit=None):
         """ LidarDataset class for Harmonization
             Args:
                 csv_filepath (str): path to training set csv
@@ -23,6 +23,9 @@ class LidarDataset(Dataset):
         
         if dual_flight:
             self.df = self.df.loc[self.df['flight_num'] == dual_flight]
+
+        if limit is not None:
+            self.df = self.df[:limit]
 
     def __len__(self):
         return len(self.df)

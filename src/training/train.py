@@ -16,8 +16,8 @@ warnings.filterwarnings(action="ignore")
 
 b_size=50
 num_workers=6
-n_size=5
-epochs=50
+n_size=100
+epochs=30
 gpu = torch.device('cuda:0')
 
 print(f"Starting training with n_size {n_size}, b_size {b_size}")
