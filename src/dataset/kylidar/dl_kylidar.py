@@ -5,7 +5,7 @@ from contextlib import closing
 from pathlib import Path
 from multiprocessing import Pool
 import time
-
+# This script downloads KY Statewide lidar
 # This takes around 5.5 hours on LCC with 8 processes
 # versus ~2 days running wget -r URL
 
