@@ -21,8 +21,8 @@ def make_csv(path, resample_flights=True):
 
     for i in trange(len(examples), desc="processing", ascii=True):
         filename = examples[i].stem
-        target_scan[i] = filename.split("_")[0]
-        source_scan[i] = filename.split("_")[1]
+        source_scan[i] = filename.split("_")[0]
+        target_scan[i] = filename.split("_")[1]
         intensities[i] = filename.split("_")[2]
     
 
@@ -37,22 +37,31 @@ def make_csv(path, resample_flights=True):
     print("Saving dataset")
     df.to_csv(dataset_path / "master.csv")
     
-    # Resample by flight number first
+    # Undersample by source scan sample size
     if resample_flights:
         df_new = pd.DataFrame(columns=['examples', 'source_scan', 'target_scan', 'target_intensity'])
+        print("Source scan examples by source")
         uf = {i: len(df[df.source_scan == i]) for i in df.source_scan.unique()}
-        min_flight = uf[min(uf, key=uf.get)]
+        print(type(target_scan))
+        print(uf)
+        print(len(uf))
+        # min_flight = uf[min(uf, key=uf.get)]
     
         for flight in uf:
-            df_flight = df.loc[df['source_scan'] == flight]
-            df_new = df_new.append(
-                    df_flight.sample(n=min_flight), 
+            # take only the largest scans!
+            if uf[flight] > 81000:
+                df_flight = df.loc[(df['source_scan'] == flight)]
+                df_new = df_new.append(
+                    df_flight.sample(n=81000), 
                     ignore_index=True, 
                     sort=False)
      
         df = df_new
-    
-    
+        print("Source scan examples by source *after* resampling -- check this!")
+        uf = {i: len(df[df.source_scan == i]) for i in df.source_scan.unique()}
+        print(uf)
+        print(len(uf))
+        input("Press CTRL-C now if this seems wrong, else ENTER")
     df = df.sample(frac=1).reset_index(drop=True) # randomize rows
     print(df.columns)
 
@@ -119,6 +128,6 @@ def make_csv(path, resample_flights=True):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("synth_crptn/150", resample_flights=True)
+    make_csv("synth_crptn+shift/150", resample_flights=True)
 
         

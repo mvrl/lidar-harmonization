@@ -10,7 +10,7 @@ class IntensityNetPN1(nn.Module):
         super(IntensityNetPN1, self).__init__()
         self.neighborhood_size = neighborhood_size
         self.input_features = input_features
-        self.camera_embed = nn.Embedding(100, embed_dim)
+        self.camera_embed = nn.Embedding(45, embed_dim)
         self.feat = PointNetfeat(global_feat=True,
                 feature_transform=False,
                 num_features=self.input_features)
@@ -33,45 +33,53 @@ class IntensityNetPN1(nn.Module):
         
         # Initializing harmonization weights to
         # identity speeds up convergence greatly
-        self.harmonization[0].weight.data.copy_(torch.eye(8, num_classes+embed_dim+embed_dim))
+        self.harmonization[0].weight.data.copy_(torch.eye(8, num_classes+embed_dim))
         self.harmonization[2].weight.data.copy_(torch.eye(1, 8))
 
 
     def forward(self, batch):
+        # [[neighborhood]] -> [H_p]
+        # Neighborhood is the series of points closest to the first point.
+        #    Point 0 (stripped) is the harmonization target  (in target scan)
+        #    Point 1 is the interpolation target             (in target scan)
+        #    Point 2 is closest neighbor                     (in source scan)
+        #    Point 3-152 are the remaining closest neighbors (in source scan)
+
         # Center the point cloud
         xyz = batch[:, :, :3]
         centered_xyz = xyz - xyz[:, 0, None]
         batch[:, :, :3] = centered_xyz
 
         if self.neighborhood_size == 0:
+            # use the interpolation target as the input (for testing only)
             alt = batch[:, 0, :]
             alt = alt.unsqueeze(1)
         else:
+            # chop out interpolation target
             alt = batch[:, 1:self.neighborhood_size+1, :]
-         
-        target_camera = alt[:, 0, -1].long()
-        source_camera = alt[:, 1, -1].long()
-        alt = alt[:, :, :-1]
-
-        alt = alt.transpose(1, 2)
         
-        # extract features 
+        # Camera embedding (for each neighborhood, the camera is the same for every point)
+        source_camera = alt[:, 1, -1].long()
+        target_camera = alt[:, 0, -1].long()
+        
+        source_camera_embed = self.camera_embed(source_camera)
+        target_camera_embed = self.camera_embed(target_camera)
+        camera_info = source_camera_embed - target_camera_embed
+        alt = alt[:, :, :-1]  # remove camera data
+
+        # Pointnet
+        alt = alt.transpose(1, 2)
         x, trans, trans_feat = self.feat(alt)
 
         # interpolate value at center point
         interpolation = self.fc_layer(x)
 
-        # append source/target cameras
-        x = torch.cat(
-                (
-                    interpolation, 
-                    self.camera_embed(source_camera), 
-                    self.camera_embed(target_camera)
-                )
-            , dim=1)
+        # fuse interpolation and camera info
+        x = torch.cat((interpolation, camera_info), dim=1)
 
         # harmonize intensity to target camera
         harmonization = self.harmonization(x)
+
         return harmonization, interpolation
 
 

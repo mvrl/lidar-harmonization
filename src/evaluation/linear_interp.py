@@ -96,10 +96,11 @@ def linear_interp(
 
     # Harmonization        
     if harmonization_method is "lstsq":
-        model = lstsq_method(dataset)
+        model = lstsq_method(dataset, target_scan=target_scan)
 
     elif harmonization_method is "MLP":
         model = mlp_train(dataset, 30, batch_size, gpu)
+        model.eval()
         
     else:
         exit(f"No method: {harmonization_method}")
@@ -113,44 +114,42 @@ def linear_interp(
         pbar = tqdm(tile_dataloader, total=len(tile_dataloader))
         for batch_idx, batch in enumerate(pbar):
             data, h_target, i_target = batch
-
-            tile_data = data[:, 0, :].numpy()
-            
-            intensity = tile_data[:, 3]
-            
-            source_scan = int(data[0, 0, 8])
+            # data is [batch, neighborhood, channels]
             
             
             if harmonization_method is "lstsq":
+                source_intensity = data[:, 0, 3]
+                source_scan = int(data[0, 0, 8])
+
                 t = model[(source_scan, target_scan)]
-                fixed_intensity = (t[0]*(intensity**3)) + (t[1]*(intensity**2)) + (t[2]*intensity) + t[3]
+                fixed_intensity = (t[0]*(source_intensity**3)) + (t[1]*(source_intensity**2)) + (t[2]*source_intensity) + t[3]
             
             if harmonization_method is "MLP":
                 with torch.set_grad_enabled(False):   
 
                     i_center = data[:, 1, 3]
-                    source = data[:, 0, 8]
                     h_target_t = h_target.clone()
+
+                    source = data[:, 0, 8]
                     target = torch.tensor(target_scan).repeat(len(source)).double()
-                    new_batch = torch.stack((
-                        i_center,
-                        i_center,
-                        h_target_t,
-                        source,
-                        target)).T
+
+                    new_batch = torch.stack((i_center, 
+                                             i_target, 
+                                             h_target_t,
+                                             source,
+                                             target)).T
 
                     new_batch = new_batch.to(device=gpu)
 
-                    model.eval()
                     fixed_intensity, h_target_t = model(new_batch)
                     fixed_intensity = fixed_intensity.cpu().numpy().squeeze()
                                                               
             tile_data = np.concatenate((
-                tile_data[:, :3], # XYZ
+                data[:, 0, :3], # XYZ
                 h_target.numpy().reshape(-1, 1), # h_target
                 fixed_intensity.reshape(-1, 1),  # h_pred
-                tile_data[:, 3].reshape(-1, 1),  # i_target
-                tile_data[:, 4:]), axis=1)
+                data[:, 0, 3].reshape(-1, 1),    # i_target
+                data[:, 0, 4:]), axis=1)
             
             loss = np.mean(np.abs(tile_data[:, 4] - tile_data[:, 3]))
             
@@ -171,7 +170,7 @@ if __name__=="__main__":
     # This creates the main table
     
     for i_method in ["linear", "nearest", "cubic"]:
-        for h_method in ["MLP", "lstsq",]:
+        for h_method in ["lstsq", "MLP",]:
             for n in [5, 20, 50, 100]:
                 print(f"Running: {i_method} {h_method} {n}")
 

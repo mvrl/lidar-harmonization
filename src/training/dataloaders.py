@@ -2,7 +2,7 @@ from src.dataset.tools.lidar_dataset import LidarDataset
 
 from src.dataset.tools.transforms import LoadNP, CloudCenter
 from src.dataset.tools.transforms import CloudIntensityNormalize
-from src.dataset.tools.transforms import CloudAngleNormalize, GetTargets2
+from src.dataset.tools.transforms import CloudAngleNormalize, GetTargets
 
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
