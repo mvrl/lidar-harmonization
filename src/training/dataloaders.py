@@ -12,7 +12,7 @@ def get_dataloader(dataset_csv, batch_size, num_workers, drop_last=True):
         LoadNP(), 
         CloudIntensityNormalize(512),
         CloudAngleNormalize(), 
-        GetTargets2()])
+        GetTargets()])
 
     dataset = LidarDataset(dataset_csv, transform=transforms)
 

@@ -8,6 +8,7 @@ class LoadNP(object):
 
 
 class CloudCenter(object):
+    # currenty being handled in forward pass
     def __call__(self, example):
         # Center the neighborhood
         example[:,:3] -= example[0, :3]
@@ -30,31 +31,16 @@ class CloudAngleNormalize(object):
         return example
 
 class GetTargets(object):
-    # gt center is at idx 0
-    def __call__(self, example):
-        i_gt = example[0, 3]
-        example = example[1:, :]
-        return (example, i_gt)
-
-class GetTargets2(object):
     # return interpolation and harmonization values
     def __call__(self, example):
-        i_gt_h = example[0, 3]
-        i_gt_i = example[1, 3]
+        target_i = example[0, 3]
+        source_i = example[1, 3]
 
         # the center point must stay in the model so that
         # it can be centered, it will be removed in forward pass
         example = example[1:, :]
-        return (example, i_gt_h, i_gt_i)
+        return (example, target_i, source_i)
 
-
-class GetTargetsInterp(object):
-    # gt center copy with alteration applied
-    # is at idx 1
-    def __call__(self, example):
-        i_gt = example[1, 3]
-        example = example[2:, :]
-        return (example, i_gt)
 
 class ToTensor(object):
     def __call__(self, example):

@@ -131,7 +131,8 @@ dmypy.json
 old/*
 src.egg-info/*
 src/results/*
-src/temp/*
+src/temp_default/*
+src/temp_shift/*
 src/dataset/[0-9]*/*
 src/dataset/combined/*
 src/dataset/interpolation_dataset/*

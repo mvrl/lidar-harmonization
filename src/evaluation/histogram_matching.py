@@ -7,7 +7,7 @@ import torch
 
 from tqdm import tqdm
 from src.dataset.tools.dataloaders import get_dataloader
-
+from src.dataset.tools.shift import apply_shift_pc, sigmoid, get_physical_bounds
 
 def hist_match(target, reference):
     # # # 
@@ -68,17 +68,29 @@ def hist_match(target, reference):
     return m
 
 
-def hm_scans(tile, target_scan=1):
+def hm_scans(tile, target_scan=1, shift=False):
 
     tile_path = Path(tile)
 
-    # load the tile
-    tile_gt = np.load(tile_path)
-    tile_alt = np.load(tile_path.parents[0] / "alt.npy")
+    file_type = tile_path.suffix
+
+    if file_type == ".txt":  # temporary fix
+        tile_gt = np.loadtxt(tile_path)
+        tile_alt = np.loadtxt(tile_path.parents[0] / "alt.txt")
+
+    else:
+        # load the tile
+        tile_gt = np.load(tile_path)
+        tile_alt = np.load(tile_path.parents[0] / "alt.npy")
 
     # Load the target scan
     target = np.load(f"dataset/dublin/npy/{int(target_scan)}.npy")
-    
+
+    if shift:
+        # apply global shift to the target scan
+        bounds = get_physical_bounds()
+        target = apply_shift_pc(target, bounds[0][0], bounds[0][1])
+
     # get distributions of intensities:
     d = [target[:, 3], tile_alt[:, 3]]
 
@@ -102,11 +114,16 @@ def hm_scans(tile, target_scan=1):
 
     # calculate MAE
     MAE = np.mean(np.abs(m - tile_gt[:, 3]))
-    print("MAE: ", MAE)
+    save_path = tile_path.parents[0] / "fixed_hm.txt.gz"
 
-    np.savetxt(f"dataset/big_tile_no_overlap/fixed_hm.txt.gz", tile_fixed)
+    np.savetxt(str(save_path), tile_fixed)
+
+    return MAE
 
 if __name__ == "__main__":
-    hm_scans(
-        "dataset/big_tile_no_overlap/gt.npy")
+    MAE = hm_scans("dataset/synth_crptn/big_tile_no_overlap/gt.npy")
+    print("default tile MAE:", MAE)
+   
+    MAE = hm_scans("dataset/synth_crptn+shift/big_tile_no_overlap/gt.txt", shift=True)
+    print("global shift MAE:", MAE)
 
