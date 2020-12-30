@@ -74,14 +74,8 @@ def hm_scans(tile, target_scan=1, shift=False):
 
     file_type = tile_path.suffix
 
-    if file_type == ".txt":  # temporary fix
-        tile_gt = np.loadtxt(tile_path)
-        tile_alt = np.loadtxt(tile_path.parents[0] / "alt.txt")
-
-    else:
-        # load the tile
-        tile_gt = np.load(tile_path)
-        tile_alt = np.load(tile_path.parents[0] / "alt.npy")
+    tile_gt = np.loadtxt(tile_path)
+    tile_alt = np.loadtxt(tile_path.parents[0] / "alt.txt.gz")
 
     # Load the target scan
     target = np.load(f"dataset/dublin/npy/{int(target_scan)}.npy")
@@ -121,9 +115,9 @@ def hm_scans(tile, target_scan=1, shift=False):
     return MAE
 
 if __name__ == "__main__":
-    MAE = hm_scans("dataset/synth_crptn/big_tile_no_overlap/gt.npy")
+    MAE = hm_scans("dataset/synth_crptn/big_tile_no_overlap/gt.txt.gz")
     print("default tile MAE:", MAE)
    
-    MAE = hm_scans("dataset/synth_crptn+shift/big_tile_no_overlap/gt.txt", shift=True)
+    MAE = hm_scans("dataset/synth_crptn+shift/big_tile_no_overlap/gt.txt.gz", shift=True)
     print("global shift MAE:", MAE)
 

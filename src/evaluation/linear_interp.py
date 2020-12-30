@@ -64,7 +64,6 @@ def linear_interp(
             try: 
                 interpolation = interp_func(data, method=interpolation_method, n_size=n_size)
             except:
-                print("skipped bad data")
                 continue
                 
             s_scan = data[:, 1, 8]

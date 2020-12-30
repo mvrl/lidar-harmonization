@@ -150,21 +150,19 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point,
 
 if __name__=='__main__':
     
+    # Show the overlapping flights over flight 1
+    # visualize_n_flights('dublin/npy', [1, 39], sample_size=None, shift=True)
     
     # Create a big tile with manual point input in the overlap region
+    # shifting -100 X units places this within the transition zone
     create_big_tile_manual(
         'dublin/npy', 
         1,   # Target scan
         39,  # Source scan
-        np.array([[316025.0, 234707.422, 1.749]]), # center of AOI
+        np.array([[316120.0, 234707.422, 1.749]]), # center of AOI
         in_overlap=False, shift=True)
     
 
-    # Show the overlapping flights over flight 1
-    # visualize_n_flights(
-    #     'dublin/npy', 
-    #     [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
-    #     [1, 39], sample_size=None, shift=True)
 
     
                  
