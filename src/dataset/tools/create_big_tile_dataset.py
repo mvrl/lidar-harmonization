@@ -18,7 +18,7 @@ def create_big_tile_dataset(path, neighborhood_size=150):
     ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
     
 
-    big_tile_gt = np.load(path / "gt.npy")
+    big_tile_gt = np.loadtxt(path / "gt.txt.gz")
     scan_num = int(big_tile_gt[0, 8])
     # big_tile_alt = np.load(path / "alt.npy")
     
@@ -71,7 +71,10 @@ def create_big_tile_dataset(path, neighborhood_size=150):
 if __name__ == "__main__":
     print('starting...')
     # create_big_tile_dataset(r"big_tile_in_overlap")
+    print("default:")
     create_big_tile_dataset(r"synth_crptn/big_tile_no_overlap")
+    print("shift:")
+    create_big_tile_dataset(r"synth_crptn+shift/big_tile_no_overlap")
 
 
 

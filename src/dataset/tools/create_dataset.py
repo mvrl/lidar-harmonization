@@ -6,6 +6,7 @@ from pathlib import Path
 from pptk import kdtree
 from tqdm import tqdm, trange
 from src.dataset.tools.apply_rf import ApplyResponseFunction
+from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
 
 
 # Some options to play with
@@ -14,11 +15,17 @@ overlap_sample_size = 10000
 source_sample_size = 500000
 overlap_threshold=150
 workers=6
+shift = True
 
 # Setup
 ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
-neighborhoods_path = Path("gis/150/neighborhoods")
+neighborhoods_path = Path("synth_crptn/150/neighborhoods")
 neighborhoods_path.mkdir(parents=True, exist_ok=True)
+
+if shift:
+    shift_path = Path("synth_crptn+shift/150/neighborhoods")
+    shift_path.mkdir(parents=True, exist_ok=True)
+
 save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
 
 def get_hist_overlap(pc1, pc2, s=10000, hist_bin_length=10):
@@ -76,7 +83,7 @@ def get_overlap_points(pc, hist_info, c):
     indices = np.full(pc.shape[0], False, dtype=bool)
     hist, (xedges, yedges, zedges) = hist_info
 
-    for i in trange(hist.shape[0], desc='building overlap region', leave=False):
+    for i in trange(hist.shape[0], desc='building overlap region', leave=False, dynamic_ncols=True):
         for j in range(hist.shape[1]):
             for k in range(hist.shape[2]):
                 if hist[i][j][k] > c:
@@ -96,7 +103,7 @@ def get_overlap_points(pc, hist_info, c):
 def balance_intensity(pc, example_count=2000):
     bins = np.arange(0, 520, 5)
     pc_final = np.empty((0, 9))
-    for i in trange(len(bins)-1, desc='balancing overlap', leave=False):
+    for i in trange(len(bins)-1, desc='balancing overlap', leave=False, dynamic_ncols=True):
         left, right = bins[i], bins[i+1]
         pc_temp = pc.copy()
         pc_temp = pc_temp[(pc_temp[:, 3] < right) & (pc_temp[:, 3] >= left)]
@@ -116,21 +123,9 @@ def balance_intensity(pc, example_count=2000):
 
 
 if __name__ == "__main__":
-    # Some options to play with
-    # target_scan = '1'
-    # overlap_sample_size = 10000
-    # sample_not_overlap_size = 500000
-    # overlap_threshold=150
-    # workers=8
-
-    # Setup
-    # ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
-    # neighborhoods_path = Path("150/neighborhoods")
-    # neighborhoods_path.mkdir(parents=True, exist_ok=True)
-    # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
 
     # Get point clouds ready to load in 
-    pc_dir = Path("dublin/gis/")
+    pc_dir = Path("dublin/npy/")
     pc_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
     
     pc1 = np.load(pc_paths[target_scan])
@@ -141,8 +136,10 @@ if __name__ == "__main__":
     #    save them as examples with the center point from the target scan
     # 3. for each overlapping scan, also create examples from outside the 
     #    overlap region
+    
+    bounds = get_physical_bounds(scans="dublin/npy", bounds_path="bounds.npy")
 
-    pbar = tqdm(pc_paths, total=len(pc_paths.keys()))
+    pbar = tqdm(pc_paths, total=len(pc_paths.keys()), dynamic_ncols=True)
     for source_scan in pbar:
         if source_scan is target_scan:
             continue  # skip
@@ -172,12 +169,14 @@ if __name__ == "__main__":
         # Store these in 150/neighborhoods/ with target intensity and
         # target intensity copy as the first two elements in the array.
         desc = "building neighborhoods from overlap"    
-        for idx in trange(len(query), desc=desc, leave=False):
+        for idx in trange(len(query), desc=desc, leave=False, dynamic_ncols=True):
             q = query[idx]
 
             if len(q) == 150:
                 neighborhood = pc2[q]
+ 
                 alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
+                
                 center = np.expand_dims(pc_overlap[idx], 0)
                 alt_center = ARF(center, int(source_scan), 512)
                 ex = np.concatenate((center, alt_center, alt_neighborhood))
@@ -187,24 +186,33 @@ if __name__ == "__main__":
                     target_scan=target_scan,
                     center=str(int(center[:,3])),
                     idx=idx)
-                    
+
                 np.savetxt(neighborhoods_path / save_string, ex)
+                
+                if shift:
+                    # apply the shift to the neighborhood *before* the corruption
+                    shift_neighborhood = apply_shift_pc(neighborhood.copy(), bounds[0][0], bounds[0][1])
+                    alt_shift_neighborhood = ARF(neighborhood, int(source_scan), 512)
+                    shift_center = apply_shift_pc(center, bounds[0][0], bounds[0][1])
+                    alt_shift_center = ARF(shift_center, int(source_scan), 512)
+                    shift_ex = np.concatenate((shift_center, alt_shift_center, alt_shift_neighborhood))
+                    np.savetxt(shift_path / save_string, shift_ex)
          
         # sample size between source & overlap might be an issue. Fix in post?
         source_sample_idx = np.random.choice(pc2.shape[0], size=source_sample_size)
         pc_source = balance_intensity(pc2[source_sample_idx])
 
-        # note that k=151 so we have consistent size with overlap samples
-        query = kdtree._query(kd, pc_source[:, :3], k=151, dmax=1)
+        query = kdtree._query(kd, pc_source[:, :3], k=150, dmax=1)
         desc="building neighborhoods from source"
-        for idx in trange(len(query), desc=desc, leave=False):
+        for idx in trange(len(query), desc=desc, leave=False, dynamic_ncols=True):
             q = query[idx]
 
-            if len(q) == 151:
+            if len(q) == 150:
                 neighborhood = pc2[q]
                 center = np.expand_dims(neighborhood[0], 0)
                 alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
-                ex = np.concatenate((center, alt_neighborhood))
+                alt_center = np.expand_dims(alt_neighborhood[0], 0)
+                ex = np.concatenate((center, alt_center, alt_neighborhood))
 
                 save_string = save_format.format(
                     source_scan=source_scan,
@@ -213,4 +221,14 @@ if __name__ == "__main__":
                     idx=idx)
 
                 np.savetxt(neighborhoods_path / save_string, ex)
+
+                if shift:
+                    shift_neighborhood = apply_shift_pc(neighborhood.copy(), bounds[0][0], bounds[0][1])
+                    alt_shift_neighborhood = ARF(neighborhood, int(source_scan), 512)
+                    shift_center = apply_shift_pc(center, bounds[0][0], bounds[0][1])
+                    alt_shift_center = ARF(shift_center, int(source_scan), 512)
+                    shift_ex = np.concatenate((shift_center, alt_shift_center, alt_shift_neighborhood))
+                    np.savetxt(shift_path / save_string, shift_ex)
+
+
 

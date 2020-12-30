@@ -170,7 +170,7 @@ if __name__=="__main__":
     # This creates the main table
     
     for i_method in ["linear", "nearest", "cubic"]:
-        for h_method in ["lstsq", "MLP",]:
+        for h_method in ["lstsq", "MLP"]:
             for n in [5, 20, 50, 100]:
                 print(f"Running: {i_method} {h_method} {n}")
 

@@ -8,33 +8,31 @@ from pathlib import Path
 from pptk import kdtree, viewer
 import matplotlib.pyplot as plt
 from src.dataset.tools.apply_rf import ApplyResponseFunction
+from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
 
 
 def load_laz(path):
     f = np.load(path)
     return f
 
-def visualize_n_flights(path, flights, sample_size=500000):
+def visualize_n_flights(path, flights, sample_size=500000, shift=False):
     # flights is a list of numbers representing flights 0-40
     start_time = time.time()
-    
     laz_files_path = Path(path)
-   
-    pts = np.load(laz_files_path / (str(flights[0])+".npy"))
-    sample = np.random.choice(len(pts), size=sample_size)
-    if sample_size:
-        pts = pts[sample]
+    bounds = get_physical_bounds(scans=path, bounds_path="bounds.npy")
     
-    
-    for i in range(len(flights[1:])):
+    pts = np.empty((0, 9))
+    for scan in flights:
         
-        fi = np.load(laz_files_path / (str(flights[i+1])+".npy"))
+        fi = np.load(laz_files_path / (str(scan)+".npy"))
         if sample_size:
             sample = np.random.choice(len(fi), size=sample_size)
             pts = np.concatenate((pts, fi[sample])) 
         else:
             pts = np.concatenate((pts, fi))
 
+    if shift:
+        pts = apply_shift_pc(pts, bounds[0][0], bounds[0][1])
     attr1 = pts[:, 3]
     attr2 = pts[:, 8]
 
@@ -43,17 +41,24 @@ def visualize_n_flights(path, flights, sample_size=500000):
     # code.interact(local=locals())
 
 
-def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point, num_points=1e6, in_overlap=True):
+def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point, num_points=1e6, in_overlap=True, shift=True):
+
+    # NOTE: shift does not support in_overlap currently
 
     laz_files_path = Path(path)
     ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
-    
+    bounds = get_physical_bounds(scans=path, bounds_path="bounds.npy")
+
     if in_overlap:
-        save_dir = Path("big_tile_in_overlap")
+        save_dir = Path("synth_crptn/big_tile_in_overlap")
     else:
-        save_dir = Path("big_tile_no_overlap")
+        save_dir = Path("synth_crptn/big_tile_no_overlap")
 
     save_dir.mkdir(parents=True, exist_ok=True)
+
+    if shift:
+        shift_save_dir = Path("synth_crptn+shift/big_tile_no_overlap")
+        shift_save_dir.mkdir(parents=True, exist_ok=True)
 
     
     # if we are in the overlap, we have to process two kd trees, 
@@ -91,6 +96,11 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point,
 
     # create corrupted tile_f2
     tile_f2_alt = ARF(tile_f2, intersecting_flight, 512) 
+
+    if shift:
+        tile_f2_shift = apply_shift_pc(tile_f2.copy(), bounds[0][0], bounds[0][1])
+        tile_f2_alt_shift = ARF(tile_f2_shift.copy(), intersecting_flight, 512)
+
    
     sample = np.random.choice(len(tile_f2), size=5000)
     create_kde(
@@ -115,18 +125,27 @@ def create_big_tile_manual(path, base_flight, intersecting_flight, manual_point,
         attr2 = tile_f2[:, 8]
         attr3 = tile_f2_alt[:, 3]
         v = viewer(tile_f2[:, :3])
-    
-    v.attributes(attr1, attr2, attr3)
+        if shift:
+            attr4 = tile_f2_shift[:, 3]
+            attr5 = tile_f2_alt_shift[:, 3]
+            v.attributes(attr1, attr2, attr3, attr4, attr5)
+            print("gt, alt, scan #, shift gt, shift alt")
+        else:
+            v.attributes(attr1, attr2, attr3)
+
     v.set(lookat=manual_point[0])
 
     if in_overlap:
 
         np.save(save_dir / "base_flight_tile.npy", tile_f1)
 
-    np.save(save_dir / "gt.npy", tile_f2)
-    np.save(save_dir / "alt.npy", tile_f2_alt)
+    np.savetxt(save_dir / "gt.txt.gz", tile_f2)
+    np.savetxt(save_dir / "alt.txt.gz", tile_f2_alt)
+    if shift:
+        np.savetxt(shift_save_dir / "gt.txt.gz", tile_f2_shift)
+        np.savetxt(shift_save_dir / "alt.txt.gz", tile_f2_alt_shift)
 
-
+    print("tiles saved")
     code.interact(local=locals())
 
 if __name__=='__main__':
@@ -134,18 +153,18 @@ if __name__=='__main__':
     
     # Create a big tile with manual point input in the overlap region
     create_big_tile_manual(
-            'dublin/gis', 
-            1, 
-            15,
-            np.array([[316411.156, 233449.719, 9.964]]), 
-            in_overlap=False)
+        'dublin/npy', 
+        1,   # Target scan
+        39,  # Source scan
+        np.array([[316025.0, 234707.422, 1.749]]), # center of AOI
+        in_overlap=False, shift=True)
     
 
     # Show the overlapping flights over flight 1
     # visualize_n_flights(
-    #      'dublin/gis', 
-    #      [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
-    #      [1, 15], sample_size=None)
+    #     'dublin/npy', 
+    #     [0, 1, 2, 4, 6, 7, 10, 15, 20, 21, 30, 35, 37, 39])
+    #     [1, 39], sample_size=None, shift=True)
 
     
                  

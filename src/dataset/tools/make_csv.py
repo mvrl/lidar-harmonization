@@ -128,6 +128,7 @@ def make_csv(path, resample_flights=True):
     print(f"Created testing dataset with {len(df_test)} samples")
 
 if __name__=='__main__':
-    make_csv("synth_crptn+shift/150", resample_flights=True)
 
+    make_csv("synth_crptn/150", resample_flights=True)
+    make_csv("synth_crptn+shift/150", resample_flights=True)
         
