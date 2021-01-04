@@ -1,3 +1,4 @@
+import code
 import torch
 from pathlib import Path
 import numpy as np
@@ -16,13 +17,25 @@ def forward_pass(model, phase, batch, criterions, optimizer, scheduler, device="
     optimizer.zero_grad()
     with torch.set_grad_enabled(phase == 'train'):
         data, h_target, i_target = batch
+
         data = data.to(device=device)
         h_target = h_target.to(device=device)
         i_target = i_target.to(device=device)
-        harmonization, interpolation = model(data)
+
+        harmonization, interpolation, ss = model(data)
+
+        # harmonization targets for source-source examples are the same as the
+        #   interpolation targets. h_target contains `target_camera` 
+        #   harmonizations!
+
+        h_target[ss] = i_target[ss]
+
+        # code.interact(local=locals())
+
         h_loss = criterions['harmonization'](harmonization.squeeze(), h_target)
         i_loss = criterions['interpolation'](interpolation.squeeze(), i_target)
         loss = h_loss + i_loss
+
         if phase == 'train':
             loss.backward()
             optimizer.step()

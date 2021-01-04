@@ -14,20 +14,28 @@ import warnings
 warnings.filterwarnings(action="ignore")
 # High level training script
 
+n_size=5
+shift=True
+
 b_size=50
-num_workers=6
-n_size=100
-epochs=30
+num_workers=12
+epochs=40
 gpu = torch.device('cuda:0')
 
-print(f"Starting training with n_size {n_size}, b_size {b_size}")
-results_path = Path(f"results/{n_size}")
-results_path.mkdir(parents=True, exist_ok=True)
+print(f"Starting training with n_size {n_size}, b_size {b_size}, shift {shift}")
 ckpt_path = None
+if shift:
+    dataset = "synth_crptn+shift"
+    results_path = Path(f"results/{n_size}_shift")
+else:
+    dataset = "synth_crptn" 
+    results_path = Path(f"results/{n_size}")
 
-csvs = {"train": "dataset/150/train.csv",
-        "val": "dataset/150/val.csv"
-        # "test": "dataset/150/test.csv"
+results_path.mkdir(parents=True, exist_ok=True)
+
+csvs = {f"train": "dataset/synth_crptn+shift/150/train.csv",
+        f"val": "dataset/synth_crptn+shift/150/val.csv"
+        # f"test": "dataset/150/test.csv"
         }
 
 
@@ -70,7 +78,11 @@ for epoch in pbar1:
                 desc=f"   {phase.capitalize()}: {epoch+1}/{epochs}")
 
         for idx, batch in enumerate(pbar2):
-            output = forward_pass(model, phase, batch, criterions, optimizer, scheduler, gpu)
+            output = forward_pass(
+                model, 
+                phase, 
+                batch,
+                criterions, optimizer, scheduler, gpu)
             data.append(output)
             running_loss += output['loss'].item() * b_size
             pbar2.set_postfix({

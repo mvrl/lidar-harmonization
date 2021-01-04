@@ -16,7 +16,7 @@ from src.dataset.tools.metrics import create_interpolation_harmonization_plot
 from src.harmonization.model_npl import HarmonizationNet
 
 
-def dl_interp(state_dict):
+def dl_interp(state_dict, target_camera=1, shift=False):
 
     print("generating fix for big_tile dataset")
 
@@ -29,8 +29,11 @@ def dl_interp(state_dict):
 
     tile_path = results_path / "tile"
     tile_path.mkdir(parents=True, exist_ok=True)
+    if shift:
+        dataset_csv = Path("dataset/synth_crptn+shift/big_tile_no_overlap/big_tile_dataset.csv")
+    else:
+        dataset_csv = Path("dataset/synth_crptn/big_tile_no_overlap/big_tile_dataset.csv")
 
-    dataset_csv = Path("dataset/big_tile_no_overlap/big_tile_dataset.csv")
     dataloader = get_dataloader(dataset_csv, 50, 8, drop_last=False)
 
     device = torch.device("cuda:0")
@@ -50,7 +53,11 @@ def dl_interp(state_dict):
                 # the center point below actually has i_target in channel 4
                 tile_data = data[:, 0, :].numpy()
                 data = data.to(device)
-                harmonization, interpolation = model(data)
+
+                # specify that we want to harmonize to `target_camera`
+                data[:, 0, -1] = target_camera
+
+                harmonization, interpolation, _ = model(data)
                 
                 tile_data = np.concatenate(
                     (
@@ -78,4 +85,4 @@ def dl_interp(state_dict):
     np.savetxt(dataset_csv.parents[0] / f"fixed_dl_{n_size}.txt.gz", fixed_tile)
 
 if __name__ == "__main__":
-    dl_interp("results/100/100_epoch=10.pt")
+    dl_interp("results/5/5_epoch=28.pt", shift=False)
