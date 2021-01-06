@@ -85,4 +85,4 @@ def dl_interp(state_dict, target_camera=1, shift=False):
     np.savetxt(dataset_csv.parents[0] / f"fixed_dl_{n_size}.txt.gz", fixed_tile)
 
 if __name__ == "__main__":
-    dl_interp("results/5/5_epoch=28.pt", shift=False)
+    dl_interp("results/5_shift/5_epoch=25.pt", shift=True)

@@ -191,11 +191,23 @@ if __name__ == "__main__":
                 
                 if shift:
                     # apply the shift to the neighborhood *before* the corruption
-                    shift_neighborhood = apply_shift_pc(neighborhood.copy(), bounds[0][0], bounds[0][1])
+                    shift_neighborhood = apply_shift_pc(
+                        neighborhood.copy(), 
+                        bounds[0][0], bounds[0][1])
+
                     alt_shift_neighborhood = ARF(neighborhood, int(source_scan), 512)
                     shift_center = apply_shift_pc(center, bounds[0][0], bounds[0][1])
                     alt_shift_center = ARF(shift_center, int(source_scan), 512)
-                    shift_ex = np.concatenate((shift_center, alt_shift_center, alt_shift_neighborhood))
+                    shift_ex = np.concatenate((shift_center, 
+                                               alt_shift_center, 
+                                               alt_shift_neighborhood))
+
+                    save_string = save_format.format(
+                        source_scan=source_scan,
+                        target_scan=target_scan,
+                        center=str(int(shift_center[:,3])),
+                        idx=idx)
+
                     np.savetxt(shift_path / save_string, shift_ex)
          
         # sample size between source & overlap might be an issue. Fix in post?
@@ -223,11 +235,24 @@ if __name__ == "__main__":
                 np.savetxt(neighborhoods_path / save_string, ex)
 
                 if shift:
-                    shift_neighborhood = apply_shift_pc(neighborhood.copy(), bounds[0][0], bounds[0][1])
+                    
+                    shift_neighborhood = apply_shift_pc(
+                        neighborhood.copy(), 
+                        bounds[0][0], bounds[0][1])
+
                     alt_shift_neighborhood = ARF(neighborhood, int(source_scan), 512)
                     shift_center = apply_shift_pc(center, bounds[0][0], bounds[0][1])
                     alt_shift_center = ARF(shift_center, int(source_scan), 512)
-                    shift_ex = np.concatenate((shift_center, alt_shift_center, alt_shift_neighborhood))
+                    shift_ex = np.concatenate((shift_center, 
+                                               alt_shift_center, 
+                                               alt_shift_neighborhood))
+                    
+                    save_string = save_format.format(
+                        source_scan=source_scan,
+                        target_scan=source_scan,
+                        center=str(int(shift_center[:,3])),
+                        idx=idx)
+
                     np.savetxt(shift_path / save_string, shift_ex)
 
 
