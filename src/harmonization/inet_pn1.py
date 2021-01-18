@@ -33,8 +33,7 @@ class IntensityNetPN1(nn.Module):
             nn.Linear(h_hidden_size, num_classes))
 
         
-        # Initializing harmonization weights to
-        # identity speeds up convergence greatly
+        # Initializing to identify to speed up convergence
         self.harmonization[0].weight.data.copy_(
             torch.eye(
                 h_hidden_size, 

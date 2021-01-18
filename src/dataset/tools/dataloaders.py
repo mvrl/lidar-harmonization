@@ -8,12 +8,18 @@ from src.dataset.tools.transforms import CloudAngleNormalize, GetTargets
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
+transforms = Compose([
+    LoadNP(), 
+    CloudIntensityNormalize(512),
+    CloudAngleNormalize(), 
+    GetTargets()])
+
+transforms_no_load = Compose([
+    CloudIntensityNormalize(512),
+    CloudAngleNormalize(),
+    GetTargets()])
+
 def get_dataloader(dataset_csv, batch_size, num_workers, drop_last=True, limit=None):
-    transforms = Compose([
-        LoadNP(), 
-        CloudIntensityNormalize(512),
-        CloudAngleNormalize(), 
-        GetTargets()])
 
     dataset = LidarDataset(dataset_csv, transform=transforms, limit=limit)
 
@@ -23,5 +29,4 @@ def get_dataloader(dataset_csv, batch_size, num_workers, drop_last=True, limit=N
             shuffle=True,
             num_workers=num_workers,
             drop_last=drop_last)
-
 

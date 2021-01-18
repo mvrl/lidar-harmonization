@@ -147,3 +147,4 @@ src/dataset/notebooks/lidar_test/*
 src/lightning_logs/*
 *.laz
 *lidar.txt
+src/fix_dublin_out/*

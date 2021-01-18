@@ -5,9 +5,10 @@ from pathlib import Path
 from tqdm import tqdm, trange
 from torch.optim import Adam
 from torch.optim.lr_scheduler import CyclicLR
+
 from src.training.forward_pass import forward_pass, get_metrics
 from src.training.dataloaders import get_dataloader
-from src.harmonization.model_npl import HarmonizationNet
+from src.harmonization.inet_pn1 import IntensityNetPN1
 from src.dataset.tools.metrics import create_interpolation_harmonization_plot as create_kde
 
 import warnings
@@ -20,10 +21,10 @@ shift=True
 b_size=50
 num_workers=12
 epochs=40
-gpu = torch.device('cuda:0')
 
 print(f"Starting training with n_size {n_size}, b_size {b_size}, shift {shift}")
 ckpt_path = None
+
 if shift:
     dataset = "synth_crptn+shift"
     results_path = Path(f"results/{n_size}_shift")
@@ -42,8 +43,9 @@ csvs = {f"train": "dataset/synth_crptn+shift/150/train.csv",
 phases = [k for k in csvs]
 dataloaders = {k: get_dataloader(v, b_size, num_workers) for k, v in csvs.items()}
 
-model = HarmonizationNet(neighborhood_size=n_size).double() 
-model.to(device=gpu)
+gpu = torch.device('cuda:0')
+model = IntensityNetPN1(neighborhood_size=n_size).double().to(device=gpu)
+
 criterions = {
         'harmonization': nn.SmoothL1Loss(), 
         'interpolation': nn.SmoothL1Loss()}
