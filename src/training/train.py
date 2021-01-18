@@ -7,7 +7,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import CyclicLR
 from src.training.forward_pass import forward_pass, get_metrics
 from src.training.dataloaders import get_dataloader
-from src.harmonization.model_npl import HarmonizationNet
+from src.harmonization.inet_pn1 import IntensityNetPN1
 from src.dataset.tools.metrics import create_interpolation_harmonization_plot as create_kde
 
 import warnings
@@ -15,35 +15,38 @@ warnings.filterwarnings(action="ignore")
 # High level training script
 
 n_size=5
-shift=True
+shift=False
 
 b_size=50
 num_workers=12
 epochs=40
-gpu = torch.device('cuda:0')
 
 print(f"Starting training with n_size {n_size}, b_size {b_size}, shift {shift}")
-ckpt_path = None
+
+ckpt_path = None  # not implemented yet
+
 if shift:
-    dataset = "synth_crptn+shift"
+    dataset = Path("dataset/synth_crptn+shift")
     results_path = Path(f"results/{n_size}_shift")
 else:
-    dataset = "synth_crptn" 
+    dataset = Path("dataset/synth_crptn")
     results_path = Path(f"results/{n_size}")
 
+print(dataset)
 results_path.mkdir(parents=True, exist_ok=True)
 
-csvs = {f"train": "dataset/synth_crptn+shift/150/train.csv",
-        f"val": "dataset/synth_crptn+shift/150/val.csv"
-        # f"test": "dataset/150/test.csv"
+csvs = {"train": dataset / "150/train.csv",
+        "val":   dataset / "150/val.csv"
+        # f"test": f"dataset/150/test.csv"
         }
 
 
 phases = [k for k in csvs]
 dataloaders = {k: get_dataloader(v, b_size, num_workers) for k, v in csvs.items()}
 
-model = HarmonizationNet(neighborhood_size=n_size).double() 
-model.to(device=gpu)
+gpu = torch.device('cuda:0')
+model = IntensityNetPN1(neighborhood_size=n_size).double().to(device=gpu)
+
 criterions = {
         'harmonization': nn.SmoothL1Loss(), 
         'interpolation': nn.SmoothL1Loss()}

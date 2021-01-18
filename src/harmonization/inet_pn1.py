@@ -1,16 +1,18 @@
 import code
 import torch
 import torch.nn as nn
-from src.models.pointnet.pointnet import STNkd, PointNetfeat
 import torch.nn.functional as F
+from src.models.pointnet.pointnet import STNkd, PointNetfeat
 
 
 class IntensityNetPN1(nn.Module):
     def __init__(self, neighborhood_size, input_features=8, embed_dim=3, num_classes=1, h_hidden_size=100):
         super(IntensityNetPN1, self).__init__()
+        
         self.neighborhood_size = neighborhood_size
         self.input_features = input_features
         self.camera_embed = nn.Embedding(45, embed_dim)
+        
         self.feat = PointNetfeat(
             global_feat=True,
             feature_transform=False,
@@ -32,13 +34,12 @@ class IntensityNetPN1(nn.Module):
             nn.ReLU(),
             nn.Linear(h_hidden_size, num_classes))
 
-        
-        # Initializing harmonization weights to
-        # identity speeds up convergence greatly
+        # Initializing to identify to speed up convergence
         self.harmonization[0].weight.data.copy_(
             torch.eye(
                 h_hidden_size, 
                 1+embed_dim))
+
         self.harmonization[3].weight.data.copy_(
             torch.eye(
                 num_classes, 

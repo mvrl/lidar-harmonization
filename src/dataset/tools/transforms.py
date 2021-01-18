@@ -11,8 +11,9 @@ class CloudCenter(object):
     # currenty being handled in forward pass
     def __call__(self, example):
         # Center the neighborhood
-        example[:,:3] -= example[0, :3]
-        return example
+        ex = example.copy()
+        ex[:,:3] -= ex[0, :3]
+        return ex
 
     
 class CloudIntensityNormalize(object):
@@ -27,19 +28,21 @@ class CloudAngleNormalize(object):
     # values go from -90 to 90
     # transform this to -1 to 1
     def __call__(self, example):
-        example[:, 4]/=90.0
-        return example
+        ex = example.copy()
+        ex[:, 4]/=90.0
+        return ex
 
 class GetTargets(object):
     # return interpolation and harmonization values
     def __call__(self, example):
-        target_i = example[0, 3]
-        source_i = example[1, 3]
+        ex = example.copy()
+        target_i = ex[0, 3]
+        source_i = ex[1, 3]
 
         # the center point must stay in the model so that
         # it can be centered, it will be removed in forward pass
-        example = example[1:, :]
-        return (example, target_i, source_i)
+        ex = ex[1:, :]
+        return (ex, target_i, source_i)
 
 
 class ToTensor(object):
