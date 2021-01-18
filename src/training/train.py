@@ -16,7 +16,7 @@ warnings.filterwarnings(action="ignore")
 # High level training script
 
 n_size=5
-shift=True
+shift=False
 
 b_size=50
 num_workers=12
@@ -26,18 +26,20 @@ print(f"Starting training with n_size {n_size}, b_size {b_size}, shift {shift}")
 ckpt_path = None
 
 if shift:
-    dataset = "synth_crptn+shift"
+    dataset = Path("dataset/synth_crptn+shift")
     results_path = Path(f"results/{n_size}_shift")
 else:
-    dataset = "synth_crptn" 
+    dataset = Path("dataset/synth_crptn")
     results_path = Path(f"results/{n_size}")
 
+print(dataset)
 results_path.mkdir(parents=True, exist_ok=True)
 
-csvs = {f"train": "dataset/synth_crptn+shift/150/train.csv",
-        f"val": "dataset/synth_crptn+shift/150/val.csv"
-        # f"test": "dataset/150/test.csv"
+csvs = {"train": dataset / "150/train.csv",
+        "val":   dataset / "150/val.csv"
+        # f"test": f"dataset/150/test.csv"
         }
+
 
 
 phases = [k for k in csvs]
