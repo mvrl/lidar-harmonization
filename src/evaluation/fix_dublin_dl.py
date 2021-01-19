@@ -14,26 +14,15 @@ from src.harmonization.inet_pn1 import IntensityNetPN1
 from src.evaluation.histogram_matching import hist_match
 from src.dataset.tools.apply_rf import ApplyResponseFunction
 from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
-from src.dataset.tools.dataloaders import transforms_no_load as transforms
+from src.dataset.tools.dataloaders import get_dataloader_nl as get_dataloader
 
-
-
-class SimpleDataset(Dataset):
-    def __init__(self, data, transforms=None):
-        self.data = data
-    def __len__(self):
-        return len(self.data)
-    def __getitem__(self, idx):
-        if transforms is not None:
-            return transforms(self.data[idx])
-        else:
-            return self.data[idx]
 
 def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
 
     # prep output
     output_path = Path(output_path)
     if "shift" in dataset_csv:
+        print("shift: True")
         output_path = output_path / "fix_dublin_out" / "dl" / "shift"
     else:
         output_path = output_path / "fix_dublin_out" / "dl" / "default"
@@ -67,37 +56,16 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
     target_camera = int(target_scan.stem)
     source_scans = [ scans_paths[str(source)] for source in sources ]
     
-    # # load target as reference
-    # ref = np.load(target_scan)
-
-    # if "shift" in dataset_csv:
-    #     print("applying shift")
-    #     ref = apply_shift_pc(ref,
-    #                          bounds[0][0],
-    #                          bounds[0][1])
-        
-    # # save target to view in fix later
-    # sample = np.random.choice(len(ref), sample_s)
-    # ref_v = ref[sample].copy()
-    # ref_v = np.concatenate((
-    #         ref_v[:, :3],
-    #         ref_v[:, 3].reshape(-1, 1),
-    #         ref_v[:, 3].reshape(-1, 1),
-    #         ref_v[:, 3].reshape(-1, 1),
-    #         np.ones(len(ref_v)).reshape(-1, 1)
-    #     ), axis=1)
-
-    print("Saving reference: ", output_path / "ref.txt.gz")
-    np.savetxt(str(output_path / "ref.txt.gz"), ref_v)
     
     # Load the model and place in evaluation mode
     device = torch.device("cuda:0")
-    model = HarmonizationNet(neighborhood_size=neighborhood_size).to(device=device, dtype=torch.float64)
-    model.load_state_dict(torch.load("results/0/0_epoch=23.pt"))
+    model = IntensityNetPN1(neighborhood_size=neighborhood_size).to(device=device, dtype=torch.float64)
+    model.load_state_dict(torch.load("results/5_shift/5_epoch=4.pt"))
     model.eval()
     print("Model Loaded")
 
     for s in source_scans:
+        continue
         path = Path(s)
         source = np.load(s)
         
@@ -112,7 +80,7 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
         query = kdtree._query(
             kd, 
             source[:, :3], 
-            k=50, 
+            k=neighborhood_size, 
             dmax=1)
         
         # Confirm that a large majority of examples are reasonable. Use the good
@@ -122,8 +90,10 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
             if len(q) == neighborhood_size:
                 my_query.append(q)
 
+
         good_sample_ratio = ((len(query) - len(my_query))/len(query)) * 100
         print(f"Found {good_sample_ratio:.3f}% of points with not enough close neighbors")   
+        del query
 
         # sample from good examples
         sample = np.random.choice(len(my_query), sample_s)
@@ -143,18 +113,10 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
             dataset.append(example)
 
         dataset = np.stack(dataset)
-        dataset = dataset[sample]
-        dataset = SimpleDataset(dataset, 
-                                transforms=transforms)
-
-        dataloader = DataLoader(dataset, 
-                                batch_size=batch_size,
-                                shuffle=False,
-                                num_workers=8,
-                                drop_last=False)
-        
+        print(f"Created dataset with {len(dataset)} examples")
+        dataloader = get_dataloader(dataset, 50, 12)
         # iterate over batches
-        fixed_source = np.empty((0, 12), dtype=np.float64)
+        fixed_source = np.empty((0, 7), dtype=np.float64)
         for batch in dataloader:
             with torch.no_grad():
                 # format example
@@ -173,17 +135,45 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
                     h_target.numpy().reshape(-1, 1),
                     i_target.numpy().reshape(-1, 1),
                     harmonization.cpu().numpy(),
-                    interpolation.cpu().numpy(),
-                    scan_data[:, 5:],
                     np.zeros(len(h_target)).reshape(-1, 1)
                     ), axis=1)
 
                 fixed_source = np.concatenate((fixed_source, scan_data))
 
-        mae = np.mean(np.abs(np.clip(scan_data[:, 5], 0, 1), scan_data[:, 3]/512))
+        mae = np.mean(np.abs(np.clip(fixed_source[:, 5], 0, 1) - (fixed_source[:, 3])))
         print(path.stem, ": MAE", mae)
         print("Saving: ", output_path / (str(path.stem)+".txt.gz"))
         np.savetxt(output_path / (str(path.stem)+".txt.gz"), fixed_source)
 
+        del kd
+        del my_query
+        del dataset
+        del dataloader
+        del fixed_source
+    
+    # load target as reference
+    print("saving reference")
+    ref = np.load(target_scan)
+
+    if "shift" in dataset_csv:
+        print("applying shift")
+        ref = apply_shift_pc(ref,
+                             bounds[0][0],
+                             bounds[0][1])
+        
+    # save target to view in fix later
+    sample = np.random.choice(len(ref), sample_s)
+    ref_v = ref[sample].copy()
+    ref_v = np.concatenate((
+            ref_v[:, :3],
+            ref_v[:, 3].reshape(-1, 1),
+            ref_v[:, 3].reshape(-1, 1),
+            ref_v[:, 3].reshape(-1, 1),
+            np.ones(len(ref_v)).reshape(-1, 1)
+        ), axis=1)
+
+    print("Saving reference: ", output_path / "ref.txt.gz")
+    np.savetxt(str(output_path / "ref.txt.gz"), ref_v)
+
 if __name__ == "__main__":
-    fix_dublin_dl("dataset/dublin/npy", "dataset/synth_crptn/150/train.csv")
+    fix_dublin_dl("dataset/dublin/npy", "dataset/synth_crptn+shift/150/train.csv")

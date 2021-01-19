@@ -5,6 +5,9 @@ import pandas as pd
 from pathlib import Path
 from pptk import kdtree
 from tqdm import tqdm, trange
+
+import matplotlib.pyplot as plt
+
 from src.dataset.tools.apply_rf import ApplyResponseFunction
 from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
 
@@ -22,8 +25,6 @@ def get_hist_overlap(pc1, pc2, s=10000, hist_bin_length=10):
         [pc_combined[:, 1].min(), pc_combined[:, 1].max()],
         [pc_combined[:, 2].min(), pc_combined[:, 2].max()]])
 
-    del pc_combined  # save some mem
-    
     # define bins based on data_range:
     x_bins = int((data_range[0][1]-data_range[0][0])/10)
     y_bins = int((data_range[1][1]-data_range[1][0])/10)
@@ -132,12 +133,12 @@ if __name__ == "__main__":
 
     # Get point clouds ready to load in 
     scans_dir = Path("dublin/npy/")
-    scan_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
+    scan_paths = {f.stem:f.absolute() for f in scans_dir.glob("*.npy")}
 
     # Load target (reference) scan
-    target_scan = np.load(pc_paths[target_scan_num])
+    target_scan = np.load(scan_paths[target_scan_num])
 
-    pbar = tqdm(pc_paths, total=len(scan_paths.keys()), dynamic_ncols=True)
+    pbar = tqdm(scan_paths, total=len(scan_paths.keys()), dynamic_ncols=True)
     pbar.set_description("Total Progress")
 
     for source_scan_num in pbar:
@@ -145,7 +146,7 @@ if __name__ == "__main__":
             continue  # skip
         
         # Load the next source scan        
-        source_scan = np.load(pc_paths[source_scan_num])
+        source_scan = np.load(scan_paths[source_scan_num])
 
         # build histogram - bins with lots of points in overlap likely exist
         #   in areas with a high concentration of other points in the overlap
@@ -157,7 +158,7 @@ if __name__ == "__main__":
             hist_info, 
             overlap_threshold)
 
-        pc_overlap = pc1[overlap_indices]
+        pc_overlap = source_scan[overlap_indices]
 
         # pc_overlap likely contains many points, but the distribution of 
         #   intensities in the dataset needs to be uniform. To accomplish this,
@@ -180,7 +181,7 @@ if __name__ == "__main__":
         pc_overlap_resampled = np.empty((0, pc_overlap.shape[1]))
 
         for i, (l, h) in enumerate(igroup_bounds):
-            curr_strata = pc_overlap[(intensities >=) l & (intensities < h)]
+            curr_strata = pc_overlap[(intensities >= l) & (intensities < h)]
             if len(curr_strata):
                 pc_overlap_resampled = np.concatenate((
                     pc_overlap_resampled,

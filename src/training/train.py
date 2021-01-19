@@ -16,7 +16,7 @@ warnings.filterwarnings(action="ignore")
 # High level training script
 
 n_size=5
-shift=False
+shift=True
 
 b_size=50
 num_workers=12
