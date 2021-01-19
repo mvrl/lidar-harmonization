@@ -13,8 +13,8 @@ def hist_match(target, reference):
     # # # 
     #
     # Params: 
-    #    target: distribution as np array
-    #    reference: distribution as np array
+    #    target: distribution as np array (the distribution we want to fix)
+    #    reference: distribution as np array 
     #
     # Output: 
     #    "matched" target distribution to reference distribution

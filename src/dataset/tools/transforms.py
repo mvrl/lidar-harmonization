@@ -19,8 +19,9 @@ class CloudIntensityNormalize(object):
         self.max = max
     def __call__(self, example):
         # Normalize the intensity values
-        example[:, 3]/=self.max
-        return example
+        ex = example.copy()
+        ex[:, 3]/=self.max
+        return ex
 
 class CloudAngleNormalize(object):
     # values go from -90 to 90
@@ -39,8 +40,9 @@ class GetTargets(object):
 
         # the center point must stay in the model so that
         # it can be centered, it will be removed in forward pass
-        example = ex[1:, :]
+        ex = ex[1:, :]
         return (ex, target_i, source_i)
+
 
 class ToTensor(object):
     def __call__(self, example):

@@ -28,7 +28,6 @@ def make_csv(path, resample_flights=True):
         target_scan[i] = filename.split("_")[1]
         intensities[i] = filename.split("_")[2]
     
-
     print("creating csv...")
     df = pd.DataFrame()
     df['examples'] = examples
@@ -159,6 +158,6 @@ def make_csv(path, resample_flights=True):
 
 if __name__=='__main__':
 
-    # make_csv("synth_crptn/150", resample_flights=True)
+    make_csv("synth_crptn/150", resample_flights=True)
     make_csv("synth_crptn+shift/150", resample_flights=True)
         

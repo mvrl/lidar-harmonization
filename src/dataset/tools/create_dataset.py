@@ -8,27 +8,12 @@ from tqdm import tqdm, trange
 from src.dataset.tools.apply_rf import ApplyResponseFunction
 from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
 
-
-# Some options to play with
-target_scan = '1'
-overlap_sample_size = 10000
-source_sample_size = 500000
-overlap_threshold=150
-workers=6
-shift = True
-
-# Setup
-ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
-neighborhoods_path = Path("synth_crptn/150/neighborhoods")
-neighborhoods_path.mkdir(parents=True, exist_ok=True)
-
-if shift:
-    shift_path = Path("synth_crptn+shift/150/neighborhoods")
-    shift_path.mkdir(parents=True, exist_ok=True)
-
-save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
+def get_igroup_bounds(bin_size):
+        return [(i, i+bin_size) for i in range(0, 512, bin_size)]
 
 def get_hist_overlap(pc1, pc2, s=10000, hist_bin_length=10):
+    # build a 2d histogram over the overlap region. Each bin contains the 
+    #   frequency of points
     
     # define a data range
     pc_combined = np.concatenate((pc1, pc2))
@@ -77,8 +62,18 @@ def get_hist_overlap(pc1, pc2, s=10000, hist_bin_length=10):
 
     return (hist, edges), pc1_sample_f
 
+
 def get_overlap_points(pc, hist_info, c):
-    # this seems slow
+    # Pull points out of `pc` from overlap information to be used in dataset
+    # creation.
+    #   `hist_info`: tuple (hist, bins) 
+    #   `c` : the count of required overlap points to exist in a bin for it to
+    #       to count as being "in the overlap." Higher values of c grab points 
+    #       more likely to be in the overlap. This can be exploited by supplying
+    #       a low value to find points outside the overlap by using 
+    #       `np.delete(pc, indices)`.
+    #
+    # this seems slow... 
     
     indices = np.full(pc.shape[0], False, dtype=bool)
     hist, (xedges, yedges, zedges) = hist_info
@@ -99,161 +94,122 @@ def get_overlap_points(pc, hist_info, c):
 
     return indices
 
-
-def balance_intensity(pc, example_count=2000):
-    bins = np.arange(0, 520, 5)
-    pc_final = np.empty((0, 9))
-    for i in trange(len(bins)-1, desc='balancing overlap', leave=False, dynamic_ncols=True):
-        left, right = bins[i], bins[i+1]
-        pc_temp = pc.copy()
-        pc_temp = pc_temp[(pc_temp[:, 3] < right) & (pc_temp[:, 3] >= left)]
-
-        # sample if selection is large, otherwise just take it - oversample later?
-        if pc_temp.shape[0] >= example_count:
-            sample = np.random.choice(
-                    len(pc_temp), 
-                    size=example_count, 
-                    replace=False)
-
-            pc_temp = pc_temp[sample]
-        
-        pc_final = np.concatenate((pc_final, pc_temp))
-
-    return pc_final
+def build_neighborhoods(pc1, pc2):
+    pass
 
 
 if __name__ == "__main__":
 
-    # Get point clouds ready to load in 
-    pc_dir = Path("dublin/npy/")
-    pc_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
+    # Some options
+    target_scan_num = '1'
+    shift = True
+    igroup_sample_size = 500  # not sure how many will be needed
+    igroup_size = 5
     
-    pc1 = np.load(pc_paths[target_scan])
+    # sample acquisition options
+    overlap_sample_size = 10000
+    source_sample_size = 10000  # ???
+    overlap_threshold=150
 
-    # for each flight: 
-    # 1. detect if there are overlaps
-    # 2. if yes, find neighborhoods in the overlapping scan and 
-    #    save them as examples with the center point from the target scan
-    # 3. for each overlapping scan, also create examples from outside the 
-    #    overlap region
+    # other?
+    workers=6
     
+    # Setup
+    ARF = ApplyResponseFunction("dorf.json", "mapping.npy")
     bounds = get_physical_bounds(scans="dublin/npy", bounds_path="bounds.npy")
+    igroup_bounds = get_group_bounds(igroup_size)
 
-    pbar = tqdm(pc_paths, total=len(pc_paths.keys()), dynamic_ncols=True)
-    for source_scan in pbar:
+    # Dataset path:
+    datase_path = "synth_crptn+shift" if shift else "synth_crptn"
+    dataset_path = Path(dataset_path)
+    neighborhoods_path = dataset_path / "150" / "neighborhoods"
+    neighborhoods_path.mkdir(parents=True, exist_ok=True)
+    
+    plots_path = dataset_path / "plots"
+    plots_path.mkdir(parents=True, exist_ok=True)
+
+    save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
+
+    # Get point clouds ready to load in 
+    scans_dir = Path("dublin/npy/")
+    scan_paths = {f.stem:f.absolute() for f in pc_dir.glob("*.npy")}
+
+    # Load target (reference) scan
+    target_scan = np.load(pc_paths[target_scan_num])
+
+    pbar = tqdm(pc_paths, total=len(scan_paths.keys()), dynamic_ncols=True)
+    pbar.set_description("Total Progress")
+
+    for source_scan_num in pbar:
         if source_scan is target_scan:
             continue  # skip
         
-        pbar.set_description("Total Progress")
+        # Load the next source scan        
+        source_scan = np.load(pc_paths[source_scan_num])
 
-        # load pc2 
-        pc2 = np.load(pc_paths[source_scan])
-        
-        # build histogram on overlap
-        hist_info, _ = get_hist_overlap(pc1, pc2, s=overlap_sample_size)
+        # build histogram - bins with lots of points in overlap likely exist
+        #   in areas with a high concentration of other points in the overlap
+        hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
-        # collect all points in overlap bins w/ size > overlap_threshold
-        overlap_indices = get_overlap_points(pc1, hist_info, overlap_threshold)
+        # obtain every point defined by the bin edges in `hist_info`
+        overlap_indices = get_overlap_points(
+            target_scan, 
+            hist_info, 
+            overlap_threshold)
 
         pc_overlap = pc1[overlap_indices]
 
-        if pc_overlap.shape[0] < 200000:
-            continue  # overlap region too small, skip
-    
-        pc_overlap = balance_intensity(pc_overlap)
-            
-        # get neighborhoods from pc2 that contain 150 neighbors
-        kd = kdtree._build(pc2[:, :3])
-        query = kdtree._query(kd, pc_overlap[:, :3], k=150, dmax=1)
+        # pc_overlap likely contains many points, but the distribution of 
+        #   intensities in the dataset needs to be uniform. To accomplish this,
+        #   it is easiest to simply pick `igroup_sample_size` points from each
+        #   strata of intensity values desired. 
 
-        # Store these in 150/neighborhoods/ with target intensity and
-        # target intensity copy as the first two elements in the array.
-        desc = "building neighborhoods from overlap"    
-        for idx in trange(len(query), desc=desc, leave=False, dynamic_ncols=True):
-            q = query[idx]
+        intensities = pc_overlap[:, 3]
+        hist, _ = np.histogram(intensities, igroup_bounds)
 
-            if len(q) == 150:
-                neighborhood = pc2[q]
- 
-                alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
+        # save this information for future analysis
+        plt.hist(intensities, igroup_bounds)
+        plt.title("Dist. of Intensities for src/trgt: " 
+            f"{source_scan_num}/{target_scan_num}.png")
+        plt.savefig(str(plots_path))
+
+        # resample the points from the overlap region. Unfortunately,
+        #   there is no guarantee that there will be points in every strata 
+        #   (especially in the global shift version of this dataset).
+
+        pc_overlap_resampled = np.empty((0, pc_overlap.shape[1]))
+
+        for i, (l, h) in enumerate(igroup_bounds):
+            curr_strata = pc_overlap[(intensities >=) l & (intensities < h)]
+            if len(curr_strata):
+                pc_overlap_resampled = np.concatenate((
+                    pc_overlap_resampled,
+                    curr_strata[
+                        np.random.choice(len(curr_strata), igroup_sample_size)
+                        ]
+                    ))
+
+        # need to build another region from just the source. The below lines
+        #   generate a histogram of overlapping points from source into target,
+        #   then the points that do not overlap are pulled out.
+        hist_info, _ = get_hist_overlap(source_scan, target_scan)
+
+        overlap_indices = get_overlap_points(
+            source_scan,
+            hist_info,
+            overlap_threshold,  # this is ignored
+            invert=True
+            )
+
+        source_nonoverlap = pc2[overlap_indices]
                 
-                center = np.expand_dims(pc_overlap[idx], 0)
-                alt_center = ARF(center, int(source_scan), 512)
-                ex = np.concatenate((center, alt_center, alt_neighborhood))
-
-                save_string = save_format.format(
-                    source_scan=source_scan,
-                    target_scan=target_scan,
-                    center=str(int(center[:,3])),
-                    idx=idx)
-
-                np.savetxt(neighborhoods_path / save_string, ex)
-                
-                if shift:
-                    # apply the shift to the neighborhood *before* the corruption
-                    shift_neighborhood = apply_shift_pc(
-                        neighborhood.copy(), 
-                        bounds[0][0], bounds[0][1])
-
-                    alt_shift_neighborhood = ARF(neighborhood, int(source_scan), 512)
-                    shift_center = apply_shift_pc(center, bounds[0][0], bounds[0][1])
-                    alt_shift_center = ARF(shift_center, int(source_scan), 512)
-                    shift_ex = np.concatenate((shift_center, 
-                                               alt_shift_center, 
-                                               alt_shift_neighborhood))
-
-                    save_string = save_format.format(
-                        source_scan=source_scan,
-                        target_scan=target_scan,
-                        center=str(int(shift_center[:,3])),
-                        idx=idx)
-
-                    np.savetxt(shift_path / save_string, shift_ex)
-         
-        # sample size between source & overlap might be an issue. Fix in post?
-        source_sample_idx = np.random.choice(pc2.shape[0], size=source_sample_size)
-        pc_source = balance_intensity(pc2[source_sample_idx])
-
-        query = kdtree._query(kd, pc_source[:, :3], k=150, dmax=1)
-        desc="building neighborhoods from source"
-        for idx in trange(len(query), desc=desc, leave=False, dynamic_ncols=True):
-            q = query[idx]
-
-            if len(q) == 150:
-                neighborhood = pc2[q]
-                center = np.expand_dims(neighborhood[0], 0)
-                alt_neighborhood = ARF(neighborhood, int(source_scan), 512)
-                alt_center = np.expand_dims(alt_neighborhood[0], 0)
-                ex = np.concatenate((center, alt_center, alt_neighborhood))
-
-                save_string = save_format.format(
-                    source_scan=source_scan,
-                    target_scan=source_scan,
-                    center=str(int(center[:,3])),
-                    idx=idx)
-
-                np.savetxt(neighborhoods_path / save_string, ex)
-
-                if shift:
-                    
-                    shift_neighborhood = apply_shift_pc(
-                        neighborhood.copy(), 
-                        bounds[0][0], bounds[0][1])
-
-                    alt_shift_neighborhood = ARF(neighborhood, int(source_scan), 512)
-                    shift_center = apply_shift_pc(center, bounds[0][0], bounds[0][1])
-                    alt_shift_center = ARF(shift_center, int(source_scan), 512)
-                    shift_ex = np.concatenate((shift_center, 
-                                               alt_shift_center, 
-                                               alt_shift_neighborhood))
-                    
-                    save_string = save_format.format(
-                        source_scan=source_scan,
-                        target_scan=source_scan,
-                        center=str(int(shift_center[:,3])),
-                        idx=idx)
-
-                    np.savetxt(shift_path / save_string, shift_ex)
+        for i, (l, h) in enumerate(igroup_bounds):
+            curr_strata = pc_
 
 
+
+
+
+
+        
 

@@ -34,6 +34,7 @@ class IntensityNetPN1(nn.Module):
             nn.ReLU(),
             nn.Linear(h_hidden_size, num_classes))
 
+
         # Initializing to identify to speed up convergence
         self.harmonization[0].weight.data.copy_(
             torch.eye(
