@@ -6,7 +6,6 @@ class LoadNP(object):
         # Load the numpy files
         return np.loadtxt(example)
 
-
 class CloudCenter(object):
     # currenty being handled in forward pass
     def __call__(self, example):
@@ -14,7 +13,6 @@ class CloudCenter(object):
         ex = example.copy()
         ex[:,:3] -= ex[0, :3]
         return ex
-
     
 class CloudIntensityNormalize(object):
     def __init__(self, max):
@@ -41,9 +39,8 @@ class GetTargets(object):
 
         # the center point must stay in the model so that
         # it can be centered, it will be removed in forward pass
-        ex = ex[1:, :]
+        example = ex[1:, :]
         return (ex, target_i, source_i)
-
 
 class ToTensor(object):
     def __call__(self, example):
@@ -114,6 +111,3 @@ class CloudJitter(object):
         example[:,:3] += jittered_data
                 
         return example
-
-    
-
