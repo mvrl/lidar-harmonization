@@ -41,7 +41,7 @@ class GetTargets(object):
 
         # the center point must stay in the model so that
         # it can be centered, it will be removed in forward pass
-        example = ex[1:, :]
+        ex = ex[1:, :]
         return (ex, target_i, source_i)
 
 
