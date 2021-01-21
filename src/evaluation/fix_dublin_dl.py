@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from pptk import kdtree
+from pptk import kdtree, viewer
 from tqdm import tqdm
 
 # from src.harmonization.model_npl import HarmonizationNet
@@ -17,7 +17,7 @@ from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
 from src.dataset.tools.dataloaders import get_dataloader_nl as get_dataloader
 
 
-def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
+def fix_dublin_dl(dublin_path, dataset_csv, state_dict, output_path=""):
 
     # prep output
     output_path = Path(output_path)
@@ -60,12 +60,11 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
     # Load the model and place in evaluation mode
     device = torch.device("cuda:0")
     model = IntensityNetPN1(neighborhood_size=neighborhood_size).to(device=device, dtype=torch.float64)
-    model.load_state_dict(torch.load("results/5_shift/5_epoch=4.pt"))
+    model.load_state_dict(torch.load(state_dict))
     model.eval()
     print("Model Loaded")
 
     for s in source_scans:
-        continue
         path = Path(s)
         source = np.load(s)
         
@@ -139,9 +138,23 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
                     ), axis=1)
 
                 fixed_source = np.concatenate((fixed_source, scan_data))
+        fixed_source[:, 5] = np.clip(fixed_source[:, 5], 0, 1)
+        mae = np.mean(np.abs(fixed_source[:, 5] - (fixed_source[:, 3])))
 
-        mae = np.mean(np.abs(np.clip(fixed_source[:, 5], 0, 1) - (fixed_source[:, 3])))
+        # Scale correctly
+        fixed_source[:, 3] *= 512
+        fixed_source[:, 4] *= 512
+        fixed_source[:, 5] *= 512
+        
+
         print(path.stem, ": MAE", mae)
+        
+        if False:
+            v = viewer(fixed_source[:, :3])
+            v.attributes(fixed_source[:, 3], fixed_source[:, 4], fixed_source[:, 5])
+            v.color_map("jet", scale=[0, 512])
+            code.interact(local=locals())
+
         print("Saving: ", output_path / (str(path.stem)+".txt.gz"))
         np.savetxt(output_path / (str(path.stem)+".txt.gz"), fixed_source)
 
@@ -176,4 +189,6 @@ def fix_dublin_dl(dublin_path, dataset_csv, output_path=""):
     np.savetxt(str(output_path / "ref.txt.gz"), ref_v)
 
 if __name__ == "__main__":
-    fix_dublin_dl("dataset/dublin/npy", "dataset/synth_crptn+shift/150/train.csv")
+    fix_dublin_dl("dataset/dublin/npy", 
+                  "dataset/synth_crptn/150/train.csv",
+                  "results/5/5_epoch=8.pt")

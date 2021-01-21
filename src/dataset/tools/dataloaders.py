@@ -10,6 +10,12 @@ from torchvision.transforms import Compose
 
 def get_dataloader(dataset_csv, batch_size, num_workers, drop_last=True, limit=None):
 
+    transforms = Compose([
+        LoadNP(),
+        CloudIntensityNormalize(512),
+        CloudAngleNormalize(),
+        GetTargets()])
+
     dataset = LidarDataset(dataset_csv, transform=transforms, limit=limit)
 
     return DataLoader(

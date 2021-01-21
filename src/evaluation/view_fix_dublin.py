@@ -26,6 +26,7 @@ def view_fix(path):
 
             v = viewer(dublin[:, :3])
             v.attributes(dublin[:, 3], dublin[:, 4], dublin[:, 5])
+            v.color_map("jet", scale=[0, 512])
             MAE = np.mean(np.abs(dublin[:, 5] - dublin[:, 3]))/512
             print(f"{m} | {type}:", MAE)
             code.interact(local=locals())

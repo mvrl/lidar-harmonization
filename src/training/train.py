@@ -15,8 +15,8 @@ import warnings
 warnings.filterwarnings(action="ignore")
 # High level training script
 
-n_size=5
-shift=True
+n_size=20
+shift=False
 
 b_size=50
 num_workers=12
