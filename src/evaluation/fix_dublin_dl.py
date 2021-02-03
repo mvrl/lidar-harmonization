@@ -190,5 +190,5 @@ def fix_dublin_dl(dublin_path, dataset_csv, state_dict, output_path=""):
 
 if __name__ == "__main__":
     fix_dublin_dl("dataset/dublin/npy", 
-                  "dataset/synth_crptn/150/train.csv",
-                  "results/5/5_epoch=8.pt")
+                  "dataset/synth_crptn+shift/150/train.csv",
+                  "results/5/5_epoch=4.pt")

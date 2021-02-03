@@ -8,24 +8,23 @@ from torchvision.transforms import Compose
 
 
 class LidarDataset(Dataset):
-    def __init__(self, csv_filepath, transform=None, dual_flight=None, limit=None):
+    def __init__(self, csv_filepath, transform=None, ss=True, limit=None):
         """ LidarDataset class for Harmonization
             Args:
                 csv_filepath (str): path to training set csv
                 transform (callable): transforms to be applied to examples
-                dual_mode (int): flight_id to be filtered for dual_flight test cases
-                                 One of 7, 30, 21, 10, 37, 20,  2, 35,  4, 39,  0, 15.
+                ss (bool): use source-source examples
         """
                             
         self.csv_filepath = csv_filepath
         self.transform = transform
         self.df = pd.read_csv(self.csv_filepath)
-        
-        if dual_flight:
-            self.df = self.df.loc[self.df['flight_num'] == dual_flight]
 
         if limit is not None:
             self.df = self.df[:limit]
+
+        if not ss:
+            self.df = self.df[self.df.source_scan != self.df.target_scan]
 
     def __len__(self):
         return len(self.df)
@@ -40,9 +39,12 @@ class LidarDataset(Dataset):
 
 
 class SimpleDataset(Dataset):
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform=None, ss=True):
         self.data = data
         self.transform = transform
+
+        if not ss:
+            self.df = self.data[self.data[:, 8] != self.data[:, 8]]
 
     def __len__(self):
         return len(self.data)

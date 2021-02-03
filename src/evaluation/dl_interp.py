@@ -23,9 +23,6 @@ def dl_interp(state_dict, target_camera=1):
     state_dict = Path(state_dict)
     n_size = int(state_dict.stem.split("_")[0])
     print(f"neighborhood size: {n_size}")
-
-    
-    
     
     if "shift" in str(state_dict):
         print("Running on shifted dataset model")
@@ -39,7 +36,7 @@ def dl_interp(state_dict, target_camera=1):
     print(f"Saving charts to {results_path}")
     results_path.mkdir(parents=True, exist_ok=True)
 
-    dataloader = get_dataloader(dataset_csv, 50, 8, drop_last=False)
+    dataloader = get_dataloader(dataset_csv, 50, True, 8, drop_last=False)
 
     device = torch.device("cuda:0")
     model = IntensityNetPN1(neighborhood_size=n_size).double().to(device)
@@ -89,4 +86,4 @@ def dl_interp(state_dict, target_camera=1):
     np.savetxt(dataset_csv.parents[0] / f"fixed_dl_{n_size}.txt.gz", fixed_tile)
 
 if __name__ == "__main__":
-    dl_interp("results/5_shift/5_epoch=4.pt")
+    dl_interp("results/5_ts/5_epoch=15.pt")

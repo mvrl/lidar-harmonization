@@ -54,7 +54,7 @@ def linear_interp(
     interp_data_path.mkdir(parents=True, exist_ok=True)
 
     if (interp_data_path / f"{n_size}_{interpolation_method}_interp.npy").exists():
-        print("loaded data")
+        # print("loaded data")
         dataset = np.load(str(interp_data_path / f"{n_size}_{interpolation_method}_interp.npy"))
     else:
         dataset = np.empty((0, 5))
@@ -90,7 +90,7 @@ def linear_interp(
             dataset = np.concatenate((dataset, new_batch))
         
         loss = np.mean(np.abs(dataset[:, 0] - dataset[:, 1]))
-        print("Interpolation Loss: ", loss)
+        print("Interpolation Error: ", loss)
         np.save(interp_data_path / f"{n_size}_{interpolation_method}_interp.npy", dataset)
 
     # Harmonization        
@@ -105,7 +105,7 @@ def linear_interp(
         exit(f"No method: {harmonization_method}")
             
     # Test method on the evaluation tile
-    print("method:", harmonization_method)
+    # print("method:", harmonization_method)
 
     running_loss = 0
     with torch.no_grad():
@@ -160,28 +160,35 @@ def linear_interp(
             })
             
             fixed_tile = np.concatenate((fixed_tile, tile_data))
-    print("Harmonization Loss: ", np.mean(np.abs(fixed_tile[:, 4] - fixed_tile[:, 3])))
+    mae = np.mean(np.abs(fixed_tile[:, 4] - fixed_tile[:, 3]))
+    print("Harmonization Error: ", mae)
     print("-"*80)
 
-    np.savetxt(tile_csv_path.parents[0] / f"fixed_li_{n_size}_{interpolation_method}_{harmonization_method}.txt.gz", fixed_tile)
+    np.savetxt(tile_csv_path.parents[0] / f"fixed_li_{n_size}_{interpolation_method}_{harmonization_method}_{mae:.3f}.txt.gz", fixed_tile)
 
 if __name__=="__main__":
     # This creates the main table
     
-    for i_method in ["linear", "nearest", "cubic"]:
+    for i_method in ["linear", "cubic"]:
+        continue
         for h_method in ["lstsq", "MLP"]:
             for n in [5, 20, 50, 100]:
-                print(f"Running: {i_method} {h_method} {n}")
+                print(f"Running: {i_method} {h_method} {n} (no global shift)")
 
-                print("Default")
                 linear_interp(
                     "dataset/synth_crptn/150/train.csv",
                     "dataset/synth_crptn/big_tile_no_overlap/big_tile_dataset.csv",
                     interpolation_method=i_method,
                     harmonization_method=h_method,
                     n_size=n)
+                print("*"*80)
 
-                print("Shift")
+    for i_method in ["linear", "cubic"]:
+        continue
+        for h_method in ["lstsq", "MLP"]:
+            for n in [5, 20, 50, 100]:
+                print(f"Running: {i_method} {h_method} {n} (with global shift)")
+                
                 linear_interp(
                     "dataset/synth_crptn+shift/150/train.csv",
                     "dataset/synth_crptn+shift/big_tile_no_overlap/big_tile_dataset.csv",
@@ -190,4 +197,26 @@ if __name__=="__main__":
                     n_size=n,
                     interp_data_path="temp_shift")
                 print("*"*80)
+
+    print("Running Nearest-interpolation")  # neighborhood size is irrelevant 
+    for h_method in ["lstsq", "MLP"]:
+        continue
+        print(f"Running: nearest {h_method} (with global shift)")
+        linear_interp(
+            "dataset/synth_crptn/150/train.csv",
+            "dataset/synth_crptn/big_tile_no_overlap/big_tile_dataset.csv",
+            interpolation_method="nearest",
+            harmonization_method=h_method,
+            n_size=3)
+
+    for h_method in ["lstsq", "MLP"]:
+        print(f"Running: nearest {h_method} (with global shift)")
+        linear_interp(
+            "dataset/synth_crptn+shift/150/train.csv",
+            "dataset/synth_crptn+shift/big_tile_no_overlap/big_tile_dataset.csv",
+            interpolation_method="nearest",
+            harmonization_method=h_method,
+            n_size=3,
+            interp_data_path="temp_shift"
+        )
 

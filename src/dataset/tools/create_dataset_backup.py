@@ -234,8 +234,7 @@ if __name__ == "__main__":
 
                 np.savetxt(neighborhoods_path / save_string, ex)
 
-                if shift:
-                    
+                if shift: 
                     shift_neighborhood = apply_shift_pc(
                         neighborhood.copy(), 
                         bounds[0][0], bounds[0][1])

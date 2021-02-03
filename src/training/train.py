@@ -7,16 +7,17 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import CyclicLR
 
 from src.training.forward_pass import forward_pass, get_metrics
-from src.training.dataloaders import get_dataloader
 from src.harmonization.inet_pn1 import IntensityNetPN1
 from src.dataset.tools.metrics import create_interpolation_harmonization_plot as create_kde
+from src.dataset.tools.dataloaders import get_dataloader
 
 import warnings
 warnings.filterwarnings(action="ignore")
 # High level training script
 
-n_size=20
+n_size=5
 shift=False
+use_ss=False
 
 b_size=50
 num_workers=12
@@ -26,12 +27,14 @@ print(f"Starting training with n_size {n_size}, b_size {b_size}, shift {shift}")
 
 ckpt_path = None  # not implemented yet
 
+ss_str = "_ssts" if use_ss else "_ts"
+
 if shift:
     dataset = Path("dataset/synth_crptn+shift")
-    results_path = Path(f"results/{n_size}_shift")
+    results_path = Path(f"results/{n_size}{ss_str}_shift")
 else:
     dataset = Path("dataset/synth_crptn")
-    results_path = Path(f"results/{n_size}")
+    results_path = Path(f"results/{n_size}{ss_str}")
 
 print(dataset)
 results_path.mkdir(parents=True, exist_ok=True)
@@ -41,10 +44,9 @@ csvs = {"train": dataset / "150/train.csv",
         # f"test": f"dataset/150/test.csv"
         }
 
-
-
 phases = [k for k in csvs]
-dataloaders = {k: get_dataloader(v, b_size, num_workers) for k, v in csvs.items()}
+dataloaders = {k: get_dataloader(v, b_size, use_ss, num_workers) for k, v in csvs.items()}
+print("Dataloader sizes: ", [len(k) for k in dataloaders])
 
 gpu = torch.device('cuda:0')
 model = IntensityNetPN1(neighborhood_size=n_size).double().to(device=gpu)
