@@ -22,7 +22,7 @@ def fetch_url(entry):
 # TO DO: clean up list.txt to save space  -- done
 # TO DO: test cleaned list.txt
 pg_src = "list.txt"
-output_path = None  # Fill in desired path here
+output_path = Path("/home/dtjo223/workspace/lidar-harmonization/src/dataset/kylidar/laz")  # Fill in desired path here
 URL = "ftp://ftp.kymartian.ky.gov/kyaped/LAZ/"
 output_path.mkdir(exist_ok=True, parents=True)
 files = []
@@ -33,7 +33,7 @@ with open(pg_src, "r") as f:
     lines = f.readlines()
 
 for filename in lines:
-    files.append(output_path / filename, URL+filename)
+    files.append((str(output_path / filename).strip(), URL+filename))
 
 print(f"Preparing to download {len(files)}")
 

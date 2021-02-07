@@ -142,6 +142,8 @@ src/dataset/dublin/synth_crptn/*
 src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*
 
+src/dataset/kylidar/laz/*
+
 src/dataset/notebooks/lidar_test/*
 *.laz
 *lidar.txt
