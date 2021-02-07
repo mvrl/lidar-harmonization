@@ -130,21 +130,18 @@ dmypy.json
 
 old/*
 src.egg-info/*
+
+# DTJ added
 src/results/*
 src/temp_default/*
 src/temp_shift/*
-src/dataset/[0-9]*/*
-src/dataset/combined/*
-src/dataset/interpolation_dataset/*
-src/dataset/big_tile_in_overlap/*
-src/dataset/synth_crptn+shift/*
-src/dataset/synth_crptn/*
-src/dataset/big_tile_no_overlap/*
+src/fix_dublin_out/*
+
+src/dataset/dublin/synth_crptn+shift/*
+src/dataset/dublin/synth_crptn/*
 src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*
-src/dataset/dublin/old/*
+
 src/dataset/notebooks/lidar_test/*
-src/lightning_logs/*
 *.laz
 *lidar.txt
-src/fix_dublin_out/*

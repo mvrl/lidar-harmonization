@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import CyclicLR
 
 from src.training.forward_pass import forward_pass, get_metrics
 from src.harmonization.inet_pn1 import IntensityNetPN1
-from src.dataset.tools.metrics import create_interpolation_harmonization_plot as create_kde
+from src.dataset.dublin.tools.metrics import create_interpolation_harmonization_plot as create_kde
 from src.dataset.tools.dataloaders import get_dataloader
 
 import warnings

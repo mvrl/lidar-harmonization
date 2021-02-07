@@ -1,0 +1,112 @@
+#!/usr/bin/bash
+
+
+flights=( 
+	https://archive.nyu.edu/retrieve/80235/nyu_2451_38683_pc_F_150326_161223.zip 
+	https://archive.nyu.edu/retrieve/80230/nyu_2451_38682_pc_F_150326_161001.zip
+	https://archive.nyu.edu/retrieve/80225/nyu_2451_38681_pc_F_150326_160709.zip
+	https://archive.nyu.edu/retrieve/80220/nyu_2451_38680_pc_F_150326_160443.zip
+	https://archive.nyu.edu/retrieve/80215/nyu_2451_38679_pc_F_150326_160149.zip
+	https://archive.nyu.edu/retrieve/80210/nyu_2451_38678_pc_F_150326_155833.zip
+	https://archive.nyu.edu/retrieve/80205/nyu_2451_38677_pc_F_150326_155529.zip
+	https://archive.nyu.edu/retrieve/80200/nyu_2451_38676_pc_F_150326_155238.zip
+	https://archive.nyu.edu/retrieve/80195/nyu_2451_38675_pc_F_150326_154909.zip
+	https://archive.nyu.edu/retrieve/80190/nyu_2451_38674_pc_F_150326_151542.zip
+	https://archive.nyu.edu/retrieve/80143/nyu_2451_38673_pc_F_150326_151147.zip
+	https://archive.nyu.edu/retrieve/80138/nyu_2451_38672_pc_F_150326_150906.zip
+	https://archive.nyu.edu/retrieve/80133/nyu_2451_38671_pc_F_150326_150519.zip
+	https://archive.nyu.edu/retrieve/80128/nyu_2451_38670_pc_F_150326_150215.zip
+	https://archive.nyu.edu/retrieve/80123/nyu_2451_38669_pc_F_150326_145809.zip
+	https://archive.nyu.edu/retrieve/80118/nyu_2451_38668_pc_F_150326_145523.zip
+	https://archive.nyu.edu/retrieve/80113/nyu_2451_38667_pc_F_150326_145143.zip
+	https://archive.nyu.edu/retrieve/80108/nyu_2451_38666_pc_F_150326_134430.zip
+	https://archive.nyu.edu/retrieve/80103/nyu_2451_38665_pc_F_150326_133955.zip
+	https://archive.nyu.edu/retrieve/80098/nyu_2451_38664_pc_F_150326_133445.zip
+	https://archive.nyu.edu/retrieve/80093/nyu_2451_38663_pc_F_150326_132905.zip
+	https://archive.nyu.edu/retrieve/80088/nyu_2451_38662_pc_F_150326_132400.zip
+	https://archive.nyu.edu/retrieve/80083/nyu_2451_38661_pc_F_150326_131905.zip
+	https://archive.nyu.edu/retrieve/80078/nyu_2451_38660_pc_F_150326_131440.zip
+	https://archive.nyu.edu/retrieve/80073/nyu_2451_38659_pc_F_150326_131220.zip
+	https://archive.nyu.edu/retrieve/80068/nyu_2451_38658_pc_F_150326_130840.zip
+	https://archive.nyu.edu/retrieve/80063/nyu_2451_38657_pc_F_150326_130401.zip
+	https://archive.nyu.edu/retrieve/80058/nyu_2451_38656_pc_F_150326_125917.zip
+	https://archive.nyu.edu/retrieve/80053/nyu_2451_38655_pc_F_150326_125429.zip
+	https://archive.nyu.edu/retrieve/80048/nyu_2451_38654_pc_F_150326_124922.zip
+	https://archive.nyu.edu/retrieve/80043/nyu_2451_38653_pc_F_150326_124415.zip
+	https://archive.nyu.edu/retrieve/80038/nyu_2451_38652_pc_F_150326_123922.zip
+	https://archive.nyu.edu/retrieve/80033/nyu_2451_38651_pc_F_150326_123430.zip
+	https://archive.nyu.edu/retrieve/80028/nyu_2451_38650_pc_F_150326_122941.zip
+	https://archive.nyu.edu/retrieve/80023/nyu_2451_38649_pc_F_150326_122222.zip
+	https://archive.nyu.edu/retrieve/80018/nyu_2451_38648_pc_F_150326_121724.zip
+	https://archive.nyu.edu/retrieve/80013/nyu_2451_38647_pc_F_150326_121253.zip
+	https://archive.nyu.edu/retrieve/80008/nyu_2451_38646_pc_F_150326_120854.zip
+	https://archive.nyu.edu/retrieve/80003/nyu_2451_38645_pc_F_150326_120403.zip
+	https://archive.nyu.edu/retrieve/79998/nyu_2451_38644_pc_F_150326_120025.zip
+	https://archive.nyu.edu/retrieve/79993/nyu_2451_38625_pc_F_150326_115601.zip
+)
+
+tiles=( 
+	https://archive.nyu.edu/retrieve/79793/nyu_2451_38588_pc_T_314000_234000.zip
+        https://archive.nyu.edu/retrieve/79797/nyu_2451_38589_pc_T_314500_233000.zip
+	https://archive.nyu.edu/retrieve/79801/nyu_2451_38590_pc_T_314500_233500.zip
+	https://archive.nyu.edu/retrieve/79805/nyu_2451_38591_pc_T_314500_234000.zip
+	https://archive.nyu.edu/retrieve/79962/nyu_2451_38592_pc_T_314500_234500.zip
+	https://archive.nyu.edu/retrieve/79813/nyu_2451_38593_pc_T_315000_233000.zip
+	https://archive.nyu.edu/retrieve/79817/nyu_2451_38594_pc_T_315000_233500.zip
+	https://archive.nyu.edu/retrieve/79822/nyu_2451_38595_pc_T_315000_234000.zip
+	https://archive.nyu.edu/retrieve/79827/nyu_2451_38596_pc_T_315000_234500.zip
+	https://archive.nyu.edu/retrieve/79831/nyu_2451_38597_pc_T_315000_235000.zip
+	https://archive.nyu.edu/retrieve/79835/nyu_2451_38598_pc_T_315500_232500.zip
+	https://archive.nyu.edu/retrieve/79839/nyu_2451_38599_pc_T_315500_233000.zip
+	https://archive.nyu.edu/retrieve/79843/nyu_2451_38600_pc_T_315500_233500.zip
+	https://archive.nyu.edu/retrieve/79848/nyu_2451_38601_pc_T_315500_234000.zip
+	https://archive.nyu.edu/retrieve/79848/nyu_2451_38601_pc_T_315500_234000.zip
+	https://archive.nyu.edu/retrieve/79771/nyu_2451_38586_pc_T_315500-234500.zip
+	https://archive.nyu.edu/retrieve/79853/nyu_2451_38602_pc_T_315500_235000.zip
+	https://archive.nyu.edu/retrieve/79858/nyu_2451_38603_pc_T_316000_232500.zip
+	https://archive.nyu.edu/retrieve/79862/nyu_2451_38604_pc_T_316000_233000.zip
+	https://archive.nyu.edu/retrieve/79891/nyu_2451_38606_pc_T_316000_234000.zip
+	https://archive.nyu.edu/retrieve/79895/nyu_2451_38607_pc_T_316000_234500.zip
+	https://archive.nyu.edu/retrieve/79899/nyu_2451_38608_pc_T_316000_235000.zip
+	https://archive.nyu.edu/retrieve/79902/nyu_2451_38609_pc_T_316000_235500.zip
+	https://archive.nyu.edu/retrieve/79905/nyu_2451_38610_pc_T_316500_232500.zip
+	https://archive.nyu.edu/retrieve/79908/nyu_2451_38611_pc_T_316500_233000.zip
+	https://archive.nyu.edu/retrieve/79911/nyu_2451_38612_pc_T_316500_233500.zip
+	https://archive.nyu.edu/retrieve/79915/nyu_2451_38613_pc_T_316500_234000.zip
+	https://archive.nyu.edu/retrieve/79919/nyu_2451_38614_pc_T_316500_234500.zip
+	https://archive.nyu.edu/retrieve/79923/nyu_2451_38615_pc_T_316500_235000.zip
+	https://archive.nyu.edu/retrieve/79927/nyu_2451_38617_pc_T_317000_232500.zip
+	https://archive.nyu.edu/retrieve/79929/nyu_2451_38618_pc_T_317000_233000.zip
+	https://archive.nyu.edu/retrieve/79932/nyu_2451_38619_pc_T_317000_233500.zip
+	https://archive.nyu.edu/retrieve/79935/nyu_2451_38620_pc_T_317000_234000.zip
+	https://archive.nyu.edu/retrieve/79938/nyu_2451_38621_pc_T_317000_234500.zip
+)
+
+
+mkdir laz
+cd laz
+
+for i in "${flights[@]}"
+do
+	wget --no-check-certificate $i &
+	wait;
+done
+
+echo "Finished Downloading Dublin Dataset"
+echo "now extracting..."
+
+for laz_zip in *
+do 
+	echo "$laz_zip"
+	unzip "$laz_zip"
+	rm "$laz_zip"
+done
+
+for laz_dir in *
+do
+	cd $laz_dir
+	mv * ..
+	cd ..
+	rm -rf $laz_dir
+done
+

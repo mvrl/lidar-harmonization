@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from src.dataset.dublin.tools.apply_rf import ApplyResponseFunction
 
 class LoadNP(object):
     def __call__(self, example):
@@ -42,6 +43,23 @@ class GetTargets(object):
         # it can be centered, it will be removed in forward pass
         ex = ex[1:, :]
         return (ex, target_i, source_i)
+
+class Corruption(object):
+    # for dublin only
+    def __init__(self, dorf, mapping):
+        self.ARF = ApplyResponseFunction(dorf, mapping)
+
+    def __call__(self, example):
+        pass
+
+
+class GlobalShift(object):
+    # for dublin only
+    def __init__(self, bounds):
+        self.bounds = np.load(bounds)
+    
+    def __call__(self, example):
+        pass
 
 
 class ToTensor(object):

@@ -12,8 +12,8 @@ from tqdm import tqdm
 # from src.harmonization.model_npl import HarmonizationNet
 from src.harmonization.inet_pn1 import IntensityNetPN1
 from src.evaluation.histogram_matching import hist_match
-from src.dataset.tools.apply_rf import ApplyResponseFunction
-from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
+from src.dataset.dublin.tools.apply_rf import ApplyResponseFunction
+from src.dataset.dublin.tools.shift import get_physical_bounds, apply_shift_pc
 from src.dataset.tools.dataloaders import get_dataloader_nl as get_dataloader
 
 
