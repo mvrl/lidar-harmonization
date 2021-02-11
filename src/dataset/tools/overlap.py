@@ -1,4 +1,8 @@
-def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=100):
+import numpy as np
+from pptk import kdtree
+from tqdm import tqdm
+
+def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
     # Params:
     #     pc1: point cloud 1 (np array with shape ([m, k1]))
     #     pc2: point cloud 2 (np array with shape ([n, k2]))
@@ -64,7 +68,7 @@ def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=100):
     return (hist, edges), pc1_sample_f
 
 
-def get_overlap_points(pc, hist_info, c, s=True):
+def get_overlap_points(pc, hist_info, c=1):
     # Pull points out of `pc` from overlap information to be used in dataset
     # creation.
     #   `hist_info`: tuple (hist, bins) 
@@ -77,14 +81,11 @@ def get_overlap_points(pc, hist_info, c, s=True):
     process_list = []
     hist, (xedges, yedges, zedges) = hist_info
     
-    def get_indices(t):
-        i, j, k = t
-        x1, x2 = xedges[i], xedges[i+1]
-        y1, y2 = yedges[j], yedges[j+1]
-        z1, z2 = zedges[k], zedges[k+1]
+    def get_indices(e):
+        x1, x2, y1, y2, z1, z2 = e
         
         # this is very slow :/
-        new_indices = ((x1 <= pc[:, 0]) & (pc[:, 0] < x2) & 
+        new_indices = ((x1 <= pc[:, 0]) & (pc[:, 0] < x2) &
                        (y1 <= pc[:, 1]) & (pc[:, 1] < y2) &
                        (z1 <= pc[:, 2]) & (pc[:, 2] < z2))
         
@@ -96,15 +97,16 @@ def get_overlap_points(pc, hist_info, c, s=True):
         np.arange(hist.shape[2])
     )).T.reshape(-1, 3)
     
-    for t in tqdm(h_iter, desc="building process list"):
+    for t in tqdm(h_iter, desc="Building processes", position=1, leave=False):
         i, j, k = t
-        if s and hist[i][j][k] > c:
-            process_list.append(t)
-        if not s and hist[i][j][k] < c:
-            process_list.append(t)
+        if hist[i][j][k] > c:
+            x1, x2 = xedges[i], xedges[i+1]
+            y1, y2 = yedges[j], yedges[j+1]
+            z1, z2 = zedges[k], zedges[k+1]
+            process_list.append((x1, x2, y1, y2, z1, z2))
             
-    process_list = np.array(process_list)    
-    for t in tqdm(process_list, desc="compiling indices"):
+    process_list = np.array(process_list)
+    for t in tqdm(process_list, desc="  Querying AOI", position=1, leave=False):
         indices = indices | get_indices(t)
     
     return indices

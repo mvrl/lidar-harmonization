@@ -137,8 +137,8 @@ src/temp_default/*
 src/temp_shift/*
 src/fix_dublin_out/*
 
-src/dataset/dublin/synth_crptn+shift/*
-src/dataset/dublin/synth_crptn/*
+src/dataset/dublin/old/*
+src/dataset/dublin/150/*
 src/dataset/dublin/laz/*
 src/dataset/dublin/npy/*
 
