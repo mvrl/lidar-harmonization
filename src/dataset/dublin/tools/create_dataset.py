@@ -42,15 +42,15 @@ if __name__ == "__main__":
     target_scan_num = '1'
     config = dublin_config
 
+    # Neighborhoods path:   
+    neighborhoods_path = Path(config['save_path']) / "neighborhoods"
+    neighborhoods_path.mkdir(parents=True, exist_ok=True)
+
     # Logging
     logging.config.fileConfig('tools/logging.conf')
     logger = logging.getLogger('datasetCreation')
     logger.info("Starting")
 
-    # Neighborhoods path:
-    neighborhoods_path = Path(config['save_path']) / "neighborhoods"
-    neighborhoods_path.mkdir(parents=True, exist_ok=True)
-    
     # Save neighborhoods as partial function
     save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
     func = partial(save_neighborhood, neighborhoods_path, save_format)

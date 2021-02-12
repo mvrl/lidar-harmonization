@@ -152,7 +152,6 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
     #    this case, which can prevent undesired terminations. Not sure what a 
     #    reasonable chunk size might be. AOI is typically 50k, so maybe ~5k?
 
-    pool = Pool(workers)
     curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / chunk_size)
     sub_pbar = trange(0, aoi.shape[0], chunk_size,
                       desc=f"  Saving Neighborhoods", leave=False, position=pb_pos)
@@ -168,20 +167,19 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
 
         data = zip(range(i, i+neighborhoods.shape[0]), neighborhoods)
 
-        sub_pbar2 = tqdm(pool.imap_unordered(save_func, data),
-            desc=f"    Processing Chunk [{curr_idx}/{max_idx}]",
-            total=neighborhoods.shape[0],
-            position=pb_pos+1,
-            leave=False)
 
-        for _ in sub_pbar2:
-            pass
+        with Pool(workers) as p:
+            sub_pbar2 = tqdm(p.imap_unordered(save_func, data),
+                desc=f"    Processing Chunk [{curr_idx}/{max_idx}]",
+                total=neighborhoods.shape[0],
+                position=pb_pos+1,
+                leave=False)
+
+            for _ in sub_pbar2:
+                pass
 
         curr_idx+=1
 
-    # no mem leaks :)
-    pool.close()
-    pool.join()   
 
 def resample_aoi(aoi, igroup_bounds, max_size, pb_pos=1):
     # We want to resample the intensities here to be balanced
