@@ -1,3 +1,4 @@
+import code
 import numpy as np
 from pptk import kdtree
 from tqdm import tqdm, trange
@@ -193,34 +194,34 @@ def plot_hist(aoi, bins, mode, source_scan_num, target_scan_num, save_path):
     plt.savefig(str(plots_path / fname))
     plt.close()
 
+def log_message(msg, level, logger=None):
+    # level can be "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+    if logger and level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+        if level is "DEBUG":
+            logger.debug(msg)
+        if level is "INFO":
+            logger.info(msg)
+        if level is "WARNING":
+            logger.warning(msg)
+        if level is "CRITICAL":
+            logger.critical(msg)
+        return
+    if level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+        exit("logger level not understood:", level)
+    if not logger:
+        return
+
 def neighborhoods_from_aoi(
-        source_scan_num,
-        target_scan_num,
-        scan_paths,
+        aoi,
+        source_scan,
         mode,
+        scan_nums,
         save_func,
-        pbar,
+        logger=None,
         **kwargs):
 
-    target_scan = np.load(scan_paths[target_scan_num])  
-    source_scan = np.load(scan_paths[source_scan_num])
-    
-    # build histogram - bins with lots of points in overlap likely exist
-    #   in areas with a high concentration of other points in the overlap
-    hist_info, _ = get_hist_overlap(target_scan, source_scan)
-
     igroup_bounds = get_igroup_bounds(kwargs['igroup_size'])
-
-    if mode is "ts":
-        # Overlap Region
-        dsc = f"Total Progress [{target_scan_num}|{source_scan_num}]"
-        pbar.set_description(dsc)
-        aoi = target_scan[get_overlap_points(target_scan, hist_info)]
-    else:
-        # Outside the overlap
-        dsc = f"Total Progress [{source_scan_num}|{source_scan_num}]"
-        pbar.set_description(dsc)
-        aoi = source_scan[~get_overlap_points(source_scan, hist_info)]
+    t_num, s_num = scan_nums
 
     # Build kd tree over source scan
     kd = kdtree._build(source_scan[:, :3])
@@ -233,47 +234,54 @@ def neighborhoods_from_aoi(
         kwargs['max_chunk_size'], 
         kwargs['max_n_size'])
 
-    # save this information for future analysis
-    # bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
-    # plot_hist(aoi_filtered, bins, mode+"-B", 
-    #     source_scan_num, target_scan_num, kwargs['save_path'])
+    overlap_size = aoi.shape[0]
 
-    # resample aoi
-    aoi = resample_aoi(
-        aoi_filtered, 
-        igroup_bounds, 
-        kwargs['igroup_sample_size'])
+    log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-filter: {aoi.shape}", "INFO", logger)
 
-    # Verify resampling operation
-    # plot_hist(aoi_resampled, bins, mode+"-P", 
-    #     source_scan_num, target_scan_num, kwargs['save_path'])
+    if overlap_size >= kwargs['min_overlap_size']:
 
-    # Query neighborhoods from filtered resampled aoi
-    query = kdtree._query(kd, 
-                          aoi[:, :3], 
-                          k=kwargs['max_n_size'], dmax=1)
+        bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
+        plot_hist(aoi, bins, mode+"-B", 
+            s_num, t_num, kwargs['save_path'])
 
-    query = np.array(query)
+        # resample aoi
+        aoi = resample_aoi(
+            aoi, 
+            igroup_bounds, 
+            kwargs['igroup_sample_size'])
 
-    # Index into the source_scan and append neighborhoods to target pts
-    aoi = np.expand_dims(aoi, 1)
-    neighborhoods = np.concatenate(
-        (aoi, source_scan[query]),
-        axis=1)
+        log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-resample: {aoi.shape}", "INFO", logger)
 
-    pool = Pool(8)
-    data = zip(range(neighborhoods.shape[0]), neighborhoods)
-    sub_pbar = tqdm(pool.imap_unordered(save_func, data),
-                desc=f"Saving neighborhoods",
-                total=neighborhoods.shape[0],
-                position=1,
-                leave=False)
-    for _ in sub_pbar:
-        pass
 
-    # no mem leaks :)
-    pool.close()
-    pool.join()
+        # Verify resampling operation
+        plot_hist(aoi, bins, mode+"-P", 
+            s_num, t_num, kwargs['save_path'])
 
-    return
-    
+        # Query neighborhoods from filtered resampled aoi
+        query = kdtree._query(kd, 
+                              aoi[:, :3], 
+                              k=kwargs['max_n_size'], dmax=1)
+
+        query = np.array(query).astype(np.int)
+
+        # Index into the source_scan and append neighborhoods to target pts
+        aoi = np.expand_dims(aoi, 1)
+        neighborhoods = np.concatenate(
+            (aoi, source_scan[query]),
+            axis=1)
+
+        pool = Pool(8)
+        data = zip(range(neighborhoods.shape[0]), neighborhoods)
+        sub_pbar = tqdm(pool.imap_unordered(save_func, data),
+                    desc=f"Saving neighborhoods",
+                    total=neighborhoods.shape[0],
+                    position=1,
+                    leave=False)
+        for _ in sub_pbar:
+            pass
+
+        # no mem leaks :)
+        pool.close()
+        pool.join()   
+
+    return overlap_size 

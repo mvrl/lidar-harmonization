@@ -4,5 +4,6 @@ dublin_config = {
     "max_chunk_size": int(4e6),
     "max_n_size": 150,
     "save_path": "150",
+    "min_overlap_size": 200000
 }
 
