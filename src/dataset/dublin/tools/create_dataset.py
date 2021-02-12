@@ -35,9 +35,7 @@ def save_neighborhood(path, save_format, data):
     np.savetxt(path / save_string, neighborhood)
     return
 
-
-if __name__ == "__main__":
-
+def create_dataset():
     # Configuration
     target_scan_num = '1'
     config = dublin_config
@@ -108,3 +106,8 @@ if __name__ == "__main__":
                 func,
                 logger,
                 **config)
+
+if __name__ == "__main__":
+    create_dataset()
+
+    

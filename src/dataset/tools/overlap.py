@@ -222,7 +222,6 @@ def plot_hist(aoi, bins, mode, source_scan_num, target_scan_num, save_path):
     n = "Pre" if Y == "B" else "Post"
 
     plt.hist(aoi[:, 3], bins)
-    n = "verlap" if XX is "ts" else "Outside"
 
     plt.title(f"{n}-Sample Dist. of Intensities for src/trgt: "
         f"{source_scan_num}/{target_scan_num} - {m}.png")
