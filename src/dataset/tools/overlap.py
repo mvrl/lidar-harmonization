@@ -122,7 +122,7 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
     # Querying uses a large amount of memory, use chunking to keep 
     #   the footprint small
     keep = []
-    curr_idx = 0; max_idx = np.ceil(aoi.shape[0] / max_chunk_size)
+    curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / max_chunk_size)
     sub_pbar = trange(0, aoi.shape[0], max_chunk_size,
                       desc="  Filtering AOI", leave=False, position=pb_pos)
     for i in sub_pbar:
@@ -144,6 +144,44 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
         curr_idx+=1
 
     return aoi[keep]
+
+
+def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size=5000, pb_pos=1):
+    # Indexing query into source_scan is expensive, as this returns a 
+    #    [N, 150, 9] array as a copy. Chunking can save considerable memory in 
+    #    this case, which can prevent undesired terminations. Not sure what a 
+    #    reasonable chunk size might be. AOI is typically 50k, so maybe ~5k?
+
+    pool = Pool(workers)
+    curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / chunk_size)
+    sub_pbar = trange(0, aoi.shape[0], chunk_size,
+                      desc=f"  Saving Neighborhoods", leave=False, position=pb_pos)
+
+    for i in sub_pbar:
+        aoi_chunk = aoi[i:i+chunk_size, :]
+        query_chunk = query[i:i+chunk_size, :]
+
+        aoi_chunk = np.expand_dims(aoi_chunk, 1)
+        neighborhoods = np.concatenate(
+            (aoi_chunk, source_scan[query_chunk]),
+            axis=1)
+
+        data = zip(range(i, i+neighborhoods.shape[0]), neighborhoods)
+
+        sub_pbar2 = tqdm(pool.imap_unordered(save_func, data),
+            desc=f"    Processing Chunk [{curr_idx}/{max_idx}]",
+            total=neighborhoods.shape[0],
+            position=pb_pos+1,
+            leave=False)
+
+        for _ in sub_pbar2:
+            pass
+
+        curr_idx+=1
+
+    # no mem leaks :)
+    pool.close()
+    pool.join()   
 
 def resample_aoi(aoi, igroup_bounds, max_size, pb_pos=1):
     # We want to resample the intensities here to be balanced
@@ -264,24 +302,6 @@ def neighborhoods_from_aoi(
 
         query = np.array(query).astype(np.int)
 
-        # Index into the source_scan and append neighborhoods to target pts
-        aoi = np.expand_dims(aoi, 1)
-        neighborhoods = np.concatenate(
-            (aoi, source_scan[query]),
-            axis=1)
-
-        pool = Pool(8)
-        data = zip(range(neighborhoods.shape[0]), neighborhoods)
-        sub_pbar = tqdm(pool.imap_unordered(save_func, data),
-                    desc=f"Saving neighborhoods",
-                    total=neighborhoods.shape[0],
-                    position=1,
-                    leave=False)
-        for _ in sub_pbar:
-            pass
-
-        # no mem leaks :)
-        pool.close()
-        pool.join()   
+        save_neighborhoods(aoi, query, source_scan, save_func)
 
     return overlap_size 
