@@ -132,6 +132,7 @@ old/*
 src.egg-info/*
 
 # DTJ added
+src/config/config.py
 src/results/*
 src/temp_default/*
 src/temp_shift/*
