@@ -72,12 +72,17 @@ def make_csv(config):
     df_train = df.iloc[:split_point, :].reset_index(drop=True)
     df_test = df.iloc[split_point:, :].reset_index(drop=True)
 
-    val_split_point = len(df_train) - len(df_train)//5
-    df_val = df_train.iloc[val_split_point:, :].reset_index(drop=True)
-    df_train = df_train.iloc[:val_split_point, :].reset_index(drop=True)
+    val_split_point = len(df_test) - len(df_test)//2
+    df_val = df_test.iloc[val_split_point:, :].reset_index(drop=True)
+    df_test = df_test.iloc[:val_split_point, :].reset_index(drop=True)
     print(f"Training samples: {len(df_train)}")
     print(f"Validation samples: {len(df_val)}")
     print(f"Testing samples: {len(df_test)}")
+
+    df_train.to_csv(dataset_path / "train.csv")
+    df_val.to_csv(dataset_path / "val.csv")
+    df_test.to_csv(dataset_path / "test.csv")
+
     print("Done.")
 
 def create_dataset(config):

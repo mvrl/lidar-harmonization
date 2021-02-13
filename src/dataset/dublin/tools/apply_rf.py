@@ -4,13 +4,14 @@ import code
 
 
 class ApplyResponseFunction:
-    def __init__(self, mapping):
+    def __init__(self, rf_path, mapping, max_intensity):
         self.mapping = np.load(mapping)
         self.rf_path = rf_path
+        self.max_intensity = max_intensity
         with open(self.rf_path) as json_file:
             self.rf_data = json.load(json_file)
 
-    def __call__(self, original, fid, max_val, noise=False):
+    def __call__(self, original, fid, noise=False):
         altered = original.copy()
         intensities = altered[:, 3]
 
@@ -27,14 +28,10 @@ class ApplyResponseFunction:
         # apply the transformation
         altered_intensities = np.interp(
             altered[:, 3],
-            xp*max_val,
-            fp*max_val)
+            xp*self.max_intensity,
+            fp*self.max_intensity)
 
         altered[:,3] = altered_intensities
 
         return altered
-    
-
-    
-
     

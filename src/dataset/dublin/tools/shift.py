@@ -1,10 +1,6 @@
 import numpy as np
 from pathlib import Path
 
-def sigmoid(x, h=0, v=0, s=1, l=1):
-    return (s/(1 + np.exp(-l*(x-h)))) + v
-
-
 def get_physical_bounds(scans="dataset/dublin/npy", bounds_path="dataset/bounds.npy", reset=False):
     scans = Path(scans)
     if reset or not Path(bounds_path).exists():
@@ -38,6 +34,8 @@ def get_physical_bounds(scans="dataset/dublin/npy", bounds_path="dataset/bounds.
 
     return bounds
 
+def sigmoid(x, h=0, v=0, s=1, l=1):
+    return (s/(1 + np.exp(-l*(x-h)))) + v
 
 def apply_shift_pc(pc, min_x, max_x):
     x = pc[:, 0]

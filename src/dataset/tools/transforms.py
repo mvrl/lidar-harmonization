@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from src.dataset.dublin.tools.apply_rf import ApplyResponseFunction
+from src.dataset.dublin.tools.shift import sigmoid
 
 class LoadNP(object):
     def __call__(self, example):
@@ -46,22 +47,47 @@ class GetTargets(object):
 
 class Corruption(object):
     # for dublin only
-    def __init__(self, dorf, mapping):
-        self.ARF = ApplyResponseFunction(dorf, mapping)
+    def __init__(self, **kwargs):
+        dorf = kwargs['dorf_path']
+        mapping = kwargs['mapping_path'] 
+        max_intensity = kwargs['max_intensity']
+        self.ARF = ApplyResponseFunction(dorf, mapping, max_intensity)
 
     def __call__(self, example):
-        pass
+        # we need to save a copy of the ground truth point
+        gt_copy = example[0, :].copy()
 
+        # find the point source for the neighborhood
+        fid = int(example[1, 8])
+
+        # apply the pre-assigned corruption
+        return self.ARF(example, fid)
 
 class GlobalShift(object):
     # for dublin only
-    def __init__(self, bounds):
-        self.bounds = np.load(bounds)
+    def __init__(self, **params):
+        self.bounds = np.load(params['bounds_path'])
+        self.min_x = self.bounds[0][0]
+        self.max_x = self.bounds[0][1]
+
+        self.floor = float(params['sig_floor'])
+        self.center = float(params['sig_center'])
+        self.l = int(params['sig_l'])
+        self.s = float(params['sig_s'])
     
     def __call__(self, example):
-        pass
+        # global shift affects the ground truth (idx=0)
+        x = example[:, 0].copy()
+        x = (x - self.min_x)/(self.max_x - self.min_x)
+        example[:, 3] *= sigmoid(x, 
+                                 h=self.center, 
+                                 v=self.floor, 
+                                 l=self.l, 
+                                 s=self.s)
 
+        return example
 
+        
 class ToTensor(object):
     def __call__(self, example):
         return torch.from_numpy(example)
