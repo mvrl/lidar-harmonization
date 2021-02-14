@@ -10,8 +10,8 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 from functools import partial
 
-from src.dataset.tools.overlap import get_hist_overlap, get_overlap_points
-from src.dataset.tools.overlap import neighborhoods_from_aoi, log_message
+from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points
+from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message
 
 
 def save_neighborhood(path, save_format, data):

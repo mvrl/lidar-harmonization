@@ -15,9 +15,9 @@ from tqdm import tqdm
 
 from src.harmonization.model_npl import HarmonizationNet
 from src.evaluation.histogram_matching import hist_match
-from src.dataset.tools.apply_rf import ApplyResponseFunction
-from src.dataset.tools.shift import get_physical_bounds, apply_shift_pc
-from src.dataset.tools.dataloaders import transforms_no_load as transforms
+from src.datasets.tools.apply_rf import ApplyResponseFunction
+from src.datasets.tools.shift import get_physical_bounds, apply_shift_pc
+from src.datasets.tools.dataloaders import transforms_no_load as transforms
 
 
 

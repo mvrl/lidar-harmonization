@@ -38,7 +38,7 @@ class LidarDataset(Dataset):
         return example
 
 
-class SimpleDataset(Dataset):
+class LidarDatasetNP(Dataset):
     def __init__(self, data, transform=None, ss=True):
         self.data = data
         self.transform = transform

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-from src.dataset.dublin.tools.apply_rf import ApplyResponseFunction
-from src.dataset.dublin.tools.shift import sigmoid
+from src.datasets.dublin.tools.apply_rf import ApplyResponseFunction
+from src.datasets.dublin.tools.shift import sigmoid
 
 class LoadNP(object):
     def __call__(self, example):
@@ -32,18 +32,6 @@ class CloudAngleNormalize(object):
         ex = example.copy()
         ex[:, 4]/=90.0
         return ex
-
-class GetTargets(object):
-    # return interpolation and harmonization values
-    def __call__(self, example):
-        ex = example.copy()
-        target_i = ex[0, 3]
-        source_i = ex[1, 3]
-
-        # the center point must stay in the model so that
-        # it can be centered, it will be removed in forward pass
-        ex = ex[1:, :]
-        return (ex, target_i, source_i)
 
 class Corruption(object):
     # for dublin only
@@ -87,10 +75,21 @@ class GlobalShift(object):
 
         return example
 
+# class GetTargets(object):
+#     # return interpolation and harmonization values
+#     def __call__(self, example):
+#         ex = example.copy()
+#         target_i = ex[0, 3]
+#         source_i = ex[1, 3]
+
+#         # the center point must stay in the model so that
+#         # it can be centered, it will be removed in forward pass
+#         ex = ex[1:, :]
+#         return (ex, target_i, source_i)
         
-class ToTensor(object):
-    def __call__(self, example):
-        return torch.from_numpy(example)
+# class ToTensor(object):
+#     def __call__(self, example):
+#         return torch.from_numpy(example)
                 
 class CloudRotateX(object):
     def __init__(self):

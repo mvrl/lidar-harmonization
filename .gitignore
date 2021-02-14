@@ -138,13 +138,13 @@ src/temp_default/*
 src/temp_shift/*
 src/fix_dublin_out/*
 
-src/dataset/dublin/old/*
-src/dataset/dublin/150/*
-src/dataset/dublin/laz/*
-src/dataset/dublin/npy/*
+src/datasets/dublin/old/*
+src/datasets/dublin/150/*
+src/datasets/dublin/laz/*
+src/datasets/dublin/npy/*
 
-src/dataset/kylidar/laz/*
+src/datasets/kylidar/laz/*
 
-src/dataset/notebooks/lidar_test/*
+src/datasets/notebooks/lidar_test/*
 *.laz
 *lidar.txt

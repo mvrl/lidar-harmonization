@@ -8,26 +8,22 @@ from torch.optim.lr_scheduler import CyclicLR
 
 from src.training.forward_pass import forward_pass, get_metrics
 from src.harmonization.inet_pn1 import IntensityNetPN1
-from src.dataset.dublin.tools.metrics import create_interpolation_harmonization_plot as create_kde
-from src.dataset.dublin.tools.dataloaders import get_dataloader
+from src.datasets.dublin.tools.metrics import create_interpolation_harmonization_plot as create_kde
+from src.datasets.dublin.tools.dataloaders import get_dataloader
 
 import warnings
 warnings.filterwarnings(action="ignore")
 # High level training script
 
 n_size=5
-shift=False
-use_ss=False
-
 b_size=50
 num_workers=12
 epochs=40
 
-print(f"Starting training with n_size {n_size}, b_size {b_size}, shift {shift}")
+def train(datasets, model, epochs, n_size, b_size, num_workers, **kwargs):
+    ckpt_path = None  # not implemented yet
 
-ckpt_path = None  # not implemented yet
-
-ss_str = "_ssts" if use_ss else "_ts"
+    ss_str = "_ssts" if use_ss else "_ts"
 
 if shift:
     dataset = Path("dataset/synth_crptn+shift")

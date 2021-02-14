@@ -7,8 +7,8 @@ from src.dataset.tools.metrics import create_kde
 from pathlib import Path
 from pptk import kdtree, viewer
 import matplotlib.pyplot as plt
-from src.dataset.dublin.tools.apply_rf import ApplyResponseFunction
-from src.dataset.dublin.tools.shift import get_physical_bounds, apply_shift_pc
+from src.datasets.dublin.tools.apply_rf import ApplyResponseFunction
+from src.datasets.dublin.tools.shift import get_physical_bounds, apply_shift_pc
 
 
 def load_laz(path):

@@ -11,8 +11,8 @@ import torch
 from tqdm import tqdm
 from src.dataset.tools.metrics import create_kde
 
-from src.dataset.tools.dataloaders import get_dataloader
-from src.dataset.tools.metrics import create_interpolation_harmonization_plot
+from src.datasets.tools.dataloaders import get_dataloader
+from src.datasets.tools.metrics import create_interpolation_harmonization_plot
 from src.harmonization.inet_pn1 import IntensityNetPN1
 
 

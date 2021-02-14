@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from torch.optim.lr_scheduler import CyclicLR
-from src.dataset.tools.dataloaders import get_dataloader
+from src.datasets.tools.dataloaders import get_dataloader
 from src.evaluation.tools import HDataset, mlp_train, mlp_inference, lstsq_method
 
 def interp2d(data, idx=1, method='linear', n_size=None):

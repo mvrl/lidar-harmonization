@@ -1,6 +1,6 @@
 # import order matters?
-from src.dataset.dublin.tools.apply_rf import ApplyResponseFunction
-from src.dataset.dublin.tools.metrics import create_kde
+from src.datasets.dublin.tools.apply_rf import ApplyResponseFunction
+from src.datasets.dublin.tools.metrics import create_kde
 
 import code
 import numpy as np
