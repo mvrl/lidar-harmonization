@@ -1,36 +1,55 @@
 import code
-from src.dataset.tools.lidar_dataset import LidarDataset, SimpleDataset
-
-from src.datasets.tools.transforms import LoadNP, CloudCenter
-from src.datasets.tools.transforms import CloudIntensityNormalize
-from src.datasets.tools.transforms import CloudAngleNormalize, GetTargets
-
+from pathlib import Path
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
-def get_dataloader(dataset_csv, batch_size, use_ss, num_workers, drop_last=True, limit=None):
-
-    transforms = Compose([
-        LoadNP(),
-        CloudIntensityNormalize(512),
-        CloudAngleNormalize(),
-        GetTargets()])
-
-    dataset = LidarDataset(dataset_csv, transform=transforms, ss=use_ss, limit=limit)
-    return DataLoader(
-            dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            drop_last=drop_last)
+from src.datasets.tools.lidar_dataset import LidarDataset, LidarDatasetNP
+from src.datasets.tools.transforms import LoadNP, CloudIntensityNormalize, CloudAngleNormalize
+from src.datasets.tools.transforms import Corruption, GlobalShift
 
 
+def get_dataloaders(dataset_config, train_config):
+    transforms = [LoadNP(), 
+                  CloudAngleNormalize()]
+
+    if dataset_config['name'] is "dublin":
+        if dataset_config['shift']:
+            transforms.append(GlobalShift(**dataset_config))
+        
+        transforms.extend([
+            Corruption(**dataset_config), 
+            CloudIntensityNormalize(dataset_config['max_intensity'])])
+
+    if dataset_config['name'] is "kylidar":
+        pass
+
+    transforms = Compose(transforms)
+
+    dataset_csv_path = dataset_config['save_path']
+    dataloaders = {}
+
+    for phase in dataset_config['phases']:
+        dataloaders[phase] = DataLoader(
+            LidarDataset(
+                        Path(dataset_csv_path) / (phase + '.csv'), 
+                        transform=transforms,
+                        ss=dataset_config['use_ss']),
+                    batch_size=train_config['batch_size'],
+                    shuffle=True,
+                    num_workers=train_config['num_workers'],
+                    drop_last=True)
+
+    return dataloaders
+
+    
 def get_dataloader_nl(dataset, batch_size, num_workers, drop_last=False):
+    # During evaluation, neighborhoods may already be in memory, meaning 
+    #   LoadNP() and pandas indexing are no longer required. Introducing a 
+    #   second get_dataloaders function resolves this case. 
 
-    transforms_no_load = Compose([
-        CloudIntensityNormalize(512),
-        CloudAngleNormalize(),
-        GetTargets()])
+    transforms = [LoadNP(), 
+                  CloudIntensityNormalize(dataset_config['max_intensity']), 
+                  CloudAngleNormalize()]
 
     dataset = SimpleDataset(dataset, transforms_no_load)
 

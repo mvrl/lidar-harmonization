@@ -2,31 +2,49 @@ import code
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.models.pointnet.pointnet import STNkd, PointNetfeat
+from src.harmonization.pointnet import STNkd, PointNetfeat
+from scipy.interpolate import griddata
 
 
-class IntensityNetPN1(nn.Module):
-    def __init__(self, neighborhood_size, input_features=8, embed_dim=3, num_classes=1, h_hidden_size=100):
-        super(IntensityNetPN1, self).__init__()
+# it would be cool if interpolation was modular in this network, i.e., pointnet
+#   or standard interpolation passed in as a parameter. 
+
+class IntensityNet(nn.Module):
+    def __init__(
+            self,
+            neighborhood_size, 
+            interpolation_method="pointnet",
+            input_features=8, 
+            embed_dim=3, 
+            num_classes=1, 
+            h_hidden_size=100):
+
+        super(IntensityNet, self).__init__()
         
+        self.interpolation_method = interpolation_method
         self.neighborhood_size = neighborhood_size
         self.input_features = input_features
         self.camera_embed = nn.Embedding(45, embed_dim)
         
-        self.feat = PointNetfeat(
-            global_feat=True,
-            feature_transform=False,
-            num_features=self.input_features)
 
-        self.fc_layer = nn.Sequential(
-            nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.Dropout(p=0.3),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Linear(256, 1))
+        if self.interpolation_method is "pointnet":
+            self.feat = PointNetfeat(
+                global_feat=True,
+                feature_transform=False,
+                num_features=self.input_features)
+
+            self.fc_layer = nn.Sequential(
+                nn.Linear(1024, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Linear(512, 256),
+                nn.Dropout(p=0.3),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+                nn.Linear(256, 1))
+
+        if self.interpolation_method not in ["pointnet", "linear", "nearest", "cubic"]:
+            raise ValueError(f"Unknown interpolation method: {self.interpolation_method}")
 
         self.harmonization = nn.Sequential(
             nn.Linear(1+embed_dim, h_hidden_size),
@@ -81,20 +99,37 @@ class IntensityNetPN1(nn.Module):
 
         batch = batch[:, :, :-1]  # remove camera data
 
+        # save ground truth information
+        gt_h = batch[:, 0, 3].clone()
+        gt_i = batch[:, 1, 3].clone()
+
+
         if self.neighborhood_size == 0:
             # use the interpolation target as the input (for testing only)
-            batch = batch[:, 0, :]
+            batch = batch[:, 1, :]
             batch = batch.unsqueeze(1)
         else:
-            # chop out interpolation target
-            batch = batch[:, 1:self.neighborhood_size+1, :]
+            # chop out harmonization and interpolation targets
+            batch = batch[:, 2:self.neighborhood_size+2, :]
         
-        # Pointnet
-        batch = batch.transpose(1, 2)
-        x, trans, trans_feat = self.feat(batch)
+        if self.interpolation_method is "pointnet":
+            batch = batch.transpose(1, 2)
+            x, trans, trans_feat = self.feat(batch)
 
-        # interpolate value at center point
-        interpolation = self.fc_layer(x)
+            # interpolate value at center point
+            interpolation = self.fc_layer(x)
+
+        else:
+            # yucky implementation since we rely on numpy and scipy.
+            # improved one day? See https://github.com/pytorch/pytorch/issues/50341
+            # this doesn't work for the ndim=0 test case
+            interpolation = torch.cat([
+                griddata(
+                    n[1:self.neighborhood_size+1, :3],
+                    n[1:self.neighborhood_size+1, 3],
+                    n[0, :3], method=self.interpolation_method
+                    ) for n in batch]
+                )
 
         # fuse interpolation and camera info
         x = torch.cat((interpolation, camera_info), dim=1)
@@ -102,6 +137,6 @@ class IntensityNetPN1(nn.Module):
         # harmonize intensity to target camera
         harmonization = self.harmonization(x)
 
-        return harmonization, interpolation, ss
+        return harmonization, interpolation, ss, gt_h, gt_i
 
 

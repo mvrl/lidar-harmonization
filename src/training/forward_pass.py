@@ -16,13 +16,8 @@ def get_metrics(outputs):
 def forward_pass(model, phase, batch, criterions, optimizer, scheduler, device="cpu"):
     optimizer.zero_grad()
     with torch.set_grad_enabled(phase == 'train'):
-        data, h_target, i_target = batch
-
-        data = data.to(device=device)
-        h_target = h_target.to(device=device)
-        i_target = i_target.to(device=device)
-
-        harmonization, interpolation, ss = model(data)
+        batch = batch.to(device=device)
+        harmonization, interpolation, ss, h_target, i_target,  = model(batch)
 
         # harmonization targets for source-source examples are the same as the
         #   interpolation targets. h_target contains `target_camera` 

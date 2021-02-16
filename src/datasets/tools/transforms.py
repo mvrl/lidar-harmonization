@@ -8,21 +8,21 @@ class LoadNP(object):
         # Load the numpy files
         return np.loadtxt(example)
 
-class CloudCenter(object):
-    # currenty being handled in forward pass
-    def __call__(self, example):
-        # Center the neighborhood
-        ex = example.copy()
-        ex[:,:3] -= ex[0, :3]
-        return ex
+# class CloudCenter(object):
+#     # currenty being handled in forward pass
+#     def __call__(self, example):
+#         # Center the neighborhood
+#         ex = example.copy()
+#         ex[:,:3] -= ex[0, :3]
+#         return ex
     
 class CloudIntensityNormalize(object):
-    def __init__(self, max):
-        self.max = max
+    def __init__(self, max_intensity):
+        self.max_intensity = max_intensity
     def __call__(self, example):
         # Normalize the intensity values
         ex = example.copy()
-        ex[:, 3]/=self.max
+        ex[:, 3]/=self.max_intensity
         return ex
 
 class CloudAngleNormalize(object):
@@ -43,13 +43,18 @@ class Corruption(object):
 
     def __call__(self, example):
         # we need to save a copy of the ground truth point
+        ex = example.copy()
         gt_copy = example[0, :].copy()
+        gt_copy = np.expand_dims(gt_copy, 0)
 
         # find the point source for the neighborhood
         fid = int(example[1, 8])
 
         # apply the pre-assigned corruption
-        return self.ARF(example, fid)
+        alt = self.ARF(ex.copy(), fid)
+        ex = np.concatenate((gt_copy, alt), axis=0)
+
+        return ex
 
 class GlobalShift(object):
     # for dublin only
@@ -65,15 +70,16 @@ class GlobalShift(object):
     
     def __call__(self, example):
         # global shift affects the ground truth (idx=0)
-        x = example[:, 0].copy()
+        ex = example.copy()
+        x = ex[:, 0].copy()
         x = (x - self.min_x)/(self.max_x - self.min_x)
-        example[:, 3] *= sigmoid(x, 
-                                 h=self.center, 
-                                 v=self.floor, 
-                                 l=self.l, 
-                                 s=self.s)
+        ex[:, 3] *= sigmoid(x, 
+                            h=self.center, 
+                            v=self.floor, 
+                            l=self.l, 
+                            s=self.s)
 
-        return example
+        return ex
 
 # class GetTargets(object):
 #     # return interpolation and harmonization values
