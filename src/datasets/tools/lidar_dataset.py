@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from torchvision.transforms import Compose
+from src.datasets.dublin.config import config as dublin_config
 
 
 class LidarDataset(Dataset):
@@ -19,6 +20,7 @@ class LidarDataset(Dataset):
         self.csv_filepath = csv_filepath
         self.transform = transform
         self.df = pd.read_csv(self.csv_filepath)
+        self.igroup_size = dublin_config['igroup_size']
 
         if limit is not None:
             self.df = self.df[:limit]
@@ -30,12 +32,14 @@ class LidarDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        example  = self.df.iloc[idx]["examples"]
+        row  = self.df.iloc[idx]
+        example = row['examples']
+        igroup = row['target_intensity']//self.igroup_size
         
         if self.transform:
             example = self.transform(example)
 
-        return example
+        return example, igroup
 
 
 class LidarDatasetNP(Dataset):

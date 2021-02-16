@@ -19,6 +19,7 @@ config['max_chunk_size'] =  int(4e6)
 config['max_n_size'] =  150
 config['scans_path'] =  str(p.root / 'datasets/dublin/npy/')
 config['save_path'] =  str(p.root / 'datasets/dublin/150')
+config['class_weights'] = str(p.root / 'datasets/dublin/150/weights.npy')
 config['min_overlap_size'] =  200000
 
 # Corruption

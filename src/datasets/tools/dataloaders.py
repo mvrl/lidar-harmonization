@@ -1,12 +1,34 @@
 import code
 from pathlib import Path
-from torch.utils.data import DataLoader
+import torch
+from torch.utils.data.sampler import WeightedRandomSampler
 from torchvision.transforms import Compose
+
 
 from src.datasets.tools.lidar_dataset import LidarDataset, LidarDatasetNP
 from src.datasets.tools.transforms import LoadNP, CloudIntensityNormalize, CloudAngleNormalize
 from src.datasets.tools.transforms import Corruption, GlobalShift
 
+
+def make_weights_for_balanced_classes(dataset, nclasses):
+    # https://discuss.pytorch.org/t/balanced-sampling-between-classes-with-torchvision-dataloader/2703/3
+    count = [0] * nclasses
+
+    for i in range(len(dataset)):
+        ex, label = dataset[i]
+        count[label] += 1
+
+    weight_per_class = [0.] * nclasses
+    N = float(sum(count))
+    for i in range(nclasses):
+        weight_per_class[i] = N/float(count[i])
+
+    weight = [0] * len(dataset)
+    for idx, val in enumerate(dataset):
+        weight[idx] = weight_per_class[val[1]]
+
+    # note that weights do not have to sum to 1
+    return torch.tensor(weight)
 
 def get_dataloaders(dataset_config, train_config):
     transforms = [LoadNP(), 
@@ -23,6 +45,8 @@ def get_dataloaders(dataset_config, train_config):
     if dataset_config['name'] is "kylidar":
         pass
 
+    weights = torch.tensor(np.load(dataset_config['class_weights']))
+    sampler = WeightedRandomSampler(weights, len(weights))
     transforms = Compose(transforms)
 
     dataset_csv_path = dataset_config['save_path']
@@ -59,3 +83,21 @@ def get_dataloader_nl(dataset, batch_size, num_workers, drop_last=False):
         shuffle=False,
         num_workers=num_workers,
         drop_last=drop_last)
+
+if __name__ == "__main__":
+    # generate class weights
+    from src.datasets.dublin.config import config as dataset_config
+    import time
+
+    start = time.time()
+    dataset_csv_path = dataset_config['save_path']
+    dataset = LidarDataset(
+                Path(dataset_csv_path) / ('train.csv'), 
+                ss=dataset_config['use_ss'])
+    weights = make_weights_for_balanced_classes(dataset, 103)  # more modular parameter here
+    print(len(weights))
+    end = time.time()
+    duration = end - start
+    print(f"Weights generated in {duration} seconds")
+    weights = torch.save(weights, dataset_config['class_weights'])
+
