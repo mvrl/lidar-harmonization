@@ -111,6 +111,8 @@ def create_interpolation_harmonization_plot(
     plt.savefig(output_path)
     plt.close()
 
+    return h_mae, i_mae
+
 
     
 

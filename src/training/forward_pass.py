@@ -16,7 +16,8 @@ def get_metrics(outputs):
 def forward_pass(model, phase, batch, criterions, optimizer, scheduler, device="cpu"):
     optimizer.zero_grad()
     with torch.set_grad_enabled(phase == 'train'):
-        batch. _ = batch.to(device=device)
+        batch = batch.to(device=device)
+
         harmonization, interpolation, ss, h_target, i_target,  = model(batch)
 
         # harmonization targets for source-source examples are the same as the

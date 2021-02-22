@@ -32,14 +32,12 @@ class LidarDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        row  = self.df.iloc[idx]
-        example = row['examples']
-        igroup = row['target_intensity']//self.igroup_size
+        example = self.df.iloc[idx].examples
         
         if self.transform:
             example = self.transform(example)
 
-        return example, igroup
+        return example
 
 
 class LidarDatasetNP(Dataset):

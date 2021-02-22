@@ -48,10 +48,11 @@ class Corruption(object):
         gt_copy = np.expand_dims(gt_copy, 0)
 
         # find the point source for the neighborhood
-        fid = int(example[1, 8])
+        fid = int(example[-1, 8])
 
         # apply the pre-assigned corruption
         alt = self.ARF(ex.copy(), fid)
+        alt[:, 8] = fid
         ex = np.concatenate((gt_copy, alt), axis=0)
 
         return ex

@@ -27,8 +27,7 @@ def train(dataloaders, dataset_config, train_config):
     [print(f"{k}: {len(v)}") for k,v in dataloaders.items()]
 
     gpu = torch.device('cuda:0')
-    model = IntensityNet(
-        neighborhood_size=n_size).double().to(device=gpu)
+    model = IntensityNet(n_size, interpolation_method="pointnet").double().to(device=gpu)
 
     criterions = {
             'harmonization': nn.SmoothL1Loss(), 

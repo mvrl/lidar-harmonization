@@ -12,7 +12,7 @@ config = defaultdict(default_value)
 config['name'] =  'dublin',
 
 # Training settings
-config['epochs'] = 40
+config['epochs'] = 1
 config['batch_size'] = 50
 config['neighborhood_size'] = 5
 config['num_workers'] = 12

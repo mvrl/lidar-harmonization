@@ -76,7 +76,6 @@ class IntensityNet(nn.Module):
         # Center the point cloud
         xyz = batch[:, :, :3]
         batch[:, :, :3] = xyz - xyz[:, 0, None]
-        
 
         # Camera embedding is in the last channel
         target_camera = batch[:, 0, -1].long()
@@ -123,13 +122,20 @@ class IntensityNet(nn.Module):
             # yucky implementation since we rely on numpy and scipy.
             # improved one day? See https://github.com/pytorch/pytorch/issues/50341
             # this doesn't work for the ndim=0 test case
+
+            device = batch.device
+            if str(device) is not 'cpu':
+                batch = batch.cpu()
+
             interpolation = torch.cat([
-                griddata(
+                torch.tensor(griddata(
                     n[1:self.neighborhood_size+1, :3],
                     n[1:self.neighborhood_size+1, 3],
-                    n[0, :3], method=self.interpolation_method
-                    ) for n in batch]
+                    [0, 0, 0], method=self.interpolation_method
+                    )) for n in batch]
                 )
+
+            interpolation = interpolation.unsqueeze(1).to(device)
 
         # fuse interpolation and camera info
         x = torch.cat((interpolation, camera_info), dim=1)

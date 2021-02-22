@@ -3,15 +3,38 @@ import logging
 import logging.config
 import numpy as np
 import pandas as pd
+from torch import tensor
 from pathlib import Path
-from pptk import kdtree
+from pptk import kdtree, viewer
 from tqdm import tqdm, trange
 from multiprocessing import Pool
 import matplotlib.pyplot as plt
 from functools import partial
 
+
 from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points
-from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message
+from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods
+
+def make_weights_for_balanced_classes(dataset, nclasses, config):
+    # https://discuss.pytorch.org/t/balanced-sampling-between-classes-with-torchvision-dataloader/2703/3
+    count = [0] * nclasses
+    for i in range(len(dataset)):
+        label = dataset.iloc[i].target_intensity//config['igroup_size']
+        count[label] += 1
+
+    weight_per_class = [0.] * nclasses
+    N = float(sum(count))
+    for i in range(nclasses):
+        weight_per_class[i] = N/float(count[i])
+
+    weight = [0] * len(dataset)
+    for i in range(len(ataset)):
+        label = dataset.iloc[i].target_intensity//config['igroup_size']
+        weight[idx] = weight_per_class[label]
+
+    # note that weights do not have to sum to 1
+    torch.save(weight, config['class_weights'])
+    return weight
 
 
 def save_neighborhood(path, save_format, data):
@@ -83,9 +106,47 @@ def make_csv(config):
     df_val.to_csv(dataset_path / "val.csv")
     df_test.to_csv(dataset_path / "test.csv")
 
+    return df_train, df_val, df_test
+
+
     print("Done.")
 
-def create_dataset(config):
+
+def create_eval_tile(config):
+
+    scans_path = Path(config['scans_path'])
+    save_path = Path(config['eval_save_path'])
+    neighborhoods_path = save_path / "neighborhoods"
+    neighborhoods_path.mkdir(parents=True, exist_ok=True)
+
+    save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
+    func = partial(save_neighborhood, neighborhoods_path, save_format)
+
+    intersecting_flight = config['eval_source_scan']
+
+    flight = np.load(scans_path / (intersecting_flight+".npy"))
+
+    kd = kdtree._build(flight[:, :3])
+    q = kdtree._query(kd, 
+                      np.array([config['eval_tile_center']]),
+                      k=config['eval_tile_size'])
+    
+    tile = flight[tuple(q)]
+
+    q = kdtree._query(kd, tile[:, :3], k=config['max_n_size'])
+
+    save_neighborhoods(tile, np.array(q), flight, func)
+
+    examples = [f for f in neighborhoods_path.glob("*.txt.gz")]
+    df = pd.DataFrame()
+    df['examples'] = examples
+    df.to_csv(save_path / "eval_dataset.csv")
+
+    # v = viewer(tile[:, :3])
+    # v.set(lookat=config['eval_tile_center'])
+
+
+def create_dataset(targets, config):
     # Neighborhoods path:   
     neighborhoods_path = Path(config['save_path']) / "neighborhoods"
     neighborhoods_path.mkdir(parents=True, exist_ok=True)
@@ -102,55 +163,75 @@ def create_dataset(config):
     # Get point clouds ready to load in
     scan_paths = {f.stem:f.absolute() for f in Path(config['scans_path']).glob("*.npy")}
     
-    pbar = tqdm(scan_paths, total=len(scan_paths.keys()), dynamic_ncols=True)
-    pbar.set_description("Total Progress [ | ]")
+    pbar_t = tqdm(targets, total=len(targets), dynamic_ncols=True)
 
-    # TO DO: target scan could be a collection of scans or tiles, so it will be
-    #   necessary to check against a group of scans rather than just one. 
-    #   Ideally, this variable would hold the largest segment of "target" 
-    #   that is feasible. For dublin, it is simple to consider this as a single
-    #   scan. However, to harmonize the entire region, harmonized scans will 
-    #   become "target" scans. Futhermore, KY LiDAR and other tile-based LiDAR
-    #   datasets will be another challenge in and of themselves.
-    target_scan_num = config['target_scan']
-    target_scan = np.load(scan_paths[target_scan_num])  
+    pbar_s = tqdm(
+        scan_paths, 
+        total=len(scan_paths.keys()), 
+        position=1,
+        leave=False,
+        dynamic_ncols=True)
+    pbar_s.set_description("Target | Source: [ | ]")
 
-    for source_scan_num in pbar:
-        if source_scan_num is target_scan_num:
-            continue  # skip
-        
-        source_scan = np.load(scan_paths[source_scan_num])
+    original_target_scan_num = config['target_scan']
+    scans_to_harmonize = []
 
-        hist_info, _ = get_hist_overlap(target_scan, source_scan)
+    for target_scan_num in pbar_t:
+        target_scan = np.load(scan_paths[target_scan_num])
+        for source_scan_num in pbar_s:
+            
+            if ((source_scan_num in target_scans) or 
+               (source_scan_num in scans_to_harmonize)):
+                # don't process if the source is in `targets`. Additionally,
+                #   don't process if it was already processed. This prevents 
+                #   creating examples for the same source with multiple targets,
+                #   which seems overly redundant.
+                continue
+            
+            source_scan = np.load(scan_paths[source_scan_num])
 
-        # Overlap Region
-        dsc = f"Total Progress [{target_scan_num}|{source_scan_num}]"
-        pbar.set_description(dsc)
-        aoi = target_scan[get_overlap_points(target_scan, hist_info)]
+            hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
-        overlap_size = neighborhoods_from_aoi(
-            aoi,
-            source_scan,
-            "ts",
-            (target_scan_num,source_scan_num),
-            func,
-            logger,
-            **config)
-
-        if overlap_size > config['min_overlap_size']:
-            log_message("sufficent overlap, sampling outside", "INFO", logger)
-            dsc = f"Total Progress [{source_scan_num}|{source_scan_num}]"
+            # Overlap Region
+            dsc = f"Target | Source: [{target_scan_num}|{source_scan_num}]"
             pbar.set_description(dsc)
-            aoi = source_scan[~get_overlap_points(source_scan, hist_info)]
+            aoi = target_scan[get_overlap_points(target_scan, hist_info)]
 
-            neighborhoods_from_aoi(
+            overlap_size = neighborhoods_from_aoi(
                 aoi,
                 source_scan,
-                "ss",
+                "ts",
                 (target_scan_num,source_scan_num),
                 func,
-                logger,
+                scans_to_harmonize,
+                logger=logger,
                 **config)
 
-    # Wrap up
-    make_csv(config)
+            if overlap_size >= config['min_overlap_size']:
+                log_message("sufficent overlap, sampling outside", "INFO", logger)
+                dsc = f"Total Progress [{source_scan_num}|{source_scan_num}]"
+                pbar.set_description(dsc)
+                aoi = source_scan[~get_overlap_points(source_scan, hist_info)]
+
+                neighborhoods_from_aoi(
+                    aoi,
+                    source_scan,
+                    "ss",
+                    (target_scan_num,source_scan_num),
+                    func,
+                    logger,
+                    **config)
+
+        # Create train-test splits, save as CSVS
+        df_train, _, _ = make_csv(config)
+
+        # Create training weights
+        # `igroups is a relative number of classes. Regression is used in this 
+        #    project, but a balance across the range of intensities is still 
+        #    desired. 
+        igroups = ceil(config['max_intensity']/config['igroup_size'])
+        make_weights_for_balanced_classes(df_train, igroups)
+        
+        # if make_eval_tile:
+        #     create_eval_tile(config)
+

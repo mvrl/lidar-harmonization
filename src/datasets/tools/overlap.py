@@ -146,11 +146,13 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
     return aoi[keep]
 
 
-def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size=5000, pb_pos=1):
+def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size=5000, pb_pos=2):
     # Indexing query into source_scan is expensive, as this returns a 
     #    [N, 150, 9] array as a copy. Chunking can save considerable memory in 
     #    this case, which can prevent undesired terminations. Not sure what a 
     #    reasonable chunk size might be. AOI is typically 50k, so maybe ~5k?
+    #
+    # note that query must be a numpy array
 
     curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / chunk_size)
     sub_pbar = trange(0, aoi.shape[0], chunk_size,
@@ -167,7 +169,6 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
 
         data = zip(range(i, i+neighborhoods.shape[0]), neighborhoods)
 
-
         with Pool(workers) as p:
             sub_pbar2 = tqdm(p.imap_unordered(save_func, data),
                 desc=f"    Processing Chunk [{curr_idx}/{max_idx}]",
@@ -181,7 +182,7 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
         curr_idx+=1
 
 
-def resample_aoi(aoi, igroup_bounds, max_size, pb_pos=1):
+def resample_aoi(aoi, igroup_bounds, max_size, pb_pos=2):
     # We want to resample the intensities here to be balanced
     #   across the range of intensities. 
     aoi_resampled = np.empty((0, aoi.shape[1]))
@@ -252,6 +253,7 @@ def neighborhoods_from_aoi(
         mode,
         scan_nums,
         save_func,
+        scans_to_harmonize,
         logger=None,
         **kwargs):
 
@@ -274,7 +276,7 @@ def neighborhoods_from_aoi(
     log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-filter: {aoi.shape}", "INFO", logger)
 
     if overlap_size >= kwargs['min_overlap_size']:
-
+        scans_to_harmonize.append(s_num)
         bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
         plot_hist(aoi, bins, mode+"-B", 
             s_num, t_num, kwargs['save_path'])

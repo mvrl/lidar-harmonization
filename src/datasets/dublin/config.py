@@ -8,19 +8,25 @@ def default_value():
 
 config = defaultdict(default_value)
 
-
 config['name'] =  'dublin'
 
 # Creation settings
 config['target_scan'] =  '1'
 config['igroup_size'] =  5
-config['igroup_sample_size'] =  500
+config['igroup_sample_size'] =  200  # 500 was absolutely massive
 config['max_chunk_size'] =  int(4e6)
 config['max_n_size'] =  150
 config['scans_path'] =  str(p.root / 'datasets/dublin/npy/')
+config['harmonized_path'] = str(p.root / 'datasets/dublin/harmonized')
 config['save_path'] =  str(p.root / 'datasets/dublin/150')
-config['class_weights'] = str(p.root / 'datasets/dublin/150/weights.npy')
+config['class_weights'] = str(p.root / 'datasets/dublin/150/class_weights.pt')
 config['min_overlap_size'] =  200000
+
+# Eval tile 
+config['eval_save_path'] =  str(p.root / 'datasets/dublin/150/eval_tile')
+config['eval_tile_center'] = [316120.0, 234707.422, 1.749] # center of AOI
+config['eval_source_scan'] = '39'
+config['eval_tile_size'] = 1000000
 
 # Corruption
 config['dorf_path'] =  str(p.root / 'datasets/dublin/dorf.json')
@@ -45,6 +51,3 @@ if config['shift']:
 
 if not config['use_ss']:
     config['use_ss_str'] = "_ts"
-
-###
-
