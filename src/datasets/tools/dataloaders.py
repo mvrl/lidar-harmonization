@@ -24,14 +24,13 @@ def get_transforms(config):
     if config['dataset']['name'] is "kylidar":
         pass
 
-    return transforms
+    return Compose(transforms)
 
 def get_dataloaders(config):
     
     transforms = get_transforms(config)
     weights = torch.load(config['dataset']['class_weights'])
     shuffle=False
-    transforms = Compose(transforms)
 
     dataset_csv_path = config['dataset']['save_path']
     dataloaders = {}

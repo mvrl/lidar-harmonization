@@ -99,6 +99,6 @@ def train(dataloaders, dataset_config, train_config):
                         i_target, i_preds, i_mae, 
                         phase, results_path / f"val_kde_{n_size}.png")
 
-    return model
+    return model, ckpt_path
 
 
