@@ -46,7 +46,8 @@ class LidarDatasetNP(Dataset):
         self.transform = transform
 
         if not ss:
-            self.df = self.data[self.data[:, 8] != self.data[:, 8]]
+             # self.df = self.data[self.data[:, 8] != self.data[:, 8]]
+             pass
 
     def __len__(self):
         return len(self.data)

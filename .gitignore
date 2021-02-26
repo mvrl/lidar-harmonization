@@ -142,6 +142,7 @@ src/datasets/dublin/old/*
 src/datasets/dublin/150/*
 src/datasets/dublin/laz/*
 src/datasets/dublin/npy/*
+src/datasets/dublin/harmonized/*
 
 src/datasets/kylidar/laz/*
 

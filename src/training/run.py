@@ -55,20 +55,25 @@ for i in range(len(unique_no_ss)):
 	harmonization_mapping[row.source_scan] = row.target_scan
 
 print(f"Learning harmonizations:")
-for key, val in harmonization_mapping.items():
-	print(f"{key}: {val}")
+for idx, (key, val) in enumerate(harmonization_mapping.items()):
+	print(f"{key}: {val}", end="  ")
+	if idx%3==2:
+		print()
+print()
+print("-"*80)
 
 # 4. train to harmonize initial dataset 
 # build dataloaders
 dataloaders = get_dataloaders(config)
 
 training_dataloaders = {k:v for k,v in dataloaders.items() if k != "eval"}
+
 # build model
 # model, path = train(training_dataloaders, config['dataset'], config['train'])
 gpu = torch.device('cuda:0')
 n_size = config['train']['neighborhood_size']
 model = IntensityNet(n_size, interpolation_method="pointnet").double().to(device=gpu)
-model.load_state_dict(torch.load("results/5/5_epoch=0.pt"))
+model.load_state_dict(torch.load("results/5/5_epoch=4.pt"))
 
 # remove False in future
 if False and 'eval' in dataloaders:

@@ -4,7 +4,7 @@ import code
 import torch
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Qt5Agg')
 
 from scipy.stats import gaussian_kde
 
@@ -18,7 +18,7 @@ def mae(predictions, targets):
     mae = torch.mean(torch.abs(targets - predictions))
     return mae
 
-def create_kde(x, y, xlabel, ylabel, output_path, sample_size=5000, text=None):
+def create_kde(x, y, xlabel="", ylabel="", output_path=None, sample_size=5000, text=None):
     x = torch_to_numpy(x)
     y = torch_to_numpy(y)
     if sample_size and len(x) > sample_size:
@@ -45,7 +45,10 @@ def create_kde(x, y, xlabel, ylabel, output_path, sample_size=5000, text=None):
     plt.margins(y=0)
     if text:
         plt.text(.5, 0, str(text))
-    plt.savefig(output_path)
+    if output_path is None:
+        plt.show()
+    else:
+        plt.savefig(output_path)
     plt.close()
 
 

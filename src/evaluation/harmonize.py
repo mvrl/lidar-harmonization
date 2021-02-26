@@ -8,6 +8,10 @@ from functools import partial
 import torch
 from tqdm import tqdm
 from src.datasets.tools.lidar_dataset import LidarDatasetNP
+from torch.utils.data import DataLoader
+import matplotlib
+import matplotlib.pyplot as plt
+
 
 def harmonize_neighborhoods(model, source_scan, query, batch_size=50, chunk_size=5000, pb_pos=1):
     # curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / chunk_size)
@@ -29,63 +33,105 @@ def harmonize(model, harmonization_mapping, config):
     
     harmonized_path = Path(config['dataset']['harmonized_path'])
     harmonized_path.mkdir(exist_ok=True, parents=True)
+    plots_path = harmonized_path / "plots"
+    plots_path.mkdir(exist_ok=True, parents=True)
+
     
     scans_to_be_harmonized = {}
 
     n_size = model.neighborhood_size
     b_size = config['train']['batch_size']
+    chunk_size = config['dataset']['max_chunk_size']
     transforms = get_transforms(config)
     transforms.transforms = transforms.transforms[1:] # no need to load np files
-    t_func = partial(transforms)
+
+    model = model.to(config['train']['device'])
     model.eval()
 
+    with torch.no_grad():
+        # get the paths for each scan we wish to harmonize
+        for source_scan_num in harmonization_mapping:
+            for scan in scans:
+                if int(scan.stem) == source_scan_num:
+                    scans_to_be_harmonized[source_scan_num] = str(scan)
 
-    # get the paths for each scan we wish to harmonize
-    for source_scan_num in harmonization_mapping:
-        for scan in scans:
-            if int(scan.stem) == source_scan_num:
-                scans_to_be_harmonized[source_scan_num] = str(scan)
 
+        for source_scan_num, scan_path in scans_to_be_harmonized.items():
+            source_scan = np.load(scan_path)
+            hz = []
+            ip = []
+            cr = []
+            running_loss = 0
 
-    for source_scan_num, scan_path in scans_to_be_harmonized.items():
-        source_scan = np.load(scan_path)
+            kd = kdtree._build(source_scan[:, :3])
 
-        kd = kdtree._build(source_scan[:, :3])
+            query = kdtree._query(
+                kd, 
+                source_scan[:, :3], 
+                k=n_size)
 
-        query = kdtree._query(
-            kd, 
-            source_scan[:, :3], 
-            k=n_size)
+            query = np.array(query)
 
-        query = np.array(query)
-        code.interact(local=locals())
-        pbar = tqdm(range(0, len(query), b_size), desc=f"{source_scan_num}")
-        for i in pbar:
-            batch_query = query[i:i+b_size, :] 
-            batch = source_scan[batch_query]  # 50, N, 9
-            center = batch[:, 0, :]
-            center = np.expand_dims(center, 1)
-            batch = np.concatenate((center, batch), axis=1)
+            pbar1 = tqdm(
+                range(0, len(query), chunk_size),
+                desc="Processing Chunk",
+                leave=False,
+                position=0,
+                dynamic_ncols=True,
+                )
 
-            # apply transformation to batch.... 
-            with Pool(config['train']['num_workers']) as p:
-                batch = torch.stack([
-                    torch.tensor(ex) for ex in p.imap_unordered(t_func, batch)
-                    ])
+            for i in pbar1:
+                query_chunk = query[i:i+chunk_size, :]
+                source_chunk = source_scan[i:i+chunk_size, :]
+                source_chunk = np.expand_dims(source_chunk, 1)
 
-            # specify that we want to harmonize to the target scan:
-            for i in range(batch.shape[0]):
-                batch[i, 0, -1] = harmonization_mapping[int(batch[i, 0, -1])]
+                neighborhoods = np.concatenate(
+                    (source_chunk, source_scan[query_chunk]),
+                    axis=1)
+
+                dataset = LidarDatasetNP(neighborhoods, transform=transforms)
+                dataloader = DataLoader(
+                    dataset, 
+                    batch_size=b_size,
+                    num_workers=config['train']['num_workers'])
+
+                pbar2 = tqdm(
+                    # range(len(dataset)),
+                    dataloader,
+                    desc="  Hzing dset",
+                    leave=False,
+                    position=1,
+                    dynamic_ncols=True)
+                for jdx, batch in enumerate(pbar2):
+                    # ex = dataset[j]
+
+                    # specify that we want to harmonize to the target scan:
+                    # ex[0, -1] = harmonization_mapping[int(ex[0, -1])]
+                    batch[:, 0, -1] = harmonization_mapping[int(batch[0, 0, -1])]
+
+                    # batch = torch.tensor(np.expand_dims(ex, 0))
+                    batch = batch.to(config['train']['device'])
+
+                    harmonization, interpolation, _, h_target, i_target = model(batch)
+                    hz.append(harmonization)   # interpolation
+                    ip.append(interpolation)   # harmonization
+                    cr.append(batch[:, 1, 3])  # corruption
+
+                    loss = torch.mean(torch.abs(harmonization.squeeze() - h_target))
+                    running_loss += loss.item()
+                    pbar2.set_postfix({"loss": f"{running_loss/(jdx+1):.3f}"})
+
+            # visualize results
+            hz = torch.cat(hz).cpu().numpy()
+            ip = torch.cat(ip).cpu().numpy()
+            cr = torch.cat(cr).cpu().numpy()
+
+            create_kde(source_scan[:, 3], torch.cat(hp).cpu().numpy(),
+                        xlabel="ground truth", ylabel="predictions",
+                        output_path=plots_path)
+
+            # insert results into original scan
+            source_scan = np.hstack((source_scan[:, :4], hz, cr, ip, source_scan[:, 4:])) 
+            np.save(harmonized_path / str(str(source_scan_num)+".npy"), source_scan)
+
             
-            batch = batch.to(config['train']['device'])
-
-            harmonization, interpolation, _, h_target, i_target = model(batch)
-
-            loss = torch.mean(torch.abs(harmonization.squeeze() - h_target))
-            pbar.set_postfix({"loss": f"{loss}"})
-
-
-
-
-
-        
