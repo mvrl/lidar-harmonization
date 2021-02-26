@@ -46,11 +46,11 @@ for s in scans:
 
 while None in harmonization_mapping.values():
 
-	# CRAP. creating datasets for dublin and kylidar will be
+	# TODO creating datasets for dublin and kylidar will be
 	#   intrinsically different because you're including the gt 
 	#   for dublin. This might be a simple fix. 
 
-	# 3. build dataset of source scans overlapping target scan(s) - add curr index to master.csv?
+	# 3. build dataset of source scans overlapping target scan(s)
 	create_dataset(
 		harmonization_mapping, 
 		config['dataset'])  # this takes a while due to the querying problem
@@ -61,18 +61,17 @@ while None in harmonization_mapping.values():
 	#   specifically, mapping needs to be created that defines which sources
 	#   source scans are harmonized to which target scan(s)
 
-	df = pd.read_csv(Path(config['dataset']['save_path']) / "master.csv")
-	unique = df.groupby(['source_scan', 'target_scan']).size().reset_index().rename(columns={0:'count'})
-	unique_no_ss = unique.loc[unique.source_scan != unique.target_scan]
+	# df = pd.read_csv(Path(config['dataset']['save_path']) / "master.csv")
+	# unique = df.groupby(['source_scan', 'target_scan']).size().reset_index().rename(columns={0:'count'})
+	# unique_no_ss = unique.loc[unique.source_scan != unique.target_scan]
 
 	# if harmonization_mappping[s].stem exists in unique_no_ss sources, update with target info
-	for source_path, target in harmonization_mapping.items():
-		if target is "target":
-			continue
-		if int(source_path.stem) in unique_no_ss.source_scan.values:
-			harmonization_mapping[source_path] = unique_no_ss.loc[
-				unique_no_ss.source_scan == int(source_path.stem)].target_scan.item()
-
+	# for source_path, target in harmonization_mapping.items():
+	# 	if target is "target":
+        #       	continue
+	#	if int(source_path.stem) in unique_no_ss.source_scan.values:
+	#		harmonization_mapping[source_path] = unique_no_ss.loc[
+	#			unique_no_ss.source_scan == int(source_path.stem)].target_scan.item()
 
 	print(f"Harmonization Mapping:")
 	pprint({int(k.stem):v for k,v in harmonization_mapping.items()})

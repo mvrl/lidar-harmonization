@@ -5,6 +5,7 @@ from tqdm import tqdm, trange
 from pathlib import Path
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
+import sharedmem
 
 
 def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
@@ -72,7 +73,17 @@ def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
 
     return (hist, edges), pc1_sample_f
 
-def get_overlap_points(pc, hist_info, c=1, pb_pos=1):
+def get_indices(data):
+    pc, (x1, x2, y1, y2, z1, z2) = data
+       
+    # this is very slow :/
+    new_indices = ((x1 <= pc[:, 0]) & (pc[:, 0] < x2) &
+                   (y1 <= pc[:, 1]) & (pc[:, 1] < y2) &
+                   (z1 <= pc[:, 2]) & (pc[:, 2] < z2))
+        
+    return new_indices
+
+def get_overlap_points(pc, hist_info, c=1, workers=8, pb_pos=1):
     # Pull points out of `pc` from overlap information to be used in dataset
     # creation.
     #   `hist_info`: tuple (hist, bins) 
@@ -85,16 +96,9 @@ def get_overlap_points(pc, hist_info, c=1, pb_pos=1):
     process_list = []
     hist, (xedges, yedges, zedges) = hist_info
     
-    def get_indices(e):
-        x1, x2, y1, y2, z1, z2 = e
-        
-        # this is very slow :/
-        new_indices = ((x1 <= pc[:, 0]) & (pc[:, 0] < x2) &
-                       (y1 <= pc[:, 1]) & (pc[:, 1] < y2) &
-                       (z1 <= pc[:, 2]) & (pc[:, 2] < z2))
-        
-        return new_indices
-        
+    if str(type(pc)) != "<class 'sharedmem.sharedmem.anonymousmemmap'>":
+        exit("ERROR : PC isn't in shared memory!")
+    
     h_iter = np.array(np.meshgrid(
         np.arange(hist.shape[0]), 
         np.arange(hist.shape[1]),
@@ -107,11 +111,24 @@ def get_overlap_points(pc, hist_info, c=1, pb_pos=1):
             x1, x2 = xedges[i], xedges[i+1]
             y1, y2 = yedges[j], yedges[j+1]
             z1, z2 = zedges[k], zedges[k+1]
-            process_list.append((x1, x2, y1, y2, z1, z2))
+            process_list.append((pc, (x1, x2, y1, y2, z1, z2)))
             
-    process_list = np.array(process_list)
-    for t in tqdm(process_list, desc="  "*pb_pos + "Querying AOI", position=pb_pos, leave=False):
-        indices = indices | get_indices(t)
+    # multiprocessing - this is maybe 2x as fast with 8 workers?
+    with Pool(workers) as p: 
+        sub_pbar = tqdm(
+            p.imap_unordered(get_indices, process_list),
+            desc=f"  "*pb_pos+f"Querying AOI",
+            dynamic_ncosl=True,
+            position=pb_pos,
+            total=len(process_list),
+            leave=False)
+
+        for new_indices in sub_pbar:
+            indices = indices | new_indices
+
+    # single threaded
+    # for t in tqdm(process_list, desc="  "*pb_pos + "Querying AOI", position=pb_pos, leave=False):
+    #     indices = indices | get_indices(t)
     
     return indices
 
@@ -124,7 +141,7 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
     keep = []
     curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / max_chunk_size)
     sub_pbar = trange(0, aoi.shape[0], max_chunk_size,
-                      desc="  "*pb_pos + "Filtering AOI", leave=False, position=pb_pos)
+                      desc="  "*pb_pos+"Filtering AOI", leave=False, position=pb_pos)
     for i in sub_pbar:
         current_chunk = aoi[i:i+max_chunk_size]
         query = kdtree._query(kd, 
@@ -132,7 +149,8 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
                               k=max_n_size, dmax=1)
 
         sub2_pbar = tqdm(range(len(query)),
-                    desc=f"  "*pb_pos+"  Filtering [{curr_idx}/{max_idx}]",
+                    desc=f"  "*pb_pos+f"  Filtering [{curr_idx}/{max_idx}]",
+                    dynamic_ncosl=True,
                     leave=False,
                     position=pb_pos+1,
                     total=len(query))
@@ -188,6 +206,7 @@ def resample_aoi(aoi, igroup_bounds, max_size, pb_pos=2):
     aoi_resampled = np.empty((0, aoi.shape[1]))
     sub_pbar = tqdm(igroup_bounds,
                     desc="  Resampling AOI",
+                    dynamic_ncosl=True,
                     leave=False,
                     position=pb_pos,
                     total=len(igroup_bounds))

@@ -10,10 +10,16 @@ from tqdm import tqdm, trange
 from multiprocessing import Pool
 import matplotlib.pyplot as plt
 from functools import partial
-
+import sharedmem
 
 from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points
 from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods
+
+def load_shared(path):
+    t = np.load(path)
+    ts = sharedmem.empty(t.shape)
+    ts[:] = t
+    return ts
 
 def make_weights_for_balanced_classes(dataset, nclasses, config):
     # https://discuss.pytorch.org/t/balanced-sampling-between-classes-with-torchvision-dataloader/2703/3
@@ -183,7 +189,7 @@ def create_dataset(harmonization_mapping, config):
         else:
             target_scan_num = target_scan_path.stem
             log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
-            target_scan = np.load(h_scans_path[target_scan_num])
+            target_scan = load_shared(h_scans_path[target_scan_num])
 
             for source_scan_path, harmonization_scan_num2 in pbar_s:
                 source_scan_num = source_scan_path.stem
@@ -194,7 +200,7 @@ def create_dataset(harmonization_mapping, config):
                     log_message(f"found potential source scan {source_scan_num}, checking for overlap", "INFO", logger)
 
                     source_scan_num = source_scan_path.stem
-                    source_scan = np.load(scan_paths[source_scan_num])
+                    source_scan = load_shared(scan_paths[source_scan_num])
 
                     hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
