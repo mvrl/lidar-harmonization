@@ -72,7 +72,7 @@ def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
 
     return (hist, edges), pc1_sample_f
 
-def get_overlap_points(pc, hist_info, c=1):
+def get_overlap_points(pc, hist_info, c=1, pb_pos=1):
     # Pull points out of `pc` from overlap information to be used in dataset
     # creation.
     #   `hist_info`: tuple (hist, bins) 
@@ -101,7 +101,7 @@ def get_overlap_points(pc, hist_info, c=1):
         np.arange(hist.shape[2])
     )).T.reshape(-1, 3)
     
-    for t in tqdm(h_iter, desc="Building processes", position=1, leave=False):
+    for t in tqdm(h_iter, desc="Building processes", position=pb_pos, leave=False):
         i, j, k = t
         if hist[i][j][k] > c:
             x1, x2 = xedges[i], xedges[i+1]
@@ -110,7 +110,7 @@ def get_overlap_points(pc, hist_info, c=1):
             process_list.append((x1, x2, y1, y2, z1, z2))
             
     process_list = np.array(process_list)
-    for t in tqdm(process_list, desc="  Querying AOI", position=1, leave=False):
+    for t in tqdm(process_list, desc="  "*pb_pos + "Querying AOI", position=pb_pos, leave=False):
         indices = indices | get_indices(t)
     
     return indices
@@ -124,7 +124,7 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
     keep = []
     curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / max_chunk_size)
     sub_pbar = trange(0, aoi.shape[0], max_chunk_size,
-                      desc="  Filtering AOI", leave=False, position=pb_pos)
+                      desc="  "*pb_pos + "Filtering AOI", leave=False, position=pb_pos)
     for i in sub_pbar:
         current_chunk = aoi[i:i+max_chunk_size]
         query = kdtree._query(kd, 
@@ -132,7 +132,7 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
                               k=max_n_size, dmax=1)
 
         sub2_pbar = tqdm(range(len(query)),
-                    desc=f"    Filtering [{curr_idx}/{max_idx}]",
+                    desc=f"  "*pb_pos+"  Filtering [{curr_idx}/{max_idx}]",
                     leave=False,
                     position=pb_pos+1,
                     total=len(query))
@@ -253,10 +253,12 @@ def neighborhoods_from_aoi(
         mode,
         scan_nums,
         save_func,
-        scans_to_harmonize,
         logger=None,
         **kwargs):
 
+    # TO DO: this is pretty tightly coupled and needs to be refactored
+    #   so that logging and checking overlap sizes can be more cohesive.
+    
     igroup_bounds = get_igroup_bounds(kwargs['igroup_size'])
     t_num, s_num = scan_nums
 
@@ -269,14 +271,15 @@ def neighborhoods_from_aoi(
         kd, 
         aoi, 
         kwargs['max_chunk_size'], 
-        kwargs['max_n_size'])
+        kwargs['max_n_size'],
+        pb_pos=2)
 
     overlap_size = aoi.shape[0]
 
     log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-filter: {aoi.shape}", "INFO", logger)
 
+
     if overlap_size >= kwargs['min_overlap_size']:
-        scans_to_harmonize.append(s_num)
         bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
         plot_hist(aoi, bins, mode+"-B", 
             s_num, t_num, kwargs['save_path'])

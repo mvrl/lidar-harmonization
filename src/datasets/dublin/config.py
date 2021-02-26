@@ -10,15 +10,19 @@ config = defaultdict(default_value)
 
 config['name'] =  'dublin'
 
+# directories
+config['scans_path'] =  str(p.root / 'datasets/dublin/npy/')
+config['save_path'] =  str(p.root / 'datasets/dublin/150')
+config['harmonized_path'] = str(p.root / 'datasets/dublin/harmonized')
+config['harmonization_plots_path'] = str(p.root / 'datasets/dublin/harmonized/plots')
+
 # Creation settings
 config['target_scan'] =  '1'
 config['igroup_size'] =  5
 config['igroup_sample_size'] =  200  # 500 was absolutely massive
 config['max_chunk_size'] =  int(4e6)
 config['max_n_size'] =  150
-config['scans_path'] =  str(p.root / 'datasets/dublin/npy/')
-config['harmonized_path'] = str(p.root / 'datasets/dublin/harmonized')
-config['save_path'] =  str(p.root / 'datasets/dublin/150')
+config['creation_log_conf'] = str(p.root / 'datasets/dublin/tools/logging.conf')
 config['class_weights'] = str(p.root / 'datasets/dublin/150/class_weights.pt')
 config['min_overlap_size'] =  200000
 

@@ -3,7 +3,7 @@ import logging
 import logging.config
 import numpy as np
 import pandas as pd
-from torch import tensor
+import torch
 from pathlib import Path
 from pptk import kdtree, viewer
 from tqdm import tqdm, trange
@@ -28,14 +28,13 @@ def make_weights_for_balanced_classes(dataset, nclasses, config):
         weight_per_class[i] = N/float(count[i])
 
     weight = [0] * len(dataset)
-    for i in range(len(ataset)):
+    for i in range(len(dataset)):
         label = dataset.iloc[i].target_intensity//config['igroup_size']
-        weight[idx] = weight_per_class[label]
+        weight[i] = weight_per_class[label]
 
     # note that weights do not have to sum to 1
     torch.save(weight, config['class_weights'])
     return weight
-
 
 def save_neighborhood(path, save_format, data):
     idx, neighborhood = data
@@ -61,7 +60,7 @@ def make_csv(config):
     
     examples = [f.absolute() for f in (dataset_path / "neighborhoods").glob("*.txt.gz")]
     if not len(examples):
-        exit(f"could not find examples in {dataset_path / neighborhoods}")
+        exit(f"could not find examples in {dataset_path / 'neighborhoods'}")
     print(f"Found {len(examples)} examples")
 
     # Build a master record of all examples
@@ -111,7 +110,6 @@ def make_csv(config):
 
     print("Done.")
 
-
 def create_eval_tile(config):
 
     scans_path = Path(config['scans_path'])
@@ -145,14 +143,13 @@ def create_eval_tile(config):
     # v = viewer(tile[:, :3])
     # v.set(lookat=config['eval_tile_center'])
 
-
-def create_dataset(targets, config):
+def create_dataset(harmonization_mapping, config):
     # Neighborhoods path:   
     neighborhoods_path = Path(config['save_path']) / "neighborhoods"
     neighborhoods_path.mkdir(parents=True, exist_ok=True)
 
     # Logging
-    logging.config.fileConfig('tools/logging.conf')
+    logging.config.fileConfig(config['creation_log_conf'])
     logger = logging.getLogger('datasetCreation')
     logger.info("Starting")
 
@@ -161,77 +158,87 @@ def create_dataset(targets, config):
     func = partial(save_neighborhood, neighborhoods_path, save_format)
 
     # Get point clouds ready to load in
+    h_scans_path = {f.stem:f.absolute() for f in Path(config['harmonized_path']).glob("*.npy")}
     scan_paths = {f.stem:f.absolute() for f in Path(config['scans_path']).glob("*.npy")}
-    
-    pbar_t = tqdm(targets, total=len(targets), dynamic_ncols=True)
+
+    pbar_t = tqdm(
+        harmonization_mapping.items(),
+        desc="Total Progress",
+        total=len(harmonization_mapping), 
+        position=0,
+        dynamic_ncols=True)
 
     pbar_s = tqdm(
-        scan_paths, 
-        total=len(scan_paths.keys()), 
+        harmonization_mapping.items(), 
+        total=len(harmonization_mapping), 
         position=1,
         leave=False,
         dynamic_ncols=True)
-    pbar_s.set_description("Target | Source: [ | ]")
+    pbar_s.set_description("  Target | Source: [ | ]")
 
-    original_target_scan_num = config['target_scan']
     scans_to_harmonize = []
+    for target_scan_path, harmonization_scan_num1 in pbar_t:
+        if harmonization_scan_num1 is None:
+            continue
+        else:
+            target_scan_num = target_scan_path.stem
+            log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
+            target_scan = np.load(h_scans_path[target_scan_num])
 
-    for target_scan_num in pbar_t:
-        target_scan = np.load(scan_paths[target_scan_num])
-        for source_scan_num in pbar_s:
-            
-            if ((source_scan_num in target_scans) or 
-               (source_scan_num in scans_to_harmonize)):
-                # don't process if the source is in `targets`. Additionally,
-                #   don't process if it was already processed. This prevents 
-                #   creating examples for the same source with multiple targets,
-                #   which seems overly redundant.
-                continue
-            
-            source_scan = np.load(scan_paths[source_scan_num])
+            for source_scan_path, harmonization_scan_num2 in pbar_s:
+                source_scan_num = source_scan_path.stem
+                if source_scan_num == target_scan_num or harmonization_scan_num2 is not None:
+                    # don't process the target scan, don't process scans already harmonized
+                    continue
+                else:
+                    log_message(f"found potential source scan {source_scan_num}, checking for overlap", "INFO", logger)
 
-            hist_info, _ = get_hist_overlap(target_scan, source_scan)
+                    source_scan_num = source_scan_path.stem
+                    source_scan = np.load(scan_paths[source_scan_num])
 
-            # Overlap Region
-            dsc = f"Target | Source: [{target_scan_num}|{source_scan_num}]"
-            pbar.set_description(dsc)
-            aoi = target_scan[get_overlap_points(target_scan, hist_info)]
+                    hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
-            overlap_size = neighborhoods_from_aoi(
-                aoi,
-                source_scan,
-                "ts",
-                (target_scan_num,source_scan_num),
-                func,
-                scans_to_harmonize,
-                logger=logger,
-                **config)
+                    # Overlap Region
+                    dsc = f"Target | Source: [{target_scan_num}|{source_scan_num}]"
+                    pbar_s.set_description(dsc)
+                    aoi = target_scan[get_overlap_points(target_scan, hist_info, pb_pos=2)]
 
-            if overlap_size >= config['min_overlap_size']:
-                log_message("sufficent overlap, sampling outside", "INFO", logger)
-                dsc = f"Total Progress [{source_scan_num}|{source_scan_num}]"
-                pbar.set_description(dsc)
-                aoi = source_scan[~get_overlap_points(source_scan, hist_info)]
+                    overlap_size = neighborhoods_from_aoi(
+                        aoi,
+                        source_scan,
+                        "ts",
+                        (target_scan_num,source_scan_num),
+                        func,
+                        logger=logger,
+                        **config)
 
-                neighborhoods_from_aoi(
-                    aoi,
-                    source_scan,
-                    "ss",
-                    (target_scan_num,source_scan_num),
-                    func,
-                    logger,
-                    **config)
+                    if overlap_size >= config['min_overlap_size']:
+                        # confirm that this scan can be harmonized to the current target
+                        harmonization_mapping[source_scan_path] = int(target_scan_num)  # I don't like that this happens late
 
-        # Create train-test splits, save as CSVS
-        df_train, _, _ = make_csv(config)
+                        log_message(f"found sufficent overlap, sampling outside", "INFO", logger)
+                        dsc = f"Target | Source: [{source_scan_num}|{source_scan_num}]"
+                        pbar_s.set_description(dsc)
+                        aoi = source_scan[~get_overlap_points(source_scan, hist_info, pb_pos=2)]
 
-        # Create training weights
-        # `igroups is a relative number of classes. Regression is used in this 
-        #    project, but a balance across the range of intensities is still 
-        #    desired. 
-        igroups = ceil(config['max_intensity']/config['igroup_size'])
-        make_weights_for_balanced_classes(df_train, igroups)
-        
-        # if make_eval_tile:
-        #     create_eval_tile(config)
+                        neighborhoods_from_aoi(
+                            aoi,
+                            source_scan,
+                            "ss",
+                            (target_scan_num,source_scan_num),
+                            func,
+                            logger,
+                            **config)
 
+    # Create train-test splits, save as CSVS
+    df_train, _, _ = make_csv(config)
+
+    # Create training weights
+    # `igroups is a relative number of classes. Regression is used in this 
+    #    project, but a balance across the range of intensities is still 
+    #    desired. 
+    igroups = ceil(config['max_intensity']/config['igroup_size'])
+    make_weights_for_balanced_classes(df_train, igroups)
+    
+    # if make_eval_tile:
+    #     create_eval_tile(config)
