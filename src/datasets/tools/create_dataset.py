@@ -149,8 +149,8 @@ def create_eval_tile(config):
     # v = viewer(tile[:, :3])
     # v.set(lookat=config['eval_tile_center'])
 
-def create_dataset(harmonization_mapping, config):
-    # Neighborhoods path:   
+def create_dataset(harmonization_mapping, config): 
+    # Neighborhoods path:  
     neighborhoods_path = Path(config['save_path']) / "neighborhoods"
     neighborhoods_path.mkdir(parents=True, exist_ok=True)
 
@@ -176,20 +176,24 @@ def create_dataset(harmonization_mapping, config):
 
     pbar_s = tqdm(
         harmonization_mapping.items(), 
+        desc="  Target | Source: [ | ]",
         total=len(harmonization_mapping), 
         position=1,
         leave=False,
         dynamic_ncols=True)
-    pbar_s.set_description("  Target | Source: [ | ]")
 
     scans_to_harmonize = []
     for target_scan_path, harmonization_scan_num1 in pbar_t:
-        if harmonization_scan_num1 is None:
+        target_scan_num = target_scan_path.stem
+        if harmonization_scan_num1 is None or target_scan_num not in h_scans_path:
+            # don't load this target if we haven't harmonized the scan these might
+            #   be redundant conditions?
             continue
+        
         else:
-            target_scan_num = target_scan_path.stem
             log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
             target_scan = load_shared(h_scans_path[target_scan_num])
+            # target_scan = np.load(h_scans_path[target_scan_num])
 
             for source_scan_path, harmonization_scan_num2 in pbar_s:
                 source_scan_num = source_scan_path.stem
@@ -201,6 +205,8 @@ def create_dataset(harmonization_mapping, config):
 
                     source_scan_num = source_scan_path.stem
                     source_scan = load_shared(scan_paths[source_scan_num])
+                    # source_scan = np.load(scan_paths[source_scan_num])
+                    
 
                     hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
@@ -243,7 +249,7 @@ def create_dataset(harmonization_mapping, config):
     # `igroups is a relative number of classes. Regression is used in this 
     #    project, but a balance across the range of intensities is still 
     #    desired. 
-    igroups = ceil(config['max_intensity']/config['igroup_size'])
+    igroups = np.ceil(config['max_intensity']/config['igroup_size'])
     make_weights_for_balanced_classes(df_train, igroups)
     
     # if make_eval_tile:

@@ -23,6 +23,11 @@ config = {
 	'train': train_config
 }
 
+harmonized_path = Path(config['dataset']['harmonized_path'])
+harmonized_path.mkdir(exist_ok=True, parents=True)
+plots_path = Path(config['dataset']['harmonization_plots_path'])
+plots_path.mkdir(exist_ok=True, parents=True)
+
 # strategy: 
 # 1. collect all scans
 scans = [f for f in Path(config['dataset']['scans_path']).glob("*.npy")]
@@ -75,7 +80,6 @@ while None in harmonization_mapping.values():
 
 	print(f"Harmonization Mapping:")
 	pprint({int(k.stem):v for k,v in harmonization_mapping.items()})
-	code.interact(local=locals())
 
 	# 4. train to harmonize initial dataset 
 	# build dataloaders
@@ -83,11 +87,11 @@ while None in harmonization_mapping.values():
 	training_dataloaders = {k:v for k,v in dataloaders.items() if k != "eval"}
 
 	# build model
-	# model, path = train(training_dataloaders, config['dataset'], config['train'])
-	gpu = torch.device('cuda:0')
-	n_size = config['train']['neighborhood_size']
-	model = IntensityNet(n_size, interpolation_method="pointnet").double().to(device=gpu)
-	model.load_state_dict(torch.load("results/5/5_epoch=4.pt"))
+	model, path = train(training_dataloaders, config['dataset'], config['train'])
+	# gpu = torch.device('cuda:0')
+	# n_size = config['train']['neighborhood_size']
+	# model = IntensityNet(n_size, interpolation_method="pointnet").double().to(device=gpu)
+	# model.load_state_dict(torch.load("results/5/5_epoch=4.pt"))
 
 	# remove False in future
 	if False and 'eval' in dataloaders:
@@ -99,12 +103,5 @@ while None in harmonization_mapping.values():
 
 
 	# harmonize the scans in currently_learning
-	harmonized_path = Path(config['dataset']['harmonized_path'])
-	harmonized_path.mkdir(exist_ok=True, parents=True)
-	plots_path = Path(config['dataset']['harmonization_plots_path'])
-	plots_path.mkdir(exist_ok=True, parents=True)
-
-	# need a mapping of scan_path to target scan number
 	for source_scan_path, target_scan_num in harmonization_mapping.items():
 		harmonize(model, source_scan_path, target_scan_num, config)
-
