@@ -8,6 +8,14 @@ from multiprocessing import Pool
 import sharedmem
 from functools import partial
 
+def get_pbar(iter, total, desc, position, disable=False, dynamic_ncols=True, leave=False):
+    format_desc = "  "*position+f"{desc}"
+    pbar = tqdm(iter, desc=format_desc, total=total, position=position,
+                    dynamic_ncols=dynamic_ncols, disable=disable, leave=leave)
+
+    return pbar
+
+
 def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
     # Params:
     #     pc1: point cloud 1 (np array with shape ([m, k1]))
@@ -83,7 +91,7 @@ def get_indices(pc, data):
         
     return new_indices
 
-def get_overlap_points(pc, hist_info, c=1, workers=12, pb_pos=1):
+def get_overlap_points(pc, hist_info, config, c=1, workers=12, pb_pos=1):
     # Pull points out of `pc` from overlap information to be used in dataset
     # creation.
     #   `hist_info`: tuple (hist, bins) 
@@ -106,7 +114,13 @@ def get_overlap_points(pc, hist_info, c=1, workers=12, pb_pos=1):
         np.arange(hist.shape[2])
     )).T.reshape(-1, 3)
     
-    for t in tqdm(h_iter, desc="Building processes", dynamic_ncols=True, position=pb_pos, leave=False):
+    pbar = get_pbar(
+        h_iter,
+        len(h_iter),
+        "Building Processes", 
+        pb_pos, disable=config['tqdm'])
+
+    for t in pbar:
         i, j, k = t
         if hist[i][j][k] > c:
             x1, x2 = xedges[i], xedges[i+1]
@@ -117,13 +131,12 @@ def get_overlap_points(pc, hist_info, c=1, workers=12, pb_pos=1):
             
     # multiprocessing - this is maybe 2x as fast with 8 workers?
     with Pool(workers) as p: 
-        sub_pbar = tqdm(
+        sub_pbar = get_pbar(
             p.imap_unordered(my_func, process_list),
-            desc=f"  "*pb_pos+f"Querying AOI",
-            dynamic_ncols=True,
-            position=pb_pos,
-            total=len(process_list),
-            leave=False)
+            len(process_list),
+            "Querying AOI",
+            pb_pos, disable=config['tqdm']
+            )
 
         for new_indices in sub_pbar:
             indices = indices | new_indices
@@ -137,31 +150,35 @@ def get_overlap_points(pc, hist_info, c=1, workers=12, pb_pos=1):
 def get_igroup_bounds(bin_size):
         return [(i, i+bin_size) for i in range(0, 512, bin_size)]
 
-def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
+def filter_aoi(kd, aoi, config, pb_pos=1):
     # Querying uses a large amount of memory, use chunking to keep 
     #   the footprint small
     keep = []
-    curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / max_chunk_size)
-    sub_pbar = trange(0, aoi.shape[0], max_chunk_size,
-                      desc="  "*pb_pos+"Filtering AOI", 
-                      dynamic_ncols=True,
-                      leave=False, 
-                      position=pb_pos)
+    max_chunk_size = config['max_chunk_size']
+
+    curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / max_chunk_size))
+    sub_pbar = get_pbar(
+            range(0, aoi.shape[0], max_chunk_size),
+            max_idx,
+            "Filtering AOI",
+            pb_pos, disable=config['tqdm']
+            )
+
     for i in sub_pbar:
         current_chunk = aoi[i:i+max_chunk_size]
         query = kdtree._query(kd, 
                               current_chunk[:, :3], 
-                              k=max_n_size, dmax=1)
+                              k=config['max_n_size'], dmax=1)
 
-        sub2_pbar = tqdm(range(len(query)),
-                    desc=f"  "*pb_pos+f"  Filtering [{curr_idx}/{max_idx}]",
-                    dynamic_ncols=True,
-                    leave=False,
-                    position=pb_pos+1,
-                    total=len(query))
+        sub_pbar2 = get_pbar(
+            range(len(query)),
+            len(query),
+            f"Filtering [{curr_idx}/{max_idx}]",
+            pb_pos+1, disable=config['tqdm']
+            )
     
-        for j in sub2_pbar:
-            if len(query[j]) == max_n_size:
+        for j in sub_pbar2:
+            if len(query[j]) == config['max_n_size']:
                 keep.append(i+j)
 
         curr_idx+=1
@@ -169,7 +186,7 @@ def filter_aoi(kd, aoi, max_chunk_size, max_n_size, pb_pos=1):
     return aoi[keep]
 
 
-def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size=5000, pb_pos=2):
+def save_neighborhoods(aoi, query, source_scan, save_func, config, workers=8, chunk_size=5000, pb_pos=2):
     # Indexing query into source_scan is expensive, as this returns a 
     #    [N, 150, 9] array as a copy. Chunking can save considerable memory in 
     #    this case, which can prevent undesired terminations. Not sure what a 
@@ -178,8 +195,11 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
     # note that query must be a numpy array
 
     curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / chunk_size)
-    sub_pbar = trange(0, aoi.shape[0], chunk_size,
-                      desc=f"  Saving Neighborhoods", leave=False, position=pb_pos)
+    sub_pbar = get_pbar(
+        range(0, aoi.shape[0], chunk_size),
+        np.ceil(aoi.shape[0]/chunk_size),
+        "Saving Neighborhoods",
+        pb_pos, disable=config['tqdm'])
 
     for i in sub_pbar:
         aoi_chunk = aoi[i:i+chunk_size, :]
@@ -193,11 +213,11 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
         data = zip(range(i, i+neighborhoods.shape[0]), neighborhoods)
 
         with Pool(workers) as p:
-            sub_pbar2 = tqdm(p.imap_unordered(save_func, data),
-                desc=f"    Processing Chunk [{curr_idx}/{max_idx}]",
-                total=neighborhoods.shape[0],
-                position=pb_pos+1,
-                leave=False)
+            sub_pbar2 = get_pbar(
+                p.imap_unordered(save_func, data),
+                neighborhoods.shape[0],
+                f"Processing Chunk [{curr_idx}/{max_idx}]",
+                pb_pos+1, disable=config['tqdm'])
 
             for _ in sub_pbar2:
                 pass
@@ -205,16 +225,16 @@ def save_neighborhoods(aoi, query, source_scan, save_func, workers=8, chunk_size
         curr_idx+=1
 
 
-def resample_aoi(aoi, igroup_bounds, max_size, pb_pos=2):
+def resample_aoi(aoi, igroup_bounds, max_size, config, pb_pos=2):
     # We want to resample the intensities here to be balanced
     #   across the range of intensities. 
     aoi_resampled = np.empty((0, aoi.shape[1]))
-    sub_pbar = tqdm(igroup_bounds,
-                    desc="  Resampling AOI",
-                    dynamic_ncols=True,
-                    leave=False,
-                    position=pb_pos,
-                    total=len(igroup_bounds))
+
+    sub_pbar = get_pbar(
+        igroup_bounds,
+        len(igroup_bounds),
+        "Resampling AOI",
+        pb_pos, disable=config['tqdm'])
 
     for (l, h) in sub_pbar:
         strata = aoi[(l <= aoi[:, 3]) & (aoi[:, 3] < h)]
@@ -277,13 +297,13 @@ def neighborhoods_from_aoi(
         mode,
         scan_nums,
         save_func,
-        logger=None,
-        **kwargs):
+        config,
+        logger=None):
 
     # TO DO: this is pretty tightly coupled and needs to be refactored
     #   so that logging and checking overlap sizes can be more cohesive.
     
-    igroup_bounds = get_igroup_bounds(kwargs['igroup_size'])
+    igroup_bounds = get_igroup_bounds(config['igroup_size'])
     t_num, s_num = scan_nums
 
     # Build kd tree over source scan
@@ -294,8 +314,7 @@ def neighborhoods_from_aoi(
     aoi = filter_aoi(
         kd, 
         aoi, 
-        kwargs['max_chunk_size'], 
-        kwargs['max_n_size'],
+        config,
         pb_pos=2)
 
     overlap_size = aoi.shape[0]
@@ -303,31 +322,31 @@ def neighborhoods_from_aoi(
     log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-filter: {aoi.shape}", "INFO", logger)
 
 
-    if overlap_size >= kwargs['min_overlap_size']:
+    if overlap_size >= config['min_overlap_size']:
         bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
         plot_hist(aoi, bins, mode+"-B", 
-            s_num, t_num, kwargs['save_path'])
+            s_num, t_num, config['save_path'])
 
         # resample aoi
         aoi = resample_aoi(
             aoi, 
             igroup_bounds, 
-            kwargs['igroup_sample_size'])
+            config['igroup_sample_size'],
+            config)
 
         log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-resample: {aoi.shape}", "INFO", logger)
 
-
         # Verify resampling operation
         plot_hist(aoi, bins, mode+"-P", 
-            s_num, t_num, kwargs['save_path'])
+            s_num, t_num, config['save_path'])
 
         # Query neighborhoods from filtered resampled aoi
         query = kdtree._query(kd, 
                               aoi[:, :3], 
-                              k=kwargs['max_n_size'], dmax=1)
+                              k=config['max_n_size'], dmax=1)
 
         query = np.array(query).astype(np.int)
 
-        save_neighborhoods(aoi, query, source_scan, save_func)
+        save_neighborhoods(aoi, query, source_scan, save_func, config)
 
     return overlap_size 

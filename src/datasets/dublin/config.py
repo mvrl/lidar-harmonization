@@ -1,6 +1,8 @@
 from collections import defaultdict
 from src.config.project import Project
 
+
+
 p = Project()
 
 def default_value():
@@ -55,3 +57,6 @@ if config['shift']:
 
 if not config['use_ss']:
     config['use_ss_str'] = "_ts"
+
+
+config['tqdm'] = True  # True to disable tqdm bars

@@ -4,6 +4,7 @@ import logging.config
 import numpy as np
 import pandas as pd
 import torch
+import time
 from pathlib import Path
 from pptk import kdtree, viewer
 from tqdm import tqdm, trange
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 from functools import partial
 import sharedmem
 
-from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points
+from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points, get_pbar
 from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods
 
 def load_shared(path):
@@ -167,20 +168,20 @@ def create_dataset(harmonization_mapping, config):
     h_scans_path = {f.stem:f.absolute() for f in Path(config['harmonized_path']).glob("*.npy")}
     scan_paths = {f.stem:f.absolute() for f in Path(config['scans_path']).glob("*.npy")}
 
-    pbar_t = tqdm(
-        harmonization_mapping.items(),
-        desc="Total Progress",
-        total=len(harmonization_mapping), 
-        position=0,
-        dynamic_ncols=True)
+    print("Creating dataset...")
+    start=time.time()
 
-    pbar_s = tqdm(
-        harmonization_mapping.items(), 
-        desc="  Target | Source: [ | ]",
-        total=len(harmonization_mapping), 
-        position=1,
-        leave=False,
-        dynamic_ncols=True)
+    pbar_t = get_pbar(
+        harmonization_mapping.items(),
+        len(harmonization_mapping),
+        "Building Dataset", 0, disable=config['tqdm'], leave=True)
+
+    pbar_s = get_pbar(
+        harmonization_mapping.items(),
+        len(harmonization_mapping),
+        "Current: Target | Source: [ | ]", 1, 
+        disable=config['tqdm'])
+
 
     scans_to_harmonize = []
     for target_scan_path, harmonization_scan_num1 in pbar_t:
@@ -213,7 +214,7 @@ def create_dataset(harmonization_mapping, config):
                     # Overlap Region
                     dsc = f"Target | Source: [{target_scan_num}|{source_scan_num}]"
                     pbar_s.set_description(dsc)
-                    aoi = target_scan[get_overlap_points(target_scan, hist_info, pb_pos=2)]
+                    aoi = target_scan[get_overlap_points(target_scan, hist_info, config, pb_pos=2)]
 
                     overlap_size = neighborhoods_from_aoi(
                         aoi,
@@ -221,8 +222,8 @@ def create_dataset(harmonization_mapping, config):
                         "ts",
                         (target_scan_num,source_scan_num),
                         func,
-                        logger=logger,
-                        **config)
+                        config,
+                        logger=logger)
 
                     if overlap_size >= config['min_overlap_size']:
                         # confirm that this scan can be harmonized to the current target
@@ -231,7 +232,7 @@ def create_dataset(harmonization_mapping, config):
                         log_message(f"found sufficent overlap, sampling outside", "INFO", logger)
                         dsc = f"Target | Source: [{source_scan_num}|{source_scan_num}]"
                         pbar_s.set_description(dsc)
-                        aoi = source_scan[~get_overlap_points(source_scan, hist_info, pb_pos=2)]
+                        aoi = source_scan[~get_overlap_points(source_scan, hist_info, config, pb_pos=2)]
 
                         neighborhoods_from_aoi(
                             aoi,
@@ -239,8 +240,8 @@ def create_dataset(harmonization_mapping, config):
                             "ss",
                             (target_scan_num,source_scan_num),
                             func,
-                            logger,
-                            **config)
+                            config,
+                            logger)
 
     # Create train-test splits, save as CSVS
     df_train, _, _ = make_csv(config)
@@ -251,6 +252,8 @@ def create_dataset(harmonization_mapping, config):
     #    desired. 
     igroups = np.ceil(config['max_intensity']/config['igroup_size'])
     make_weights_for_balanced_classes(df_train, igroups)
-    
+    end=time.time()
+    print(f"Created dataset in {end-start} seconds")
     # if make_eval_tile:
     #     create_eval_tile(config)
+
