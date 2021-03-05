@@ -17,8 +17,10 @@ def forward_pass(model, phase, batch, criterions, optimizer, scheduler, device="
     optimizer.zero_grad()
     with torch.set_grad_enabled(phase == 'train'):
         batch = batch.to(device=device)
+        h_target = batch[:, 0, 3].clone()
+        i_target = batch[:, 1, 3].clone()
 
-        harmonization, interpolation, ss, h_target, i_target,  = model(batch)
+        harmonization, interpolation, ss = model(batch)
 
         # harmonization targets for source-source examples are the same as the
         #   interpolation targets. h_target contains `target_camera` 

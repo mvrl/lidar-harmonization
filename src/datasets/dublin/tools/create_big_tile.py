@@ -19,7 +19,7 @@ def load_laz(path):
     return f
 
 # TO DO: move this function
-def visualize_n_flights(path, flights, sample_size=500000, shift=False):
+def visualize_n_flights(path, flights, sample_size=500000):
     # flights is a list of numbers representing flights 0-40
     start_time = time.time()
     laz_files_path = Path(path)
@@ -35,8 +35,6 @@ def visualize_n_flights(path, flights, sample_size=500000, shift=False):
         else:
             pts = np.concatenate((pts, fi))
 
-    if shift:
-        pts = apply_shift_pc(pts, bounds[0][0], bounds[0][1])
     attr1 = pts[:, 3]
     attr2 = pts[:, 8]
 

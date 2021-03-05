@@ -194,7 +194,7 @@ def save_neighborhoods(aoi, query, source_scan, save_func, config, workers=8, ch
     #
     # note that query must be a numpy array
 
-    curr_idx = 1; max_idx = np.ceil(aoi.shape[0] / chunk_size)
+    curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / chunk_size))
     sub_pbar = get_pbar(
         range(0, aoi.shape[0], chunk_size),
         np.ceil(aoi.shape[0]/chunk_size),
@@ -320,7 +320,6 @@ def neighborhoods_from_aoi(
     overlap_size = aoi.shape[0]
 
     log_message(f"[{t_num}|{s_num}][{mode}] overlap size post-filter: {aoi.shape}", "INFO", logger)
-
 
     if overlap_size >= config['min_overlap_size']:
         bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]

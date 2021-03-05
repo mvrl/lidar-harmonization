@@ -26,7 +26,6 @@ class IntensityNet(nn.Module):
         self.input_features = input_features
         self.camera_embed = nn.Embedding(45, embed_dim)
         
-
         if self.interpolation_method is "pointnet":
             self.feat = PointNetfeat(
                 global_feat=True,
@@ -73,43 +72,35 @@ class IntensityNet(nn.Module):
         #    Point 1 is closest neighbor                      (source scan)
         #    Point 3-151 are the remaining closest neighbors  (source scan)
 
-        # Center the point cloud
-        xyz = batch[:, :, :3]
-        batch[:, :, :3] = xyz - xyz[:, 0, None]
+        with torch.no_grad():
+            # Center the point cloud
+            xyz = batch[:, :, :3]
+            batch[:, :, :3] = xyz - xyz[:, 0, None]
 
-        # Camera embedding is in the last channel
-        target_camera = batch[:, 0, -1].long()
-        source_camera = batch[:, 1, -1].long()
+            # Camera embedding is in the last channel
+            target_camera = batch[:, 0, -1].long()
+            source_camera = batch[:, 1, -1].long()
 
-        # Loss calculation requires that in overlap examples are compared 
-        #     against target scan while out of overlap samples are compared
-        #     against the interpolation target. This line determines which
-        #     examples are source-target examples and which are source-source
-        #     (i.e., which required interpolation and which did not). 
-        #     Source-source examples will not be compared against the target
-        #     camera's ground truth value. 
-        ss = torch.where(~((target_camera - source_camera).bool()) == True)
+            # Loss calculation requires that in overlap examples are compared 
+            #     against target scan while out of overlap samples are compared
+            #     against the interpolation target. This line determines which
+            #     examples are source-target examples and which are source-source
+            #     (i.e., which required interpolation and which did not). 
+            #     Source-source examples will not be compared against the target
+            #     camera's ground truth value. 
+            ss = torch.where(~((target_camera - source_camera).bool()) == True)
         
-        # code.interact(local=locals())
+            # code.interact(local=locals())
         
-        source_camera_embed = self.camera_embed(source_camera)
-        target_camera_embed = self.camera_embed(target_camera)
-        camera_info = source_camera_embed - target_camera_embed
 
-        batch = batch[:, :, :-1]  # remove camera data
-
-        # save ground truth information
-        gt_h = batch[:, 0, 3].clone()
-        gt_i = batch[:, 1, 3].clone()
-
-
-        if self.neighborhood_size == 0:
-            # use the interpolation target as the input (for testing only)
-            batch = batch[:, 1, :]
-            batch = batch.unsqueeze(1)
-        else:
-            # chop out harmonization and interpolation targets
-            batch = batch[:, 2:self.neighborhood_size+2, :]
+            batch = batch[:, :, :-1]  # remove camera data
+            if self.neighborhood_size == 0:
+                # use the interpolation target as the input (for testing only)
+                batch = batch[:, 1, :]
+                batch = batch.unsqueeze(1)
+            else:
+                # chop out harmonization and interpolation targets
+                batch = batch[:, 2:self.neighborhood_size+2, :]
         
         if self.interpolation_method is "pointnet":
             batch = batch.transpose(1, 2)
@@ -122,20 +113,24 @@ class IntensityNet(nn.Module):
             # yucky implementation since we rely on numpy and scipy.
             # improved one day? See https://github.com/pytorch/pytorch/issues/50341
             # this doesn't work for the ndim=0 test case
+            with torch.no_grad():
+                device = batch.device
+                if str(device) is not 'cpu':
+                    batch = batch.cpu()
 
-            device = batch.device
-            if str(device) is not 'cpu':
-                batch = batch.cpu()
+                interpolation = torch.cat([
+                    torch.tensor(griddata(
+                        n[1:self.neighborhood_size+1, :3],
+                        n[1:self.neighborhood_size+1, 3],
+                        [0, 0, 0], method=self.interpolation_method
+                        )) for n in batch]
+                    )
 
-            interpolation = torch.cat([
-                torch.tensor(griddata(
-                    n[1:self.neighborhood_size+1, :3],
-                    n[1:self.neighborhood_size+1, 3],
-                    [0, 0, 0], method=self.interpolation_method
-                    )) for n in batch]
-                )
+                interpolation = interpolation.unsqueeze(1).to(device)
 
-            interpolation = interpolation.unsqueeze(1).to(device)
+        source_camera_embed = self.camera_embed(source_camera)
+        target_camera_embed = self.camera_embed(target_camera)
+        camera_info = source_camera_embed - target_camera_embed
 
         # fuse interpolation and camera info
         x = torch.cat((interpolation, camera_info), dim=1)
@@ -143,6 +138,6 @@ class IntensityNet(nn.Module):
         # harmonize intensity to target camera
         harmonization = self.harmonization(x)
 
-        return harmonization, interpolation, ss, gt_h, gt_i
+        return harmonization, interpolation, ss
 
 

@@ -54,7 +54,8 @@ def get_dataloaders(config):
                     num_workers=config['train']['num_workers'],
                     drop_last=True)
 
-    if 'eval_save_path' in config['dataset']:
+    if ('eval_save_path' in config['dataset'] and 
+            (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists()):
         dataloaders['eval'] = DataLoader(
             LidarDataset(
                         Path(config['dataset']['eval_save_path']) / ('eval_dataset.csv'), 
@@ -67,22 +68,4 @@ def get_dataloaders(config):
                     drop_last=False)
 
     return dataloaders
-
-    
-def get_dataloader_nl(dataset, batch_size, num_workers, drop_last=False):
-    # During evaluation, neighborhoods may already be in memory, meaning 
-    #   LoadNP() and pandas indexing are no longer required. Introducing a 
-    #   second get_dataloaders function resolves this case. 
-
-    transforms = [LoadNP(), 
-                  CloudIntensityNormalize(dataset_config['max_intensity']), 
-                  CloudAngleNormalize()]
-
-    dataset = SimpleDataset(dataset, transforms_no_load)
-
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        drop_last=drop_last)
+ 

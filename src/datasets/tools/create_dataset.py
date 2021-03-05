@@ -140,7 +140,7 @@ def create_eval_tile(config):
 
     q = kdtree._query(kd, tile[:, :3], k=config['max_n_size'])
 
-    save_neighborhoods(tile, np.array(q), flight, func)
+    save_neighborhoods(tile, np.array(q), flight, func, config, pb_pos=0)
 
     examples = [f for f in neighborhoods_path.glob("*.txt.gz")]
     df = pd.DataFrame()
@@ -150,8 +150,9 @@ def create_eval_tile(config):
     # v = viewer(tile[:, :3])
     # v.set(lookat=config['eval_tile_center'])
 
-def create_dataset(harmonization_mapping, config): 
-    # Neighborhoods path:  
+def create_dataset(hm, config): 
+    # Neighborhoods path:
+    start=time.time()
     neighborhoods_path = Path(config['save_path']) / "neighborhoods"
     neighborhoods_path.mkdir(parents=True, exist_ok=True)
 
@@ -169,79 +170,61 @@ def create_dataset(harmonization_mapping, config):
     scan_paths = {f.stem:f.absolute() for f in Path(config['scans_path']).glob("*.npy")}
 
     print("Creating dataset...")
-    start=time.time()
+    # code.interact(local=locals())
 
     pbar_t = get_pbar(
-        harmonization_mapping.items(),
-        len(harmonization_mapping),
+        hm.get_stage(2),
+        len(hm.get_stage(2)),
         "Building Dataset", 0, disable=config['tqdm'], leave=True)
 
     pbar_s = get_pbar(
-        harmonization_mapping.items(),
-        len(harmonization_mapping),
+        hm.get_stage(0),
+        len(hm.get_stage(0)),
         "Current: Target | Source: [ | ]", 1, 
         disable=config['tqdm'])
 
+    for target_scan_num in pbar_t:
+        log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
+        target_scan = load_shared(hm[target_scan_num].harmonization_scan_path.values[0])
 
-    scans_to_harmonize = []
-    for target_scan_path, harmonization_scan_num1 in pbar_t:
-        target_scan_num = target_scan_path.stem
-        if harmonization_scan_num1 is None or target_scan_num not in h_scans_path:
-            # don't load this target if we haven't harmonized the scan these might
-            #   be redundant conditions?
-            continue
-        
-        else:
-            log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
-            target_scan = load_shared(h_scans_path[target_scan_num])
-            # target_scan = np.load(h_scans_path[target_scan_num])
+        for source_scan_num in pbar_s:
+            log_message(f"found potential source scan {source_scan_num}, checking for overlap", "INFO", logger)
+            source_scan = load_shared(hm[source_scan_num].source_scan_path.values[0])
 
-            for source_scan_path, harmonization_scan_num2 in pbar_s:
-                source_scan_num = source_scan_path.stem
-                if source_scan_num == target_scan_num or harmonization_scan_num2 is not None:
-                    # don't process the target scan, don't process scans already harmonized
-                    continue
-                else:
-                    log_message(f"found potential source scan {source_scan_num}, checking for overlap", "INFO", logger)
+            hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
-                    source_scan_num = source_scan_path.stem
-                    source_scan = load_shared(scan_paths[source_scan_num])
-                    # source_scan = np.load(scan_paths[source_scan_num])
-                    
+            # Overlap Region
+            pbar_s.set_description(f"Target | Source: [{target_scan_num}|{source_scan_num}]")
+            aoi = target_scan[get_overlap_points(target_scan, hist_info, config, pb_pos=2)]
 
-                    hist_info, _ = get_hist_overlap(target_scan, source_scan)
+            overlap_size = neighborhoods_from_aoi(
+                aoi,
+                source_scan,
+                "ts",
+                (target_scan_num,source_scan_num),
+                func,
+                config,
+                logger=logger)
 
-                    # Overlap Region
-                    dsc = f"Target | Source: [{target_scan_num}|{source_scan_num}]"
-                    pbar_s.set_description(dsc)
-                    aoi = target_scan[get_overlap_points(target_scan, hist_info, config, pb_pos=2)]
+            if overlap_size >= config['min_overlap_size']:
+                # confirm that this scan can be harmonized to the current target
+                hm.add_target(source_scan_num, target_scan_num)
 
-                    overlap_size = neighborhoods_from_aoi(
-                        aoi,
-                        source_scan,
-                        "ts",
-                        (target_scan_num,source_scan_num),
-                        func,
-                        config,
-                        logger=logger)
+                log_message(f"found sufficent overlap, sampling outside", "INFO", logger)
+                pbar_s.set_description(f"Target | Source: [{source_scan_num}|{source_scan_num}]")
+                aoi = source_scan[~get_overlap_points(source_scan, hist_info, config, pb_pos=2)]
 
-                    if overlap_size >= config['min_overlap_size']:
-                        # confirm that this scan can be harmonized to the current target
-                        harmonization_mapping[source_scan_path] = int(target_scan_num)  # I don't like that this happens late
+                neighborhoods_from_aoi(
+                    aoi,
+                    source_scan,
+                    "ss",
+                    (target_scan_num,source_scan_num),
+                    func,
+                    config,
+                    logger)
 
-                        log_message(f"found sufficent overlap, sampling outside", "INFO", logger)
-                        dsc = f"Target | Source: [{source_scan_num}|{source_scan_num}]"
-                        pbar_s.set_description(dsc)
-                        aoi = source_scan[~get_overlap_points(source_scan, hist_info, config, pb_pos=2)]
-
-                        neighborhoods_from_aoi(
-                            aoi,
-                            source_scan,
-                            "ss",
-                            (target_scan_num,source_scan_num),
-                            func,
-                            config,
-                            logger)
+                hm.incr_stage(source_scan_num)  # don't repeat this work
+        hm.incr_stage(target_scan_num)
 
     # Create train-test splits, save as CSVS
     df_train, _, _ = make_csv(config)
@@ -250,8 +233,8 @@ def create_dataset(harmonization_mapping, config):
     # `igroups is a relative number of classes. Regression is used in this 
     #    project, but a balance across the range of intensities is still 
     #    desired. 
-    igroups = np.ceil(config['max_intensity']/config['igroup_size'])
-    make_weights_for_balanced_classes(df_train, igroups)
+    igroups = int(np.ceil(config['max_intensity']/config['igroup_size']))
+    make_weights_for_balanced_classes(df_train, igroups, config)
     end=time.time()
     print(f"Created dataset in {end-start} seconds")
     # if make_eval_tile:

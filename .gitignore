@@ -143,9 +143,11 @@ src/datasets/dublin/150/*
 src/datasets/dublin/laz/*
 src/datasets/dublin/npy/*
 src/datasets/dublin/harmonized/*
-
+src/datasets/dublin/test_npy
 src/datasets/kylidar/laz/*
-
 src/datasets/notebooks/lidar_test/*
+
+*.log
+*log.txt
 *.laz
 *lidar.txt

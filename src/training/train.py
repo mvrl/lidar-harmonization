@@ -11,15 +11,15 @@ from src.harmonization.inet_pn1 import IntensityNet
 from src.datasets.tools.metrics import create_interpolation_harmonization_plot as create_kde
 
 
-def train(dataloaders, dataset_config, train_config):
+def train(dataloaders, config):
     # Dataloaders as dict {'train': dataloader, 'val': dataloader, 'test':...}
     
     ckpt_path = None  # not implemented yet
-    epochs = train_config['epochs']
-    n_size = train_config['neighborhood_size']
-    b_size = train_config['batch_size']
+    epochs = config['train']['epochs']
+    n_size = config['train']['neighborhood_size']
+    b_size = config['train']['batch_size']
 
-    results_path = Path(f"{train_config['results_path']}{dataset_config['use_ss_str']}{dataset_config['shift_str']}")
+    results_path = Path(f"{config['train']['results_path']}{config['dataset']['use_ss_str']}{config['dataset']['shift_str']}")
     results_path.mkdir(parents=True, exist_ok=True)
     print(results_path)
 
@@ -36,8 +36,8 @@ def train(dataloaders, dataset_config, train_config):
     optimizer = Adam(model.parameters())
     scheduler = CyclicLR(
             optimizer,
-            train_config['min_lr'],
-            train_config['max_lr'],
+            config['train']['min_lr'],
+            config['train']['max_lr'],
             step_size_up=len(dataloaders['train'])//2,
             # mode='triangular2',
             scale_fn = lambda x: 1 / ((5/4.) ** (x-1)),
@@ -71,7 +71,7 @@ def train(dataloaders, dataset_config, train_config):
 
                 data.append(output)
                 running_loss += output['loss'].item()
-                # total += train_config['batch_size']
+                # total += config['train']['batch_size']
 
                 pbar2.set_postfix({
                     "loss" : f"{running_loss/(idx+1):.3f}",

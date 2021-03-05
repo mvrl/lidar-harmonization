@@ -1,52 +1,42 @@
 from pathlib import Path
 from pptk import kdtree
-from src.datasets.tools.dataloaders import get_transforms
 import numpy as np
 import code
 from multiprocessing import Pool
 from functools import partial
 import torch
 from tqdm import tqdm
-from src.datasets.tools.lidar_dataset import LidarDatasetNP
 from torch.utils.data import DataLoader
 import matplotlib
 import matplotlib.pyplot as plt
 from pprint import pprint
 
+from src.datasets.tools.metrics import create_kde
+from src.datasets.tools.lidar_dataset import LidarDatasetNP
+from src.datasets.tools.dataloaders import get_transforms
+from src.datasets.tools.overlap import get_pbar
 
 # def harmonize(model, scan, harmonization_mapping, config):
-def harmonize(model, scan_path, target_scan, config):
+def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None):
 
-    # scans = [f for f in Path(config['dataset']['scans_path']).glob("*.npy")]
-    
     harmonized_path = Path(config['dataset']['harmonized_path'])
     plots_path = harmonized_path / "plots"
     plots_path.mkdir(exist_ok=True, parents=True)
 
-    
-    # scans_to_be_harmonized = {}
-    # 
-    #     # get the paths for each scan we wish to harmonize
-    #     for source_scan_num in harmonization_mapping:
-    #         for scan in scans:
-    #             if int(scan.stem) == source_scan_num:
-    #                 scans_to_be_harmonized[source_scan_num] = str(scan)
-
-
-    #     for source_scan_num, scan_path in scans_to_be_harmonized.items():
-    
-    # I think this works to harmonize a single scan to a given target with model and config
-    #   The above was trying to do too much. Move the above to the run script
-
-    hz = []; ip = []; cr = []
+    hz = torch.empty(0).double() ; ip = torch.empty(0).double() ; cr = torch.empty(0).double() 
     running_loss = 0
     n_size = model.neighborhood_size
     b_size = config['train']['batch_size']
     chunk_size = config['dataset']['max_chunk_size']
     transforms = get_transforms(config)
-    transforms.transforms = transforms.transforms[1:] # no need to load np files
+    transforms.transforms = transforms.transforms[1:] # remove LoadNP step
 
-    source_scan = np.load(scan_path)
+    source_scan = np.load(source_scan_path)
+    source_scan_num = int(source_scan[0, 8])
+
+    if sample_size is not None:
+        sample = np.random.choice(source_scan.shape[0], sample_size)
+        source_scan = source_scan[sample]
 
     model = model.to(config['train']['device'])
     model.eval()
@@ -59,14 +49,12 @@ def harmonize(model, scan_path, target_scan, config):
         k=n_size)
 
     query = np.array(query)
-
-    pbar1 = tqdm(
+    
+    pbar1 = get_pbar(
         range(0, len(query), chunk_size),
-        desc="Processing Chunk",
-        leave=False,
-        position=0,
-        dynamic_ncols=True,
-        )
+        int(np.ceil(source_scan.shape[0] / chunk_size)),
+        f"Hzing Scan {source_scan_num}-->{target_scan_num}",
+        0, leave=True, disable=config['dataset']['tqdm'])
 
     for i in pbar1:
         query_chunk = query[i:i+chunk_size, :]
@@ -78,50 +66,61 @@ def harmonize(model, scan_path, target_scan, config):
             axis=1)
 
         dataset = LidarDatasetNP(neighborhoods, transform=transforms)
+        
         dataloader = DataLoader(
             dataset, 
             batch_size=b_size,
             num_workers=config['train']['num_workers'])
-
-        pbar2 = tqdm(
-            # range(len(dataset)),
+        
+        pbar2 = get_pbar(
             dataloader,
-            desc="  Hzing dset",
-            leave=False,
-            position=1,
-            dynamic_ncols=True)
+            len(dataloader),
+            "Processing Chunk",
+            1, disable=config['dataset']['tqdm'])
 
         with torch.no_grad():
             for jdx, batch in enumerate(pbar2):
-                # ex = dataset[j]
-
-                # specify that we want to harmonize to the target scan:
-                # ex[0, -1] = harmonization_mapping[int(ex[0, -1])]
-                batch[:, 0, -1] = harmonization_mapping[int(batch[0, 0, -1])]
+                batch[:, 0, -1] = target_scan_num  # specify that we wish to harmonize
 
                 # batch = torch.tensor(np.expand_dims(ex, 0))
                 batch = batch.to(config['train']['device'])
 
-                harmonization, interpolation, _, h_target, i_target = model(batch)
-                hz.append(harmonization)   # interpolation
-                ip.append(interpolation)   # harmonization
-                cr.append(batch[:, 1, 3])  # corruption
+                # dublin specific?
+                h_target = batch[:, 0, 3].clone()
+                i_target = batch[:, 1, 3].clone()
+
+                harmonization, interpolation, _ = model(batch)
+
+                hz = torch.cat((hz, harmonization.cpu()))  # interpolation
+                ip = torch.cat((ip, interpolation.cpu()))  # harmonization
+                cr = torch.cat((cr, i_target.cpu()))       # corruption
 
                 loss = torch.mean(torch.abs(harmonization.squeeze() - h_target))
                 running_loss += loss.item()
                 pbar2.set_postfix({"loss": f"{running_loss/(jdx+1):.3f}"})
 
     # visualize results
-    hz = torch.cat(hz).cpu().numpy()
-    ip = torch.cat(ip).cpu().numpy()
-    cr = torch.cat(cr).cpu().numpy()
+    hz = hz.numpy()
+    hz = np.clip(hz, 0, 1)
+    ip = ip.numpy()
+    ip = np.clip(ip, 0, 1)
+    cr = cr.numpy()
+    cr = np.expand_dims(cr, 1)
 
-    create_kde(source_scan[:, 3], torch.cat(hp).cpu().numpy(),
-                xlabel="ground truth", ylabel="predictions",
-                output_path=plots_path)
+    if config['dataset']['name'] == "dublin":
+        create_kde(source_scan[:, 3]/512, hz.squeeze(),
+                    xlabel="ground truth harmonization", ylabel="predicted harmonization",
+                    output_path=plots_path / f"{source_scan_num}-{target_scan_num}_harmonization.png")
+
+        create_kde(cr.squeeze()/512, ip.squeeze(),
+                    xlabel="ground truth interpolation", ylabel="predicted interpolation",
+                    output_path=plots_path / f"{source_scan_num}-{target_scan_num}_interpolation.png")
+
+        create_kde(source_scan[:, 3]/512, cr.squeeze(),
+                    xlabel="ground truth", ylabel="corruption",
+                    output_path=plots_path / f"{source_scan_num}-{target_scan_num}_corruption.png")
+    
 
     # insert results into original scan
-    source_scan = np.hstack((source_scan[:, :4], hz, cr, ip, source_scan[:, 4:])) 
-    np.save(harmonized_path / str(str(source_scan_num)+".npy"), source_scan)
-
-            
+    harmonized_scan = np.hstack((source_scan[:, :3], hz, source_scan[:, 4:])) 
+    return harmonized_scan     
