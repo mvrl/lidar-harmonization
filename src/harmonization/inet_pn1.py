@@ -89,9 +89,6 @@ class IntensityNet(nn.Module):
             #     Source-source examples will not be compared against the target
             #     camera's ground truth value. 
             ss = torch.where(~((target_camera - source_camera).bool()) == True)
-        
-            # code.interact(local=locals())
-        
 
             batch = batch[:, :, :-1]  # remove camera data
             if self.neighborhood_size == 0:

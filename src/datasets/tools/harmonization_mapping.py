@@ -26,6 +26,11 @@ class HarmonizationMapping:
 			else:
 				exit(f"Couldn't find HM csv file at {self.harmonization_path / 'df.csv'}")
 		else:
+			if (self.harmonization_path / "df.csv").exists():
+				# store a backup just in case
+				copyfile(str(self.harmonization_path / "df.csv"),
+						 str(self.harmonization_path / "df_old.csv")
+					)
 			# initialize the df
 			self.df = pd.DataFrame(
 				columns=["source_scan", 

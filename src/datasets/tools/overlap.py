@@ -82,6 +82,9 @@ def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
     return (hist, edges), pc1_sample_f
 
 def get_indices(pc, data):
+    # Crazy idea/TODO: don't need to be so accurate since we have to check
+    #   point validity anyway. Just take all bins with c > 1 and find
+    #   the largest square that encompasses that area. 
     x1, x2, y1, y2, z1, z2 = data
        
     # this is very slow :/

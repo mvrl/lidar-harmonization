@@ -33,10 +33,11 @@ def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None
 
     source_scan = np.load(source_scan_path)
     source_scan_num = int(source_scan[0, 8])
-
-    if sample_size is not None:
-        sample = np.random.choice(source_scan.shape[0], sample_size)
-        source_scan = source_scan[sample]
+    
+    # This might be in the wrong spot
+    # if sample_size is not None:
+    #     sample = np.random.choice(source_scan.shape[0], sample_size)
+    #     source_scan = source_scan[sample]
 
     model = model.to(config['train']['device'])
     model.eval()
@@ -107,12 +108,14 @@ def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None
     cr = cr.numpy()
     cr = np.expand_dims(cr, 1)
 
+    code.interact(local=locals())
+
     if config['dataset']['name'] == "dublin":
         create_kde(source_scan[:, 3]/512, hz.squeeze(),
                     xlabel="ground truth harmonization", ylabel="predicted harmonization",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_harmonization.png")
 
-        create_kde(cr.squeeze()/512, ip.squeeze(),
+        create_kde(cr.squeeze(), ip.squeeze(),
                     xlabel="ground truth interpolation", ylabel="predicted interpolation",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_interpolation.png")
 

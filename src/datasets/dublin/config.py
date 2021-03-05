@@ -13,8 +13,8 @@ config = defaultdict(default_value)
 config['name'] = 'dublin'
 
 # directories
-config['scans_path'] =  str(p.root / 'datasets/dublin/npy/')
-# config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
+# config['scans_path'] =  str(p.root / 'datasets/dublin/npy/')
+config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
 config['save_path'] = str(p.root / 'datasets/dublin/150')
 config['harmonized_path'] = str(p.root / 'datasets/dublin/harmonized')
 config['harmonization_plots_path'] = str(p.root / 'datasets/dublin/harmonized/plots')

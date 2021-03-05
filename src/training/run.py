@@ -17,16 +17,6 @@ from src.datasets.tools.harmonization_mapping import HarmonizationMapping
 #   different because the example creation will have gt for dublin but not
 #   for kylidar. This might be a simple fix. 
 
-# create evaluation tile for (optional) evaluation of models
-# if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
-#     create_eval_tile(config['dataset'])
-
-# if False and 'eval' in dataloaders:
-#     # run on eval tile and report results
-#     print(f"Evaluating...")
-#     h_mae, i_mae = dl_interp_model(model, dataloaders['eval'], config)
-#     print(f"Harmonization MAE: {h_mae:.4f}")
-#     print(f"Interpolation MAE: {i_mae:.4f}")
 
 config = {
     'dataset': dublin_config,
@@ -38,10 +28,14 @@ hm = HarmonizationMapping(
     config['dataset']['scans_path'], 
     config['dataset']['target_scan'], 
     config['dataset']['harmonized_path'], 
-    load_previous=False)
+    load_previous=True)
 
 plots_path = Path(config['dataset']['harmonization_plots_path'])
 plots_path.mkdir(exist_ok=True, parents=True)
+
+# create evaluation tile for (optional) evaluation of models
+if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
+    create_eval_tile(config['dataset'])
 
 while True:
     # 3. build dataset of source scans overlapping target scan(s)
@@ -58,6 +52,13 @@ while True:
     model, path = train(training_dataloaders, config)
 
     # harmonize the scans in harmonized_mapping if they aren't already
+    # if 'eval' in dataloaders:
+    #     # run on eval tile and report results
+    #     print(f"Evaluating...")
+    #     h_mae, i_mae = dl_interp_model(model, dataloaders['eval'], config)
+    #     print(f"Harmonization MAE: {h_mae:.4f}")
+    #     print(f"Interpolation MAE: {i_mae:.4f}")
+
     for source_scan_num in hm.get_stage(1):
         harmonized_scan = harmonize(model, 
                             hm[source_scan_num].source_scan_path.item(), 
@@ -66,8 +67,7 @@ while True:
 
         np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)
         hm.add_harmonized_scan_path(source_scan_num)
-        hm.incr_stage(source_scan_num)
-    code.interact(local=locals())
+        # hm.incr_stage(source_scan_num)
     if hm.done():
         break
 

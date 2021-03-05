@@ -16,8 +16,6 @@ from src.datasets.tools.metrics import create_interpolation_harmonization_plot
 from src.harmonization.inet_pn1 import IntensityNet
 
 
-
-
 def dl_interp_model(model, dataloader, config):
     target_camera = int(config['dataset']['target_scan'])
     n_size = config['train']['neighborhood_size']
@@ -41,13 +39,15 @@ def dl_interp_model(model, dataloader, config):
             # harmonized gt has been stripped out but is stored in h_target
             # the center point below actually has i_target in channel 4
             tile_data = batch[:, 0, :].numpy()
+            h_target = batch[:, 0, 3].clone()
+            i_target = batch[:, 1, 3].clone()
 
             batch = batch.to(device)
             # specify that we want to harmonize to `target_camera` by 
             # overwriitng the original target camera value
             batch[:, 0, -1] = target_camera
 
-            harmonization, interpolation, _ , h_target, i_target = model(batch)
+            harmonization, interpolation, _  = model(batch)
             
             tile_data = np.concatenate(
                 (
