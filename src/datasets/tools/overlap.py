@@ -94,7 +94,7 @@ def get_indices(pc, data):
         
     return new_indices
 
-def get_overlap_points(pc, hist_info, config, c=1, workers=12, pb_pos=1):
+def get_overlap_points(pc, hist_info, config, c=1, pb_pos=1):
     # Pull points out of `pc` from overlap information to be used in dataset
     # creation.
     #   `hist_info`: tuple (hist, bins) 
@@ -107,6 +107,7 @@ def get_overlap_points(pc, hist_info, config, c=1, workers=12, pb_pos=1):
     process_list = []
     hist, (xedges, yedges, zedges) = hist_info
     my_func = partial(get_indices, pc)
+    workers = config['workers']
     
     # if str(type(pc)) != "<class 'sharedmem.sharedmem.anonymousmemmap'>":
     #     exit("ERROR : PC isn't in shared memory!")
@@ -189,7 +190,7 @@ def filter_aoi(kd, aoi, config, pb_pos=1):
     return aoi[keep]
 
 
-def save_neighborhoods(aoi, query, source_scan, save_func, config, workers=8, chunk_size=5000, pb_pos=2):
+def save_neighborhoods(aoi, query, source_scan, save_func, config, chunk_size=5000, pb_pos=2):
     # Indexing query into source_scan is expensive, as this returns a 
     #    [N, 150, 9] array as a copy. Chunking can save considerable memory in 
     #    this case, which can prevent undesired terminations. Not sure what a 
@@ -197,6 +198,7 @@ def save_neighborhoods(aoi, query, source_scan, save_func, config, workers=8, ch
     #
     # note that query must be a numpy array
 
+    workers = config['workers']
     curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / chunk_size))
     sub_pbar = get_pbar(
         range(0, aoi.shape[0], chunk_size),

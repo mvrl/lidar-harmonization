@@ -2,7 +2,7 @@ import code
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
+import os
 from src.training.train import train
 from src.datasets.dublin.config import config as dublin_config
 from src.training.config import config as train_config
@@ -23,12 +23,17 @@ config = {
     'train': train_config
 }
 
+print("Starting up...")
+print(f"PARTITION: {os.environ.get('SLURM_JOB_PARTITION')}")
+print(f"Running with {config['dataset']['workers']} cores")
+print(f"Found GPU {config['train']['device']}")
+
 # build a mapping from source scan paths to target scan numbers.
 hm = HarmonizationMapping(
     config['dataset']['scans_path'], 
     config['dataset']['target_scan'], 
     config['dataset']['harmonized_path'], 
-    load_previous=True)
+    load_previous=False)
 
 plots_path = Path(config['dataset']['harmonization_plots_path'])
 plots_path.mkdir(exist_ok=True, parents=True)
@@ -67,7 +72,7 @@ while True:
 
         np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)
         hm.add_harmonized_scan_path(source_scan_num)
-        # hm.incr_stage(source_scan_num)
+        hm.incr_stage(source_scan_num)
     if hm.done():
         break
 

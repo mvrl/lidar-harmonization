@@ -24,4 +24,4 @@ config['device'] = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"
 # Output
 config['results_path'] = str(p.root / f"results/{config['neighborhood_size']}")
 config['model_save_path'] = str(p.root / f"models/{config['neighborhood_size']}")
-
+config['tqdm'] = True  # True to disable progress bars

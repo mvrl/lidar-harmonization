@@ -195,7 +195,11 @@ def create_dataset(hm, config):
 
             # Overlap Region
             pbar_s.set_description(f"Target | Source: [{target_scan_num}|{source_scan_num}]")
-            aoi = target_scan[get_overlap_points(target_scan, hist_info, config, pb_pos=2)]
+            aoi = target_scan[
+                      get_overlap_points(
+                          target_scan, 
+                          hist_info, 
+                          config, pb_pos=2)]
 
             overlap_size = neighborhoods_from_aoi(
                 aoi,

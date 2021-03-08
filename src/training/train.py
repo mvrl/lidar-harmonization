@@ -44,7 +44,7 @@ def train(dataloaders, config):
             cycle_momentum=False)
 
     best_loss = 1000
-    pbar1 = tqdm(range(epochs), total=epochs, desc=f"Best Loss: {best_loss}")
+    pbar1 = tqdm(range(epochs), total=epochs, desc=f"Best Loss: {best_loss}", disable=config['train']['tqdm'])
     for epoch in pbar1:
         for phase in phases:
             if phase == "train":
@@ -60,7 +60,8 @@ def train(dataloaders, config):
                     dataloaders[phase], 
                     total=len(dataloaders[phase]), 
                     leave=False,
-                    desc=f"   {phase.capitalize()}: {epoch+1}/{epochs}")
+                    desc=f"   {phase.capitalize()}: {epoch+1}/{epochs}",
+                    disable=config['train']['tqdm'])
 
             for idx, batch in enumerate(pbar2):
                 output = forward_pass(

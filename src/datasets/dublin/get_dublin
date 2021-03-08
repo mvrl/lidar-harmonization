@@ -86,7 +86,7 @@ tiles=(
 )
 
 
-mkdir laz
+# mkdir laz
 cd laz
 
 for i in "${flights[@]}"
