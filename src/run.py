@@ -49,11 +49,12 @@ while True:
     if hm.done():
         break
 
-    # 4. train to harmonize initial dataset 
+    # 4. train to harmonize initial dataset
     dataloaders = get_dataloaders(config)
     training_dataloaders = {k:v for k,v in dataloaders.items() if k != "eval"}
 
     # build model
+    print("building model")
     model, path = train(training_dataloaders, config)
 
     # harmonize the scans in harmonized_mapping if they aren't already
@@ -63,7 +64,7 @@ while True:
     #     h_mae, i_mae = dl_interp_model(model, dataloaders['eval'], config)
     #     print(f"Harmonization MAE: {h_mae:.4f}")
     #     print(f"Interpolation MAE: {i_mae:.4f}")
-
+    print("harmonizing")
     for source_scan_num in hm.get_stage(1):
         harmonized_scan = harmonize(model, 
                             hm[source_scan_num].source_scan_path.item(), 
@@ -75,7 +76,6 @@ while True:
         hm.incr_stage(source_scan_num)
     if hm.done():
         break
-
 
 print("finished")
 hm.print_mapping()
