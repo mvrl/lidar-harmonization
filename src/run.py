@@ -33,7 +33,7 @@ hm = HarmonizationMapping(
     config['dataset']['scans_path'], 
     config['dataset']['target_scan'], 
     config['dataset']['harmonized_path'], 
-    load_previous=False)
+    load_previous=True)
 
 plots_path = Path(config['dataset']['harmonization_plots_path'])
 plots_path.mkdir(exist_ok=True, parents=True)
@@ -44,6 +44,7 @@ if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists()
 
 while True:
     # 3. build dataset of source scans overlapping target scan(s)
+    print("building dataset")
     create_dataset(hm, config['dataset'])
 
     if hm.done():
@@ -64,8 +65,10 @@ while True:
     #     h_mae, i_mae = dl_interp_model(model, dataloaders['eval'], config)
     #     print(f"Harmonization MAE: {h_mae:.4f}")
     #     print(f"Interpolation MAE: {i_mae:.4f}")
-    print("harmonizing")
+    print("found stage one scans: ")
+    print(hm.get_stage(1))
     for source_scan_num in hm.get_stage(1):
+        print(f"Harmonizing scan {source_scan_num}")
         harmonized_scan = harmonize(model, 
                             hm[source_scan_num].source_scan_path.item(), 
                             hm[source_scan_num].harmonization_target.item(), 

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --partition=P4V12_SKY32M192_L
+#SBATCH --partition=V4V32_SKY32M192_L 
 #SBATCH --cpus-per-task=32
 #SBATCH -A gcl_nja224_uksr
 #SBATCH --job-name=harmonize_dublin
 #SBATCH --output=harmonize_log.txt
-#SBATCH --time=12:00:00
+#SBATCH --time=3-00:00:00
 ##SBATCH --export=all module load mvapich2_ib
 #SBATCH --gres=gpu:1
 

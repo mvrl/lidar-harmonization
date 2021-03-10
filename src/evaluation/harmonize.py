@@ -108,8 +108,6 @@ def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None
     cr = cr.numpy()
     cr = np.expand_dims(cr, 1)
 
-    code.interact(local=locals())
-
     if config['dataset']['name'] == "dublin":
         create_kde(source_scan[:, 3]/512, hz.squeeze(),
                     xlabel="ground truth harmonization", ylabel="predicted harmonization",
