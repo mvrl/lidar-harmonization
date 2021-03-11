@@ -3,6 +3,9 @@ import torch
 import torch.nn as nn
 from pathlib import Path
 from tqdm import tqdm, trange
+from src.config.pbar import get_pbar
+
+from torch.nn import DataParallel
 from torch.optim import Adam
 from torch.optim.lr_scheduler import CyclicLR
 
@@ -26,8 +29,13 @@ def train(dataloaders, config):
     phases = [k for k in dataloaders]
     [print(f"{k}: {len(v)}") for k,v in dataloaders.items()]
 
-    gpu = torch.device('cuda:0')
-    model = IntensityNet(n_size, interpolation_method="pointnet").double().to(device=gpu)
+    device = config['train']['device']
+    model = IntensityNet(
+        n_size, 
+        interpolation_method="pointnet").double().to(device)
+
+    if config['train']['num_gpus'] > 1:
+        model = DataParallel(model)
 
     criterions = {
             'harmonization': nn.SmoothL1Loss(), 
@@ -44,7 +52,13 @@ def train(dataloaders, config):
             cycle_momentum=False)
 
     best_loss = 1000
-    pbar1 = tqdm(range(epochs), total=epochs, desc=f"Best Loss: {best_loss}", disable=config['train']['tqdm'])
+    # pbar1 = tqdm(range(epochs), total=epochs, desc=f"Best Loss: {best_loss}", disable=config['train']['tqdm'])
+    pbar1 = get_pbar(
+        range(epochs), 
+        epochs, 
+        f"Best Loss: {best_loss}", 
+        0, disable=config['train']['tqdm'], leave=True)
+
     for epoch in pbar1:
         for phase in phases:
             if phase == "train":
@@ -56,19 +70,18 @@ def train(dataloaders, config):
             
             running_loss = 0.0
             total = 0.0
-            pbar2 = tqdm(
+            pbar2 = get_pbar(
                     dataloaders[phase], 
-                    total=len(dataloaders[phase]), 
-                    leave=False,
-                    desc=f"   {phase.capitalize()}: {epoch+1}/{epochs}",
-                    disable=config['train']['tqdm'])
+                    len(dataloaders[phase]),
+                    f"{phase.capitalize()}: {epoch+1}/{epochs}",
+                    1, disable=config['train']['tqdm'])
 
             for idx, batch in enumerate(pbar2):
                 output = forward_pass(
                     model, 
                     phase, 
                     batch,
-                    criterions, optimizer, scheduler, gpu)
+                    criterions, optimizer, scheduler, device)
 
                 data.append(output)
                 running_loss += output['loss'].item()

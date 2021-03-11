@@ -14,7 +14,8 @@ from pprint import pprint
 from src.datasets.tools.metrics import create_kde
 from src.datasets.tools.lidar_dataset import LidarDatasetNP
 from src.datasets.tools.dataloaders import get_transforms
-from src.datasets.tools.overlap import get_pbar
+from src.config.pbar import get_pbar
+
 
 # def harmonize(model, scan, harmonization_mapping, config):
 def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None):

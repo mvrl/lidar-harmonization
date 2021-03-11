@@ -11,7 +11,6 @@ def default_value():
 
 config = defaultdict(default_value)
 
-
 config['name'] =  'dublin',
 
 # Training settings
@@ -23,7 +22,11 @@ config['max_lr'] = 1e-2
 config['device'] = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 config['num_workers'] = int(os.getenv('SLURM_CPUS_PER_TASK', 8))
 
+# GPU settings
+config['device'] = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+config['num_gpus'] = int(torch.cuda.device_count())
+
 # Output
 config['results_path'] = str(p.root / f"results/{config['neighborhood_size']}")
 config['model_save_path'] = str(p.root / f"models/{config['neighborhood_size']}")
-config['tqdm'] = True  # True to disable progress bars
+config['tqdm'] = False  # True to disable progress bars

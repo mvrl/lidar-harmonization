@@ -61,4 +61,4 @@ if not config['use_ss']:
     config['use_ss_str'] = "_ts"
 
 
-config['tqdm'] = True  # True to disable tqdm bars
+config['tqdm'] = False  # True to disable tqdm bars

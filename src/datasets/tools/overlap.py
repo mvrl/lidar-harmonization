@@ -8,13 +8,7 @@ from multiprocessing import Pool
 import sharedmem
 from functools import partial
 
-def get_pbar(iter, total, desc, position, disable=False, dynamic_ncols=True, leave=False):
-    format_desc = "  "*position+f"{desc}"
-    pbar = tqdm(iter, desc=format_desc, total=total, position=position,
-                    dynamic_ncols=dynamic_ncols, disable=disable, leave=leave)
-
-    return pbar
-
+from src.config.pbar import get_pbar
 
 def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
     # Params:

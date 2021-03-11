@@ -33,7 +33,7 @@ hm = HarmonizationMapping(
     config['dataset']['scans_path'], 
     config['dataset']['target_scan'], 
     config['dataset']['harmonized_path'], 
-    load_previous=True)
+    load_previous=False)
 
 plots_path = Path(config['dataset']['harmonization_plots_path'])
 plots_path.mkdir(exist_ok=True, parents=True)
