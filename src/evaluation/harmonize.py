@@ -128,8 +128,8 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
 
     if config['dataset']['name'] == "dublin":
         scan_error = np.mean(np.abs((source_scan[:, 3]/512) - hz.squeeze()))
-        print("Scan {source_scan_num} Harmonize MAE: " {scan_error})
-        
+        print(f"Scan {source_scan_num} Harmonize MAE: {scan_error}")
+
     if save:
         np.save((Path(config['dataset']['harmonized_path']) / (str(source_scan_num)+".npy")), harmonized_scan)
 
