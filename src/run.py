@@ -41,6 +41,7 @@ partition = os.getenv('SLURM_JOB_PARTITION', None)
 print(f"PARTITION: {os.environ.get('SLURM_JOB_PARTITION')}")
 print(f"Running with {config['dataset']['workers']} cores")
 print(f"Found GPU {config['train']['device']}")
+print(f"Using {config['num_gpus']} GPUs")
 
 
 while True:

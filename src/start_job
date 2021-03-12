@@ -7,7 +7,7 @@
 #SBATCH --output=harmonize_log.txt
 #SBATCH --time=3-00:00:00
 ##SBATCH --export=all module load mvapich2_ib
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 
 module purge
 module load intel/19.0.4.243
