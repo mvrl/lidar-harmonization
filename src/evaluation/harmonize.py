@@ -18,13 +18,13 @@ from src.config.pbar import get_pbar
 
 
 # def harmonize(model, scan, harmonization_mapping, config):
-def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None):
+def harmonize(model, source_scan_path, target_scan_num, config, save=False, sample_size=None):
 
     harmonized_path = Path(config['dataset']['harmonized_path'])
     plots_path = harmonized_path / "plots"
     plots_path.mkdir(exist_ok=True, parents=True)
 
-    hz = torch.empty(0).double() ; ip = torch.empty(0).double() ; cr = torch.empty(0).double() 
+    hz = torch.empty(0).double(); ip = torch.empty(0).double(); cr = torch.empty(0).double() 
     running_loss = 0
     n_size = model.neighborhood_size
     b_size = config['train']['batch_size']
@@ -35,10 +35,10 @@ def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None
     source_scan = np.load(source_scan_path)
     source_scan_num = int(source_scan[0, 8])
     
-    # This might be in the wrong spot
-    # if sample_size is not None:
-    #     sample = np.random.choice(source_scan.shape[0], sample_size)
-    #     source_scan = source_scan[sample]
+    if sample_size is not None:
+        sample = np.random.choice(source_scan.shape[0], sample_size)
+    else:
+        sample = source_scan.shape[0]
 
     model = model.to(config['train']['device'])
     model.eval()
@@ -47,7 +47,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None
 
     query = kdtree._query(
         kd, 
-        source_scan[:, :3], 
+        source_scan[sample, :3], 
         k=n_size)
 
     query = np.array(query)
@@ -125,4 +125,8 @@ def harmonize(model, source_scan_path, target_scan_num, config, sample_size=None
 
     # insert results into original scan
     harmonized_scan = np.hstack((source_scan[:, :3], hz, source_scan[:, 4:])) 
+
+    if save:
+        np.save((Path(config['dataset']['harmonized_path']) / (str(source_scan_num)+".npy")), harmonized_scan)
+
     return harmonized_scan     
