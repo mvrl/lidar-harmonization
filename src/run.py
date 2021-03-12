@@ -12,9 +12,6 @@ from src.evaluation.dl_interp import dl_interp_model
 from src.evaluation.harmonize import harmonize
 from src.datasets.tools.harmonization_mapping import HarmonizationMapping
 
-from simple_slurm import Slurm
-
-
 # TODO: kylidar
 
 config = {
@@ -64,7 +61,7 @@ while True:
     for source_scan_num in hm.get_stage(1):
         print(f"Harmonizing scan {source_scan_num}")
         
-        harmonized_scan = harmonize(model, 
+        harmonized_scan = harmonize(model,
                             hm[source_scan_num].source_scan_path.item(), 
                             hm[source_scan_num].harmonization_target.item(), 
                             config, sample_size=100000)
@@ -72,6 +69,7 @@ while True:
         np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)
         hm.add_harmonized_scan_path(source_scan_num)
         hm.incr_stage(source_scan_num)
+    
     if hm.done():
         break
 

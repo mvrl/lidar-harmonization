@@ -5,7 +5,7 @@ def get_pbar(
         total, 
         desc, 
         position, 
-        print_ratio=.25,  # change to 1 for real time progress updates in term
+        print_ratio=1,  # change to 1 for real time progress updates in term
         disable=False, 
         dynamic_ncols=True, 
         leave=False):    
