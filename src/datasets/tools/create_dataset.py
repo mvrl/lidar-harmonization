@@ -12,6 +12,7 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 from functools import partial
 import sharedmem
+import h5py 
 
 from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points, get_pbar
 from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods
@@ -124,8 +125,8 @@ def create_eval_tile(config):
     neighborhoods_path = save_path / "neighborhoods"
     neighborhoods_path.mkdir(parents=True, exist_ok=True)
 
-    save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
-    func = partial(save_neighborhood, neighborhoods_path, save_format)
+    # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
+    # func = partial(save_neighborhood, neighborhoods_path, save_format)
 
     intersecting_flight = config['eval_source_scan']
 
@@ -150,11 +151,37 @@ def create_eval_tile(config):
     # v = viewer(tile[:, :3])
     # v.set(lookat=config['eval_tile_center'])
 
+def setup_hdf5(config):
+    # dataset size max is:
+    #   maxsize = igroup_sample_size * (512//igroup_size) * len(scan_paths)
+    size_per_scan = config['igroup_sample_size'] * 512//config['igroup_size']
+    max_size = size_per_scan * len([f for f in Path(config['scans_path']).glob("*.npy")])
+    
+    train_size = int(max_size * config['splits']['train'])
+    test_size = int(max_size * config['splits']['test'])
+
+    if not config['hdf5_path'].exists():
+        with h5py.File(config['hdf5_path'], "a") as f:
+            train_dset = f.create_dataset(
+                "train",
+                (0, 151, 9),
+                chunks=(config['max_chunk_size'], 151, 9),  # remove for auto-chunking
+                maxshape=(train_size, 151, 9),
+                dtype=np.float)
+
+            test_dset = f.create_dataset(
+                "test",
+                (0, 151, 9),
+                chunks=(500, 151, 9),
+                maxshape=(test_size, 151, 9),
+                dtype=np.float)
+
+
 def create_dataset(hm, config): 
     # Neighborhoods path:
     start=time.time()
-    neighborhoods_path = Path(config['save_path']) / "neighborhoods"
-    neighborhoods_path.mkdir(parents=True, exist_ok=True)
+
+    setup_hdf5(config)
 
     # Logging
     logging.config.fileConfig(config['creation_log_conf'])
@@ -162,15 +189,14 @@ def create_dataset(hm, config):
     logger.info("Starting")
 
     # Save neighborhoods as partial function
-    save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
-    func = partial(save_neighborhood, neighborhoods_path, save_format)
+    # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
+    # func = partial(save_neighborhood, neighborhoods_path, save_format)
 
     # Get point clouds ready to load in
     h_scans_path = {f.stem:f.absolute() for f in Path(config['harmonized_path']).glob("*.npy")}
     scan_paths = {f.stem:f.absolute() for f in Path(config['scans_path']).glob("*.npy")}
 
     print("Creating dataset...")
-    # code.interact(local=locals())
 
     pbar_t = get_pbar(
         hm.get_stage(2),
@@ -206,7 +232,6 @@ def create_dataset(hm, config):
                 source_scan,
                 "ts",
                 (target_scan_num,source_scan_num),
-                func,
                 config,
                 logger=logger)
 
@@ -223,7 +248,6 @@ def create_dataset(hm, config):
                     source_scan,
                     "ss",
                     (target_scan_num,source_scan_num),
-                    func,
                     config,
                     logger)
 
@@ -231,14 +255,14 @@ def create_dataset(hm, config):
         hm.incr_stage(target_scan_num)
 
     # Create train-test splits, save as CSVS
-    df_train, _, _ = make_csv(config)
+    # df_train, _, _ = make_csv(config)
 
     # Create training weights
     # `igroups is a relative number of classes. Regression is used in this 
     #    project, but a balance across the range of intensities is still 
     #    desired. 
     igroups = int(np.ceil(config['max_intensity']/config['igroup_size']))
-    make_weights_for_balanced_classes(df_train, igroups, config)
+    # make_weights_for_balanced_classes(df_train, igroups, config)
     end=time.time()
     print(f"Created dataset in {end-start} seconds")
     # if make_eval_tile:

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import os
+
 from src.training.train import train
 from src.datasets.dublin.config import config as dublin_config
 from src.training.config import config as train_config
@@ -11,8 +12,6 @@ from src.datasets.tools.dataloaders import get_dataloaders
 from src.evaluation.dl_interp import dl_interp_model
 from src.evaluation.harmonize import harmonize
 from src.datasets.tools.harmonization_mapping import HarmonizationMapping
-
-# TODO: kylidar
 
 config = {
     'dataset': dublin_config,
@@ -26,8 +25,7 @@ hm = HarmonizationMapping(
     config['dataset']['harmonized_path'],
     load_previous=False)
 
-plots_path = Path(config['dataset']['harmonization_plots_path'])
-plots_path.mkdir(exist_ok=True, parents=True)
+
 
 # create evaluation tile for (optional) evaluation of models
 # if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
@@ -38,7 +36,7 @@ partition = os.getenv('SLURM_JOB_PARTITION', None)
 print(f"PARTITION: {os.environ.get('SLURM_JOB_PARTITION')}")
 print(f"Running with {config['dataset']['workers']} cores")
 print(f"Found GPU {config['train']['device']}")
-print(f"Using {config['num_gpus']} GPUs")
+print(f"Using {config['train']['num_gpus']} GPUs")
 
 
 while True:
@@ -73,5 +71,6 @@ while True:
     if hm.done():
         break
 
+config['dataset']['save_path_obj'].cleanup()
 print("finished")
 hm.print_mapping()

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import sharedmem
 from functools import partial
+import h5py
 
 from src.config.pbar import get_pbar
 
@@ -154,7 +155,7 @@ def filter_aoi(kd, aoi, config, pb_pos=1):
     keep = []
     max_chunk_size = config['max_chunk_size']
 
-    curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / max_chunk_size))
+    max_idx = int(np.ceil(aoi.shape[0] / max_chunk_size))
     sub_pbar = get_pbar(
             range(0, aoi.shape[0], max_chunk_size),
             max_idx,
@@ -168,29 +169,23 @@ def filter_aoi(kd, aoi, config, pb_pos=1):
                               current_chunk[:, :3], 
                               k=config['max_n_size'], dmax=1)
 
-        sub_pbar2 = get_pbar(
-            range(len(query)),
-            len(query),
-            f"Filtering [{curr_idx}/{max_idx}]",
-            pb_pos+1, disable=config['tqdm']
-            )
-    
-        for j in sub_pbar2:
+
+        for j in range(len(query)):
             if len(query[j]) == config['max_n_size']:
                 keep.append(i+j)
-
-        curr_idx+=1
 
     return aoi[keep]
 
 
-def save_neighborhoods(aoi, query, source_scan, save_func, config, chunk_size=5000, pb_pos=2):
+def save_neighborhoods(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
     # Indexing query into source_scan is expensive, as this returns a 
     #    [N, 150, 9] array as a copy. Chunking can save considerable memory in 
     #    this case, which can prevent undesired terminations. Not sure what a 
     #    reasonable chunk size might be. AOI is typically 50k, so maybe ~5k?
     #
     # note that query must be a numpy array
+
+    # HDF5 creation: need to make a large file then divide into train/test later?
 
     workers = config['workers']
     curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / chunk_size))
@@ -222,6 +217,54 @@ def save_neighborhoods(aoi, query, source_scan, save_func, config, chunk_size=50
                 pass
 
         curr_idx+=1
+
+def save_neighborhoods_hdf5(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
+    with h5py.File(config['hdf5_path'], "a") as f:
+        # the goal is to load as little of this into memory at once
+        aoi_ = {}; query_ = {}
+        train_size = int(config['splits']['train']*aoi.shape[0])
+        train_idx = np.random.choice(aoi.shape[0], size=train_size)
+
+        aoi_['train'] = aoi[train_idx]
+        aoi_['test'] = aoi[~train_idx]
+        query_['train'] = query[train_idx]
+        query_['test'] = query[~train_idx]
+
+
+        chunk_size = f['train'].chunks[0]  # this is the same for test/train
+        sub_pbar = get_pbar(
+            list(f.keys()),
+            len(list(f.keys())),
+            "Saving Neighborhoods []",
+            pb_pos, disable=config['tqdm'])
+
+        for split in sub_pbar:
+            start = f[split].shape[0]
+            end = start + aoi_[split].shape[0]
+            slices = (slice(start, end), slice(0, config['max_n_size']+1), slice(0, 9))
+
+            f[split].resize(end, axis=0)
+
+            sub_pbar2 = get_pbar(
+                f[split].iter_chunks(sel=slices),
+                int(np.ceil(aoi_[split].shape[0]/chunk_size)),  # this could be more clear
+                "Saving chunks",
+                pb_pos+1, disable=config['tqdm'])
+            
+            # indices for the h5 chunks begin at start
+            # indices for aoi and query begin at 0
+            for idx, chunk in enumerate(sub_pbar2):
+                # chunk is a tuple of slices with each element corresponding to
+                #   a dimension of the dataset. 0 is the first axis. 
+                aoi_chunk = aoi_[split][chunk[0].start-start:chunk[0].stop-start]
+                aoi_chunk = np.expand_dims(aoi_chunk, 1)
+
+                query_chunk = query_[split][chunk[0].start-start:chunk[0].stop-start]
+                neighborhoods = np.concatenate((
+                    aoi_chunk, source_scan[query_chunk]),
+                    axis=1)
+
+                f[split][chunk] = neighborhoods
 
 
 def resample_aoi(aoi, igroup_bounds, max_size, config, pb_pos=2):
@@ -295,7 +338,6 @@ def neighborhoods_from_aoi(
         source_scan,
         mode,
         scan_nums,
-        save_func,
         config,
         logger=None):
 
@@ -323,7 +365,7 @@ def neighborhoods_from_aoi(
     if overlap_size >= config['min_overlap_size']:
         bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
         plot_hist(aoi, bins, mode+"-B", 
-            s_num, t_num, config['save_path'])
+            s_num, t_num, config['plots_path'])
 
         # resample aoi
         aoi = resample_aoi(
@@ -336,7 +378,7 @@ def neighborhoods_from_aoi(
 
         # Verify resampling operation
         plot_hist(aoi, bins, mode+"-P", 
-            s_num, t_num, config['save_path'])
+            s_num, t_num, config['plots_path'])
 
         # Query neighborhoods from filtered resampled aoi
         query = kdtree._query(kd, 
@@ -345,6 +387,6 @@ def neighborhoods_from_aoi(
 
         query = np.array(query).astype(np.int)
 
-        save_neighborhoods(aoi, query, source_scan, save_func, config)
+        save_neighborhoods_hdf5(aoi, query, source_scan, config)
 
     return overlap_size 
