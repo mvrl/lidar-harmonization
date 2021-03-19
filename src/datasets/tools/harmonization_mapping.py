@@ -4,7 +4,7 @@ from shutil import copyfile
 import code
 
 class HarmonizationMapping:
-	def __init__(self, scans_path, target_scan_num, harmonization_path, load_previous=False):
+	def __init__(self, scans_path, target_scan_num, harmonization_path, create_new=False):
 		
 		self.harmonization_path = Path(harmonization_path)
 		self.harmonization_path.mkdir(exist_ok=True, parents=True)
@@ -20,7 +20,7 @@ class HarmonizationMapping:
 		    str(target_scan_path), 
 		    str(self.harmonization_path / (target_scan_num+".npy")))
 
-		if load_previous:
+		if not create_new:
 			if (self.harmonization_path / "df.csv").exists():
 				self.df = pd.read_csv((self.harmonization_path / "df.csv"), index_col=0)
 			else:

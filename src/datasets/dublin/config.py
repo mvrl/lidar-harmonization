@@ -14,14 +14,19 @@ config = defaultdict(default_value)
 
 config['name'] = 'dublin'
 
+config['create_new'] = False
+
 ## directories
 config['scans_path'] =  p.root / 'datasets/dublin/npy/'
 #config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
 
-# config['save_path'] = p.root / 'datasets/dublin/150'
-# config['save_path'].mkdir(exist_ok=True, parents=True)
-config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
-config['save_path'] = Path(config['save_path_obj'].name)
+# Create a permanent dataset
+config['save_path'] = p.root / 'datasets/dublin/150'
+config['save_path'].mkdir(exist_ok=True, parents=True)
+
+# Create the dataset temporarily (delete on process close)
+# config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
+# config['save_path'] = Path(config['save_path_obj'].name)
 
 config['hdf5_path'] = config['save_path'] / "dataset.h5"
 
@@ -43,7 +48,7 @@ config['max_chunk_size'] =  500
 config['max_n_size'] =  150
 config['creation_log_conf'] = p.root / 'datasets/dublin/tools/logging.conf'
 config['class_weights'] = p.root / 'datasets/dublin/150/class_weights.pt'
-config['min_overlap_size'] =  100000
+config['min_overlap_size'] = 200000
 config['splits'] = {"train": .8, "test": .2}
 
 config['workers'] = int(getenv('SLURM_CPUS_PER_TASK', 8))
@@ -70,7 +75,7 @@ config['sig_s'] =  .7
 # training settings:
 config['shift'] = False  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
-config['phases'] = ['train', 'val']
+config['phases'] = ['train', 'test']
 
 ### do not modify
 if config['shift']:

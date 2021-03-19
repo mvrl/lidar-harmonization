@@ -222,14 +222,17 @@ def save_neighborhoods_hdf5(aoi, query, source_scan, config, chunk_size=5000, pb
     with h5py.File(config['hdf5_path'], "a") as f:
         # the goal is to load as little of this into memory at once
         aoi_ = {}; query_ = {}
+        # train_idx = np.random.choice(aoi.shape[0], size=train_size)
+        train_idx = np.full(len(aoi), False, dtype=bool)
         train_size = int(config['splits']['train']*aoi.shape[0])
-        train_idx = np.random.choice(aoi.shape[0], size=train_size)
+
+        # set some percentage for training, shuffle.
+        train_idx[:train_size] = True; np.random.shuffle(train_idx)
 
         aoi_['train'] = aoi[train_idx]
         aoi_['test'] = aoi[~train_idx]
         query_['train'] = query[train_idx]
         query_['test'] = query[~train_idx]
-
 
         chunk_size = f['train'].chunks[0]  # this is the same for test/train
         sub_pbar = get_pbar(

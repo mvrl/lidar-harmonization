@@ -23,7 +23,7 @@ hm = HarmonizationMapping(
     config['dataset']['scans_path'],
     config['dataset']['target_scan'],
     config['dataset']['harmonized_path'],
-    load_previous=False)
+    create_new=config['dataset']['create_new'])
 
 
 
@@ -33,7 +33,7 @@ hm = HarmonizationMapping(
 
 print("Starting up...")
 partition = os.getenv('SLURM_JOB_PARTITION', None)
-print(f"PARTITION: {os.environ.get('SLURM_JOB_PARTITION')}")
+print(f"Partition: {os.environ.get('SLURM_JOB_PARTITION')}")
 print(f"Running with {config['dataset']['workers']} cores")
 print(f"Found GPU {config['train']['device']}")
 print(f"Using {config['train']['num_gpus']} GPUs")
@@ -70,6 +70,9 @@ while True:
     
     if hm.done():
         break
+
+# if hm.done():
+#   repackage the harmonized scans as laz
 
 config['dataset']['save_path_obj'].cleanup()
 print("finished")

@@ -23,22 +23,25 @@ def load_shared(path):
     ts[:] = t
     return ts
 
-def make_weights_for_balanced_classes(dataset, nclasses, config):
+def make_weights_for_balanced_classes(nclasses, config):
     # https://discuss.pytorch.org/t/balanced-sampling-between-classes-with-torchvision-dataloader/2703/3
     count = [0] * nclasses
-    for i in range(len(dataset)):
-        label = dataset.iloc[i].target_intensity//config['igroup_size']
-        count[label] += 1
+    with h5py.File(config['hdf5_path'], "a") as f:
+        dataset = f['train']
+        for i in range(dataset.shape[0]):
+            label = int(dataset[i][0, 3])//config['igroup_size']  # hdf5
+            # label = dataset.iloc[i].target_intensity//config['igroup_size']  # old
+            count[label] += 1
 
-    weight_per_class = [0.] * nclasses
-    N = float(sum(count))
-    for i in range(nclasses):
-        weight_per_class[i] = N/float(count[i])
+        weight_per_class = [0.] * nclasses
+        N = float(sum(count))
+        for i in range(nclasses):
+            weight_per_class[i] = N/float(count[i])
 
-    weight = [0] * len(dataset)
-    for i in range(len(dataset)):
-        label = dataset.iloc[i].target_intensity//config['igroup_size']
-        weight[i] = weight_per_class[label]
+        weight = [0] * len(dataset)
+        for i in range(len(dataset)):
+            label = int(dataset[i][0, 3])//config['igroup_size']
+            weight[i] = weight_per_class[label]
 
     # note that weights do not have to sum to 1
     torch.save(weight, config['class_weights'])
@@ -152,29 +155,40 @@ def create_eval_tile(config):
     # v.set(lookat=config['eval_tile_center'])
 
 def setup_hdf5(config):
-    # dataset size max is:
-    #   maxsize = igroup_sample_size * (512//igroup_size) * len(scan_paths)
-    size_per_scan = config['igroup_sample_size'] * 512//config['igroup_size']
-    max_size = size_per_scan * len([f for f in Path(config['scans_path']).glob("*.npy")])
-    
-    train_size = int(max_size * config['splits']['train'])
-    test_size = int(max_size * config['splits']['test'])
 
-    if not config['hdf5_path'].exists():
-        with h5py.File(config['hdf5_path'], "a") as f:
-            train_dset = f.create_dataset(
-                "train",
-                (0, 151, 9),
-                chunks=(config['max_chunk_size'], 151, 9),  # remove for auto-chunking
-                maxshape=(train_size, 151, 9),
-                dtype=np.float)
+    # do nothing if we aren't recreating
+    if config['create_new']:
 
-            test_dset = f.create_dataset(
-                "test",
-                (0, 151, 9),
-                chunks=(500, 151, 9),
-                maxshape=(test_size, 151, 9),
-                dtype=np.float)
+        if config['hdf5_path'].exists():
+            print("Creating a new dataset! Deleteing the old one. ")
+            print(config['hdf5_path'])
+            config['hdf5_path'].unlink()  # delete
+
+        # Size per scan is the igroup sample size times the number of intensity groups.
+        #   Each scan is processed twice (out of overlap and in overlap), so x2
+        #   The max size is the size per scan times the number of scans. 
+
+        size_per_scan = 2*config['igroup_sample_size'] * int(np.ceil(512/config['igroup_size']))
+        max_size = size_per_scan * len([f for f in Path(config['scans_path']).glob("*.npy")])
+        
+        train_size = int(max_size * config['splits']['train'])
+        test_size = int(max_size * config['splits']['test'])
+
+        if not config['hdf5_path'].exists():
+            with h5py.File(config['hdf5_path'], "a") as f:
+                train_dset = f.create_dataset(
+                    "train",
+                    (0, 151, 9),
+                    chunks=(config['max_chunk_size'], 151, 9),  # remove for auto-chunking
+                    maxshape=(train_size, 151, 9),
+                    dtype=np.float)
+
+                test_dset = f.create_dataset(
+                    "test",
+                    (0, 151, 9),
+                    chunks=(500, 151, 9),
+                    maxshape=(test_size, 151, 9),
+                    dtype=np.float)
 
 
 def create_dataset(hm, config): 
@@ -253,16 +267,16 @@ def create_dataset(hm, config):
 
                 hm.incr_stage(source_scan_num)  # don't repeat this work
         hm.incr_stage(target_scan_num)
+    
+    if config['create_new']:
+        # Create training weights
+        # `igroups is a relative number of classes. Regression is used in this 
+        #    project, but a balance across the range of intensities is still 
+        #    desired. 
+        igroups = int(np.ceil(config['max_intensity']/config['igroup_size']))
+        print("Generating Class Weights")
+        make_weights_for_balanced_classes(igroups, config)
 
-    # Create train-test splits, save as CSVS
-    # df_train, _, _ = make_csv(config)
-
-    # Create training weights
-    # `igroups is a relative number of classes. Regression is used in this 
-    #    project, but a balance across the range of intensities is still 
-    #    desired. 
-    igroups = int(np.ceil(config['max_intensity']/config['igroup_size']))
-    # make_weights_for_balanced_classes(df_train, igroups, config)
     end=time.time()
     print(f"Created dataset in {end-start} seconds")
     # if make_eval_tile:
