@@ -21,6 +21,7 @@ def mae(predictions, targets):
 def create_kde(x, y, xlabel="", ylabel="", output_path=None, sample_size=5000, text=None):
     x = torch_to_numpy(x)
     y = torch_to_numpy(y)
+    
     if sample_size and len(x) > sample_size:
         sample = np.random.choice(len(x), size=sample_size)
         x = x[sample]
@@ -28,10 +29,7 @@ def create_kde(x, y, xlabel="", ylabel="", output_path=None, sample_size=5000, t
     xy = np.vstack([y, x])
     
     z = gaussian_kde(xy)(xy)
-    # except np.linalg.LinAlgError:
-    #     return
-
-    
+   
     idx = z.argsort()
     x, y, z = x[idx], y[idx], z[idx]
 

@@ -25,8 +25,6 @@ hm = HarmonizationMapping(
     config['dataset']['harmonized_path'],
     create_new=config['dataset']['create_new'])
 
-
-
 # create evaluation tile for (optional) evaluation of models
 # if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
 #     create_eval_tile(config['dataset'])
@@ -62,7 +60,7 @@ while True:
         harmonized_scan = harmonize(model,
                             hm[source_scan_num].source_scan_path.item(), 
                             hm[source_scan_num].harmonization_target.item(), 
-                            config, sample_size=100000)
+                            config)
 
         np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)
         hm.add_harmonized_scan_path(source_scan_num)

@@ -93,7 +93,7 @@ def train(dataloaders, config):
 
             running_loss /= len(dataloaders[phase])
 
-            if phase == 'val':
+            if phase in ['val', 'test']:
                 if running_loss < best_loss:
                     new_ckpt_path = results_path / f"{n_size}_epoch={epoch}.pt"
                     torch.save(model.state_dict(), new_ckpt_path)
