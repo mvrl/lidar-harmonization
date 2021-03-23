@@ -26,7 +26,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
 
     hz = torch.empty(0).double(); ip = torch.empty(0).double(); cr = torch.empty(0).double() 
     running_loss = 0
-    n_size = model.neighborhood_size
+    n_size = config['train']['neighborhood_size']
     b_size = config['train']['batch_size']
     chunk_size = config['dataset']['max_chunk_size']
     transforms = get_transforms(config)
