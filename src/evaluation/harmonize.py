@@ -38,7 +38,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     if sample_size is not None:
         sample = np.random.choice(source_scan.shape[0], sample_size)
     else:
-        sample = source_scan.shape[0]
+        sample = np.arange(source_scan.shape[0])
 
     model = model.to(config['train']['device'])
     model.eval()
