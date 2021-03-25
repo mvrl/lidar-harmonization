@@ -14,27 +14,24 @@ config = defaultdict(default_value)
 
 config['name'] = 'dublin'
 
-config['create_new'] = True
+config['create_new'] = False
 
 ## directories
 config['scans_path'] =  p.root / 'datasets/dublin/npy/'
 #config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
 
 # Create a permanent dataset
-# config['save_path'] = p.root / 'datasets/dublin/150'
-# config['save_path'].mkdir(exist_ok=True, parents=True)
+config['save_path'] = p.root / 'datasets/dublin/150'
+config['save_path'].mkdir(exist_ok=True, parents=True)
 
 # Create the dataset temporarily (delete on process close)
-config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
-config['save_path'] = Path(config['save_path_obj'].name)
+# config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
+# config['save_path'] = Path(config['save_path_obj'].name)
 
 config['hdf5_path'] = config['save_path'] / "dataset.h5"
 
 config['plots_path'] = p.root/ 'datasets/dublin/150/plots'
 config['plots_path'].mkdir(exist_ok=True, parents=True)
-
-# neighborhoods_path = Path(config['save_path']) / "neighborhoods"
-# neighborhoods_path.mkdir(parents=True, exist_ok=True)
 
 config['harmonized_path'] = p.root / 'datasets/dublin/harmonized'
 config['harmonization_plots_path'] = p.root / 'datasets/dublin/harmonized/plots'
@@ -76,6 +73,7 @@ config['sig_s'] =  .7
 config['shift'] = False  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
+config['dataloader_size'] = 100000
 
 ### do not modify
 if config['shift']:

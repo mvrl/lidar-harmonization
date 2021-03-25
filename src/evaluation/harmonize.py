@@ -24,13 +24,10 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     plots_path = harmonized_path / "plots"
     plots_path.mkdir(exist_ok=True, parents=True)
 
-    hz = torch.empty(0).double(); ip = torch.empty(0).double(); cr = torch.empty(0).double() 
-    running_loss = 0
     n_size = config['train']['neighborhood_size']
     b_size = config['train']['batch_size']
-    chunk_size = config['dataset']['max_chunk_size']
+    chunk_size = config['dataset']['dataloader_size']
     transforms = get_transforms(config)
-    transforms.transforms = transforms.transforms[1:] # remove LoadNP step
 
     source_scan = np.load(source_scan_path)
     source_scan_num = int(source_scan[0, 8])
@@ -51,6 +48,14 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
         k=n_size)
 
     query = np.array(query)
+    size = len(query)
+    
+    hz = torch.empty(size).double()
+    ip = torch.empty(size).double()
+    cr = torch.empty(size).double()
+
+    running_loss = 0
+
     
     pbar1 = get_pbar(
         range(0, len(query), chunk_size),
@@ -81,7 +86,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
             1, disable=config['dataset']['tqdm'])
 
         with torch.no_grad():
-            for jdx, batch in enumerate(pbar2):
+            for j, batch in enumerate(pbar2):
                 batch[:, 0, -1] = target_scan_num  # specify that we wish to harmonize
 
                 # batch = torch.tensor(np.expand_dims(ex, 0))
@@ -93,13 +98,16 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
 
                 harmonization, interpolation, _ = model(batch)
 
-                hz = torch.cat((hz, harmonization.cpu()))  # interpolation
-                ip = torch.cat((ip, interpolation.cpu()))  # harmonization
-                cr = torch.cat((cr, i_target.cpu()))       # corruption
+                ldx = i + (j * b_size)
+                hdx = i + (j+1)*b_size
 
+                hz[ldx:hdx] = harmonization.cpu().squeeze()
+                ip[ldx:hdx] = interpolation.cpu().squeeze()
+                cr[ldx:hdx] = i_target.cpu() # corruption
+  
                 loss = torch.mean(torch.abs(harmonization.squeeze() - h_target))
                 running_loss += loss.item()
-                pbar2.set_postfix({"loss": f"{running_loss/(jdx+1):.3f}"})
+                pbar2.set_postfix({"loss": f"{running_loss/(j+1):.3f}"})
 
     # visualize results
     hz = hz.numpy()
