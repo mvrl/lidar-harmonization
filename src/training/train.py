@@ -34,9 +34,6 @@ def train(dataloaders, config):
         n_size, 
         interpolation_method="pointnet").double().to(device)
 
-    if config['train']['num_gpus'] > 1:
-        model = DataParallel(model)
-
     criterions = {
             'harmonization': nn.SmoothL1Loss(), 
             'interpolation': nn.SmoothL1Loss()}

@@ -106,7 +106,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
   
                 loss = torch.mean(torch.abs(harmonization.squeeze() - h_target))
                 running_loss += loss.item()
-                pbar2.set_postfix({"loss": f"{running_loss/(j+1):.3f}"})
+                pbar2.set_postfix({"loss": f"{running_loss/(i+j+1):.3f}"})
 
     # visualize results
     hz = hz.numpy()
@@ -117,7 +117,6 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     cr = np.expand_dims(cr, 1)
 
     if config['dataset']['name'] == "dublin":
-        code.interact(local=locals())
         create_kde(source_scan[sample, 3]/512, hz.squeeze(),
                     xlabel="ground truth harmonization", ylabel="predicted harmonization",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_harmonization.png")
