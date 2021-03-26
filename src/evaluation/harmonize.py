@@ -56,7 +56,6 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
 
     running_loss = 0
 
-    
     pbar1 = get_pbar(
         range(0, len(query), chunk_size),
         int(np.ceil(source_scan.shape[0] / chunk_size)),
@@ -82,7 +81,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
         pbar2 = get_pbar(
             dataloader,
             len(dataloader),
-            "Processing Chunk",
+            "  Processing Chunk",
             1, disable=config['dataset']['tqdm'])
 
         with torch.no_grad():
@@ -133,7 +132,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     
 
     # insert results into original scan
-    harmonized_scan = np.hstack((source_scan[sample, :3], hz, source_scan[sample, 4:])) 
+    harmonized_scan = np.hstack((source_scan[sample, :3], np.expand_dims(hz, 1), source_scan[sample, 4:])) 
 
     if config['dataset']['name'] == "dublin":
         scan_error = np.mean(np.abs((source_scan[sample, 3]/512) - hz.squeeze()))
