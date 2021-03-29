@@ -14,19 +14,19 @@ config = defaultdict(default_value)
 
 config['name'] = 'dublin'
 
-config['create_new'] = False
+config['create_new'] = True
 
 ## directories
 config['scans_path'] =  p.root / 'datasets/dublin/npy/'
-#config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
+# config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
 
 # Create a permanent dataset
-config['save_path'] = p.root / 'datasets/dublin/150'
-config['save_path'].mkdir(exist_ok=True, parents=True)
+# config['save_path'] = p.root / 'datasets/dublin/150'
+# config['save_path'].mkdir(exist_ok=True, parents=True)
 
 # Create the dataset temporarily (delete on process close)
-# config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
-# config['save_path'] = Path(config['save_path_obj'].name)
+config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
+config['save_path'] = Path(config['save_path_obj'].name)
 
 config['hdf5_path'] = config['save_path'] / "dataset.h5"
 

@@ -9,7 +9,7 @@
 ##SBATCH --export=all module load mvapich2_ib
 #SBATCH --nodes=1 
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 
 module purge
 module load intel/19.0.4.243
