@@ -114,56 +114,19 @@ def create_interpolation_harmonization_plot(
 
     return h_mae, i_mae
 
-
-    
-
-    
-    
 def create_bar(flight_count, save_path):
     # flight_count is a dictionary mapping fids to count
     plt.bar(np.arange(len(flight_count.keys())), flight_count.values())
     plt.xticks(np.arange(len(flight_count.keys())), flight_count.keys())
     plt.savefig(save_path)
 
-class Metrics:
-    def __init__(self, metrics_list, plots, batch_size):
-        self.metrics_list = metrics_list
-        self.metrics = {m:None for m in metrics_list}
-
-        # validation metrics
-        self.pred_ = None
-        self.targ_ = None                
-        self.update = True  # some values reset on epoch end
-
-        self.metric_functions = {'mae': mae}
-
-    def collect_metrics(self, predictions, targets):
-
-        if self.update == True:
-            self.pred_ = predictions
-            self.targ_ = targets
-            self.update = False
-        else:
-            self.pred_ = torch.cat((self.pred_, predictions))
-            self.targ_ = torch.cat((self.targ_, targets))
-            
-
-    def compute_metrics(self):
-        for key in self.metrics:
-            self.metrics[key] = self.metric_functions[key](self.pred_, self.targ_)
-            
-    def clear_metrics(self):
-        # clears values - useful for values that reset on epoch end
-        self.metrics = {m:None for m in self.metrics_list}
-        self.pred_ = None
-        self.targ_ = None
-        self.update = True
-
-if __name__=='__main__':
-    metrics = Metrics(['mae'], None)
-    metrics.collect(torch.tensor([2.1, 2., 3.]), torch.tensor([2., 3., .4]))
-    metrics.compute()
-    print(metrics.metrics)
-    metrics.clear_metrics()
-    print(metrics.metrics)
-    
+def create_loss_plot(loss_history ,output_path):
+    plt.plot(loss_history['train'], label='train')
+    plt.plot(loss_history['test'], label='test')
+    plt.xlabel("epoch")
+    plt.ylabel("loss")
+    plt.title("Loss")
+    plt.legend()
+    plt.savefig(output_path)
+    plt.close()
+  

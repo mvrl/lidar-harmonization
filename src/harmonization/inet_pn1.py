@@ -37,7 +37,7 @@ class IntensityNet(nn.Module):
                 nn.BatchNorm1d(512),
                 nn.ReLU(),
                 nn.Linear(512, 256),
-                nn.Dropout(p=0.3),
+                nn.Dropout(p=0.0),
                 nn.BatchNorm1d(256),
                 nn.ReLU(),
                 nn.Linear(256, 1))
@@ -47,7 +47,7 @@ class IntensityNet(nn.Module):
 
         self.harmonization = nn.Sequential(
             nn.Linear(1+embed_dim, h_hidden_size),
-            nn.Dropout(p=0.3),        
+            nn.Dropout(p=0.0),        
             nn.ReLU(),
             nn.Linear(h_hidden_size, num_classes))
 

@@ -8,23 +8,6 @@ class LoadNP(object):
         # Load the numpy files
         return np.loadtxt(example)
 
-# class CloudCenter(object):
-#     # currenty being handled in forward pass
-#     def __call__(self, example):
-#         # Center the neighborhood
-#         ex = example.copy()
-#         ex[:,:3] -= ex[0, :3]
-#         return ex
-    
-class CloudIntensityNormalize(object):
-    def __init__(self, max_intensity):
-        self.max_intensity = max_intensity
-    def __call__(self, example):
-        # Normalize the intensity values
-        ex = example.copy()
-        ex[:, 3]/=self.max_intensity
-        return ex
-
 class CloudAngleNormalize(object):
     # values go from -90 to 90
     # transform this to -1 to 1
@@ -38,8 +21,7 @@ class Corruption(object):
     def __init__(self, **kwargs):
         dorf = kwargs['dorf_path']
         mapping = kwargs['mapping_path'] 
-        max_intensity = kwargs['max_intensity']
-        self.ARF = ApplyResponseFunction(dorf, mapping, max_intensity)
+        self.ARF = ApplyResponseFunction(dorf, mapping)
 
     def __call__(self, example):
         # we need to save a copy of the ground truth point
@@ -82,21 +64,6 @@ class GlobalShift(object):
 
         return ex
 
-# class GetTargets(object):
-#     # return interpolation and harmonization values
-#     def __call__(self, example):
-#         ex = example.copy()
-#         target_i = ex[0, 3]
-#         source_i = ex[1, 3]
-
-#         # the center point must stay in the model so that
-#         # it can be centered, it will be removed in forward pass
-#         ex = ex[1:, :]
-#         return (ex, target_i, source_i)
-        
-# class ToTensor(object):
-#     def __call__(self, example):
-#         return torch.from_numpy(example)
                 
 class CloudRotateX(object):
     def __init__(self):
@@ -130,7 +97,6 @@ class CloudRotateY(object):
         example[:, :3] = np.dot(example[:, :3], rotation_matrix)
 
         return example
-
 
 class CloudRotateZ(object):
     # https://en.wikipedia.org/wiki/Rotation_matrix#In_three_dimensions

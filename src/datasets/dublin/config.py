@@ -15,41 +15,64 @@ config = defaultdict(default_value)
 config['name'] = 'dublin'
 
 config['create_new'] = True
+config['data_path'] = p.root / 'datasets/dublin/data'
 
 ## directories
-config['scans_path'] =  p.root / 'datasets/dublin/npy/'
-# config['scans_path'] = str(p.root / 'datasets/dublin/test_npy/')
+# config['scans_path'] =  p.root / 'datasets/dublin/data/npy/'
+config['scans_path'] = config['data_path'] / 'test_npy'
 
 # Create a permanent dataset
-# config['save_path'] = p.root / 'datasets/dublin/150'
-# config['save_path'].mkdir(exist_ok=True, parents=True)
+config['save_path'] = config['data_path'] / '150'
+config['save_path'].mkdir(exist_ok=True, parents=True)
 
 # Create the dataset temporarily (delete on process close)
-config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
-config['save_path'] = Path(config['save_path_obj'].name)
+# config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
+# config['save_path'] = Path(config['save_path_obj'].name)
 
 config['hdf5_path'] = config['save_path'] / "dataset.h5"
 
-config['plots_path'] = p.root/ 'datasets/dublin/150/plots'
+config['plots_path'] = config['save_path'] / 'plots'
 config['plots_path'].mkdir(exist_ok=True, parents=True)
 
-config['harmonized_path'] = p.root / 'datasets/dublin/harmonized'
-config['harmonization_plots_path'] = p.root / 'datasets/dublin/harmonized/plots'
+config['harmonized_path'] = config['data_path'] / 'harmonized'
+config['harmonization_plots_path'] = config['harmonized_path'] / 'plots'
 config['harmonization_plots_path'].mkdir(exist_ok=True, parents=True)
 
 # Creation settings
 config['target_scan'] =  '1'
-config['igroup_size'] =  5
-config['igroup_sample_size'] =  350  # needs to be higher for smaller collections
+config['igroup_size'] =  0.01
+config['igroup_sample_size'] =  500
 config['max_chunk_size'] =  500
 config['max_n_size'] =  150
 config['creation_log_conf'] = p.root / 'datasets/dublin/tools/logging.conf'
-config['class_weights'] = p.root / 'datasets/dublin/150/class_weights.pt'
+config['class_weights'] = config['save_path'] / 'class_weights.pt'
 config['min_overlap_size'] = 200000
 config['splits'] = {"train": .8, "test": .2}
-
 config['workers'] = int(getenv('SLURM_CPUS_PER_TASK', 8))
 
+# Eval tile 
+config['eval_save_path'] =  config['save_path'] / 'eval_tile'
+config['eval_tile_center'] = [316120.0, 234707.422, 1.749] # center of AOI
+config['eval_source_scan'] = '39'
+config['eval_tile_size'] = 1000000
+
+# Corruption
+config['dorf_path'] =  config['data_path'] / 'dorf.json'
+config['mapping_path'] =  config['data_path'] / 'mapping.npy'
+config['max_intensity'] =  1
+
+# global shift settings:
+config['bounds_path'] =  config['data_path'] / 'bounds.npy'
+config['sig_floor'] =  .3
+config['sig_center'] =  .5
+config['sig_l'] =  100
+config['sig_s'] =  .7
+
+# training settings:
+config['shift'] = False  # Apply global shift
+config['use_ss'] = True  # use training examples from outside the overlap
+config['phases'] = ['train', 'test']
+config['dataloader_size'] = 100000
 
 # Eval tile 
 config['eval_save_path'] =  p.root / 'datasets/dublin/150/eval_tile'
@@ -58,12 +81,12 @@ config['eval_source_scan'] = '39'
 config['eval_tile_size'] = 1000000
 
 # Corruption
-config['dorf_path'] =  p.root / 'datasets/dublin/dorf.json'
-config['mapping_path'] =  p.root / 'datasets/dublin/mapping.npy'
-config['max_intensity'] =  512
+config['dorf_path'] =  config['data_path'] / 'dorf.json'
+config['mapping_path'] =  config['data_path'] / 'mapping.npy'
+config['max_intensity'] =  1
 
 # global shift settings:
-config['bounds_path'] =  p.root / 'datasets/dublin/bounds.npy'
+config['bounds_path'] =  config['data_path'] / 'bounds.npy'
 config['sig_floor'] =  .3
 config['sig_center'] =  .5
 config['sig_l'] =  100
@@ -83,4 +106,4 @@ if not config['use_ss']:
     config['use_ss_str'] = "_ts"
 
 
-config['tqdm'] = False  # True to disable tqdm bars
+config['tqdm'] = True  # True to disable tqdm bars

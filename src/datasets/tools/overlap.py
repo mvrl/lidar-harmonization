@@ -1,7 +1,6 @@
 import code
 import numpy as np
 from pptk import kdtree
-from tqdm import tqdm, trange
 from pathlib import Path
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
@@ -10,6 +9,7 @@ from functools import partial
 import h5py
 
 from src.config.pbar import get_pbar
+from tqdm import tqdm, trange
 
 def get_hist_overlap(pc1, pc2, sample_overlap_size=10000, hist_bin_length=25):
     # Params:
@@ -147,7 +147,7 @@ def get_overlap_points(pc, hist_info, config, c=1, pb_pos=1):
     return indices
 
 def get_igroup_bounds(bin_size):
-        return [(i, i+bin_size) for i in range(0, 512, bin_size)]
+    return [(i, i+bin_size) for i in np.linspace(0, 1-bin_size, int(1/bin_size))]
 
 def filter_aoi(kd, aoi, config, pb_pos=1):
     # Querying uses a large amount of memory, use chunking to keep 
@@ -247,7 +247,6 @@ def save_neighborhoods_hdf5(aoi, query, source_scan, config, chunk_size=5000, pb
             slices = (slice(start, end), slice(0, config['max_n_size']+1), slice(0, 9))
 
             f[split].resize(end, axis=0)
-
             sub_pbar2 = get_pbar(
                 f[split].iter_chunks(sel=slices),
                 int(np.ceil(aoi_[split].shape[0]/chunk_size)),  # this could be more clear
@@ -367,6 +366,7 @@ def neighborhoods_from_aoi(
 
     if overlap_size >= config['min_overlap_size']:
         bins = [i[0] for i in igroup_bounds] + [igroup_bounds[-1][1]]
+
         plot_hist(aoi, bins, mode+"-B", 
             s_num, t_num, config['plots_path'])
 

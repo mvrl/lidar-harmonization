@@ -12,6 +12,8 @@ from torch.optim.lr_scheduler import CyclicLR
 from src.training.forward_pass import forward_pass, get_metrics
 from src.harmonization.inet_pn1 import IntensityNet
 from src.datasets.tools.metrics import create_interpolation_harmonization_plot as create_kde
+from src.datasets.tools.metrics import create_loss_plot
+
 
 
 def train(dataloaders, config):
@@ -56,6 +58,8 @@ def train(dataloaders, config):
         f"Best Loss: {best_loss}", 
         0, disable=config['train']['tqdm'], leave=True)
 
+    loss_history = {"train": [], "test": []}
+
     for epoch in pbar1:
         for phase in phases:
             if phase == "train":
@@ -89,6 +93,7 @@ def train(dataloaders, config):
                     "lr": f"{optimizer.param_groups[0]['lr']:.2E}"})
 
             running_loss /= len(dataloaders[phase])
+            loss_history[phase].append(running_loss)
 
             if phase in ['val', 'test']:
                 if running_loss < best_loss:
@@ -109,6 +114,8 @@ def train(dataloaders, config):
                         h_target, h_preds, h_mae, 
                         i_target, i_preds, i_mae, 
                         phase, results_path / f"val_kde_{n_size}.png")
+
+                create_loss_plot(loss_history, results_path / f"loss.png")
 
     return model, ckpt_path
 

@@ -7,15 +7,16 @@ import torch
 import time
 from pathlib import Path
 from pptk import kdtree, viewer
-from tqdm import tqdm, trange
 from multiprocessing import Pool
 import matplotlib.pyplot as plt
 from functools import partial
 import sharedmem
-import h5py 
+import h5py
+from tqdm import tqdm, trange
 
 from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points, get_pbar
 from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods
+
 
 def load_shared(path):
     t = np.load(path)
@@ -29,10 +30,10 @@ def make_weights_for_balanced_classes(nclasses, config):
     with h5py.File(config['hdf5_path'], "a") as f:
         dataset = f['train']
         for i in range(dataset.shape[0]):
-            label = int(dataset[i][0, 3])//config['igroup_size']  # hdf5
-            # label = dataset.iloc[i].target_intensity//config['igroup_size']  # old
+            label = int(np.floor(dataset[i][0, 3]/config['igroup_size']))  # hdf5
             count[label] += 1
 
+        # code.interact(local=locals())
         weight_per_class = [0.] * nclasses
         N = float(sum(count))
         for i in range(nclasses):
@@ -40,7 +41,7 @@ def make_weights_for_balanced_classes(nclasses, config):
 
         weight = [0] * len(dataset)
         for i in range(len(dataset)):
-            label = int(dataset[i][0, 3])//config['igroup_size']
+            label = int(np.floor(dataset[i][0, 3]/config['igroup_size']))  # hdf5
             weight[i] = weight_per_class[label]
 
     # note that weights do not have to sum to 1
@@ -163,13 +164,16 @@ def setup_hdf5(config):
             print("Creating a new dataset! Deleteing the old one. ")
             print(config['hdf5_path'])
             config['hdf5_path'].unlink()  # delete
+            config['create_new'] = False  # don't delete on another iteration
 
         # Size per scan is the igroup sample size times the number of intensity groups.
         #   Each scan is processed twice (out of overlap and in overlap), so x2
         #   The max size is the size per scan times the number of scans. 
 
-        size_per_scan = 2*config['igroup_sample_size'] * int(np.ceil(512/config['igroup_size']))
+        size_per_scan = 2*config['igroup_sample_size'] * int(np.ceil(1/config['igroup_size']))
         max_size = size_per_scan * len([f for f in Path(config['scans_path']).glob("*.npy")])
+        print(size_per_scan)
+        print(max_size)
         
         train_size = int(max_size * config['splits']['train'])
         test_size = int(max_size * config['splits']['test'])
@@ -268,14 +272,10 @@ def create_dataset(hm, config):
                 hm.incr_stage(source_scan_num)  # don't repeat this work
         hm.incr_stage(target_scan_num)
     
-    if config['create_new']:
-        # Create training weights
-        # `igroups is a relative number of classes. Regression is used in this 
-        #    project, but a balance across the range of intensities is still 
-        #    desired. 
-        igroups = int(np.ceil(config['max_intensity']/config['igroup_size']))
-        print("Generating Class Weights")
-        make_weights_for_balanced_classes(igroups, config)
+
+    igroups = int(np.ceil(config['max_intensity']/config['igroup_size']))
+    print("Generating Class Weights")
+    make_weights_for_balanced_classes(igroups, config)
 
     end=time.time()
     print(f"Created dataset in {end-start} seconds")

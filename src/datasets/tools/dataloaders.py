@@ -6,22 +6,22 @@ from torch.utils.data.sampler import WeightedRandomSampler
 from torchvision.transforms import Compose
 
 from src.datasets.tools.lidar_dataset import LidarDataset, LidarDatasetNP, LidarDatasetHDF5
-from src.datasets.tools.transforms import LoadNP, CloudIntensityNormalize, CloudAngleNormalize
-from src.datasets.tools.transforms import Corruption, GlobalShift
+from src.datasets.tools.transforms import LoadNP, CloudAngleNormalize
+from src.datasets.tools.transforms import Corruption, GlobalShift, CloudJitter
 
 import h5py
 
 def get_transforms(config):
-    transforms = [ # LoadNP(), 
-                  CloudAngleNormalize()]
+    transforms = [CloudAngleNormalize()]
 
     if config['dataset']['name'] is "dublin":
         if config['dataset']['shift']:
             transforms.append(GlobalShift(**config['dataset']))
         
         transforms.extend([
-            Corruption(**config['dataset']), 
-            CloudIntensityNormalize(config['dataset']['max_intensity'])])
+            Corruption(**config['dataset']),
+            # CloudJitter(), 
+            ])
 
     if config['dataset']['name'] is "kylidar":
         pass
