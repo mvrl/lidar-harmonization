@@ -72,7 +72,10 @@ config['sig_s'] =  .7
 config['shift'] = False  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
-config['dataloader_size'] = 100000
+
+# this sets the limit for RAM usage during the actual harmonization process. 
+#   Using a higher value consumes more RAM. Recommend 100-200k for 32GB of RAM.
+config['dataloader_size'] = 100000  
 
 # Eval tile 
 config['eval_save_path'] =  p.root / 'datasets/dublin/150/eval_tile'
@@ -106,4 +109,4 @@ if not config['use_ss']:
     config['use_ss_str'] = "_ts"
 
 
-config['tqdm'] = True  # True to disable tqdm bars
+config['tqdm'] = False  # True to disable tqdm bars
