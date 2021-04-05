@@ -14,7 +14,7 @@ config = defaultdict(default_value)
 config['name'] =  'dublin',
 
 # Training settings
-config['epochs'] = 10
+config['epochs'] = 15
 config['batch_size'] = 50
 config['neighborhood_size'] = 5
 config['min_lr'] = 1e-6

@@ -16,9 +16,10 @@ class HarmonizationMapping:
 		target_scan_path = Path(scans_path) / (target_scan_num+".npy")
 
 		# copy to the harmonized path.
-		copyfile(
-		    str(target_scan_path), 
-		    str(self.harmonization_path / (target_scan_num+".npy")))
+		if not (self.harmonization_path / (target_scan_num+".npy")).exists():
+			copyfile(
+			    str(target_scan_path), 
+			    str(self.harmonization_path / (target_scan_num+".npy")))
 
 		if not create_new:
 			if (self.harmonization_path / "df.csv").exists():

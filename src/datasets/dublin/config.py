@@ -14,7 +14,7 @@ config = defaultdict(default_value)
 
 config['name'] = 'dublin'
 
-config['create_new'] = True
+config['create_new'] = False
 config['data_path'] = p.root / 'datasets/dublin/data'
 
 ## directories

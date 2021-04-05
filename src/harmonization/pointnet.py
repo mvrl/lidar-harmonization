@@ -42,7 +42,7 @@ class STNkd(nn.Module):
         return x
 
 class PointNetfeat(nn.Module):
-    def __init__(self, global_feat = True, feature_transform = False, num_features=8):
+    def __init__(self, global_feat=True, feature_transform=True, num_features=8):
         super(PointNetfeat, self).__init__()
         self.stn = STNkd(k=num_features)
         self.conv1 = torch.nn.Conv1d(num_features, 64, 1)
@@ -83,4 +83,3 @@ class PointNetfeat(nn.Module):
         else:
             x = x.view(-1, 1024, 1).repeat(1, 1, n_pts)
             return torch.cat([x, pointfeat], 1), trans, trans_feat
-

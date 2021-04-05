@@ -29,7 +29,7 @@ class IntensityNet(nn.Module):
         if self.interpolation_method is "pointnet":
             self.feat = PointNetfeat(
                 global_feat=True,
-                feature_transform=False,
+                feature_transform=True,
                 num_features=self.input_features)
 
             self.fc_layer = nn.Sequential(

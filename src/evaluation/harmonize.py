@@ -117,7 +117,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     cr = np.expand_dims(cr, 1)
 
     if config['dataset']['name'] == "dublin":
-        create_kde(source_scan[sample, 3]/512, hz.squeeze(),
+        create_kde(source_scan[sample, 3], hz.squeeze(),
                     xlabel="ground truth harmonization", ylabel="predicted harmonization",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_harmonization.png")
 
@@ -125,7 +125,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
                     xlabel="ground truth interpolation", ylabel="predicted interpolation",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_interpolation.png")
 
-        create_kde(source_scan[sample, 3]/512, cr.squeeze(),
+        create_kde(source_scan[sample, 3], cr.squeeze(),
                     xlabel="ground truth", ylabel="corruption",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_corruption.png")
     
@@ -134,7 +134,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     harmonized_scan = np.hstack((source_scan[sample, :3], np.expand_dims(hz, 1), source_scan[sample, 4:])) 
 
     if config['dataset']['name'] == "dublin":
-        scan_error = np.mean(np.abs((source_scan[sample, 3]/512) - hz.squeeze()))
+        scan_error = np.mean(np.abs((source_scan[sample, 3]) - hz.squeeze()))
         print(f"Scan {source_scan_num} Harmonize MAE: {scan_error}")
 
     if save:
