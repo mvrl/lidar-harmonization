@@ -108,8 +108,5 @@ if config['shift']:
 if not config['use_ss']:
     config['use_ss_str'] = "_ts"
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 9b67c326ca76485012b81d04d7d779c6045e1992
 config['tqdm'] = False  # True to disable tqdm bars
