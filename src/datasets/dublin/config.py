@@ -14,20 +14,20 @@ config = defaultdict(default_value)
 
 config['name'] = 'dublin'
 
-config['create_new'] = False
+config['create_new'] = True
 config['data_path'] = p.root / 'datasets/dublin/data'
 
 ## directories
-# config['scans_path'] =  p.root / 'datasets/dublin/data/npy/'
-config['scans_path'] = config['data_path'] / 'test_npy'
+config['scans_path'] =  config['data_path'] / 'npy'
+# config['scans_path'] = config['data_path'] / 'test_npy'
 
 # Create a permanent dataset
-config['save_path'] = config['data_path'] / '150'
-config['save_path'].mkdir(exist_ok=True, parents=True)
+#config['save_path'] = config['data_path'] / '150'
+#config['save_path'].mkdir(exist_ok=True, parents=True)
 
 # Create the dataset temporarily (delete on process close)
-# config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
-# config['save_path'] = Path(config['save_path_obj'].name)
+config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
+config['save_path'] = Path(config['save_path_obj'].name)
 
 config['hdf5_path'] = config['save_path'] / "dataset.h5"
 
@@ -72,7 +72,7 @@ config['sig_s'] =  .7
 config['shift'] = False  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
-config['dataloader_size'] = 100000
+config['dataloader_size'] = 1000000
 
 # Eval tile 
 config['eval_save_path'] =  p.root / 'datasets/dublin/150/eval_tile'
@@ -96,7 +96,7 @@ config['sig_s'] =  .7
 config['shift'] = False  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
-config['dataloader_size'] = 100000
+config['dataloader_size'] = 500000
 
 ### do not modify
 if config['shift']:
@@ -105,5 +105,4 @@ if config['shift']:
 if not config['use_ss']:
     config['use_ss_str'] = "_ts"
 
-
-config['tqdm'] = True  # True to disable tqdm bars
+config['tqdm'] = False  # True to disable tqdm bars

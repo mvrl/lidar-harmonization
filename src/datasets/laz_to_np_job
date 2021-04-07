@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --partition=CAL48M192_D
+#SBATCH --partition=SAN32M512_L
 #SBATCH --cpus-per-task=24
 #SBATCH -A col_nja224_uksr
 #SBATCH --job-name=convert_laz_np
@@ -17,4 +17,4 @@ CONTAINER=/psratch/nja224_uksr/lidar_container
 
 source /home/dtjo223/.bashrc
 conda activate lidar
-python ~/workspace/lidar-harmonization/src/datasets/tools/laz_to_numpy.py
+python $PSCRATCH/nja224_uksr/dtjo223/lidar-harmonization/src/datasets/tools/laz_to_numpy.py

@@ -273,7 +273,6 @@ def resample_aoi(aoi, igroup_bounds, max_size, config, pb_pos=2):
     # We want to resample the intensities here to be balanced
     #   across the range of intensities. 
     aoi_resampled = np.empty((0, aoi.shape[1]))
-
     sub_pbar = get_pbar(
         igroup_bounds,
         len(igroup_bounds),
@@ -345,7 +344,6 @@ def neighborhoods_from_aoi(
 
     # TO DO: this is pretty tightly coupled and needs to be refactored
     #   so that logging and checking overlap sizes can be more cohesive.
-    
     igroup_bounds = get_igroup_bounds(config['igroup_size'])
     t_num, s_num = scan_nums
 

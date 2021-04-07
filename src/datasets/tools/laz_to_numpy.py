@@ -8,6 +8,8 @@ from pptk import estimate_normals
 from src.config.project import Project
 # from patch.patch import patch_mp_connection_bpo_17560
 
+MAX_INTENSITY = 512
+
 def build_np(args):
     path, idx = args
     with File(path, mode='r') as laz:
@@ -15,11 +17,11 @@ def build_np(args):
         pts = np.stack([laz.x,
                         laz.y,
                         laz.z,
-                        laz.intensity,
+                        laz.intensity/MAX_INTENSITY,
                         # np.clip(laz.intensity, 0, 512),
                         laz.scan_angle_rank]).T
 
-        filtered_pts = pts[pts[:, 3] <= 512]
+        filtered_pts = pts[pts[:, 3] <= 1]
         
         pt_src_id = np.zeros(shape=filtered_pts.shape[0])
         pt_src_id.fill(idx)
@@ -58,8 +60,8 @@ def laz_to_np(laz_path, npy_path):
 
 if __name__ == '__main__':
     p = Project()
-    npy_path = p.root / "datasets/dublin/npy"
-    laz_path = p.root / "datasets/dublin/laz"
+    npy_path = p.root / "datasets/dublin/data/npy"
+    laz_path = p.root / "datasets/dublin/data/laz"
     start_time = time.time()
     laz_to_np(laz_path, npy_path)
     print(f"Finished in {time.time() - start_time} seconds")

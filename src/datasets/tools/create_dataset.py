@@ -224,7 +224,6 @@ def create_dataset(hm, config):
     for target_scan_num in pbar_t:
         log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
         target_scan = load_shared(hm[target_scan_num].harmonization_scan_path.values[0])
-
         pbar_s = get_pbar(
             hm.get_stage(0),
             len(hm.get_stage(0)),
