@@ -22,14 +22,14 @@ config['scans_path'] =  config['data_path'] / 'npy'
 # config['scans_path'] = config['data_path'] / 'test_npy'
 
 # Create a permanent dataset
-#config['save_path'] = config['data_path'] / '150'
-#config['save_path'].mkdir(exist_ok=True, parents=True)
+config['save_path'] = config['data_path'] / '150'
+config['save_path'].mkdir(exist_ok=True, parents=True)
 
 # Create the dataset temporarily (delete on process close)
-config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
-config['save_path'] = Path(config['save_path_obj'].name)
+# config['save_path_obj'] = tempfile.TemporaryDirectory(prefix="pipeline", dir="/tmp")
+# config['save_path'] = Path(config['save_path_obj'].name)
 
-config['hdf5_path'] = config['save_path'] / "dataset.h5"
+config['dataset_path'] = config['save_path'] / "dataset.h5"
 
 config['plots_path'] = config['save_path'] / 'plots'
 config['plots_path'].mkdir(exist_ok=True, parents=True)
@@ -51,7 +51,7 @@ config['splits'] = {"train": .8, "test": .2}
 config['workers'] = int(getenv('SLURM_CPUS_PER_TASK', 8))
 
 # Eval tile 
-config['eval_save_path'] =  config['save_path'] / 'eval_tile'
+config['eval_dataset'] =  config['save_path'] / 'eval_tile.h5'
 config['eval_tile_center'] = [316120.0, 234707.422, 1.749] # center of AOI
 config['eval_source_scan'] = '39'
 config['eval_tile_size'] = 1000000
@@ -75,13 +75,7 @@ config['phases'] = ['train', 'test']
 
 # this sets the limit for RAM usage during the actual harmonization process. 
 #   Using a higher value consumes more RAM. Recommend 100-200k for 32GB of RAM.
-config['dataloader_size'] = 1000000 
-
-# Eval tile 
-config['eval_save_path'] =  p.root / 'datasets/dublin/150/eval_tile'
-config['eval_tile_center'] = [316120.0, 234707.422, 1.749] # center of AOI
-config['eval_source_scan'] = '39'
-config['eval_tile_size'] = 1000000
+config['dataloader_size'] = 10000 
 
 # Corruption
 config['dorf_path'] =  config['data_path'] / 'dorf.json'

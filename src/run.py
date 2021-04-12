@@ -26,8 +26,8 @@ hm = HarmonizationMapping(
     create_new=config['dataset']['create_new'])
 
 # create evaluation tile for (optional) evaluation of models
-# if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
-#     create_eval_tile(config['dataset'])
+if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
+    create_eval_tile(config['dataset'])
 
 print("Starting up...")
 partition = os.getenv('SLURM_JOB_PARTITION', None)

@@ -177,52 +177,32 @@ def filter_aoi(kd, aoi, config, pb_pos=1):
     return aoi[keep]
 
 
-def save_neighborhoods(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
-    # Indexing query into source_scan is expensive, as this returns a 
-    #    [N, 150, 9] array as a copy. Chunking can save considerable memory in 
-    #    this case, which can prevent undesired terminations. Not sure what a 
-    #    reasonable chunk size might be. AOI is typically 50k, so maybe ~5k?
-    #
-    # note that query must be a numpy array
+def save_neighborhoods_hdf5_eval(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
+    with h5py.File(config['eval_dataset'], "a") as f:
+        workers = config['workers']
+        curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / chunk_size))
+        sub_pbar = get_pbar(
+            range(0, aoi.shape[0], chunk_size),
+            np.ceil(aoi.shape[0]/chunk_size),
+            "Saving Neighborhoods",
+            pb_pos, disable=config['tqdm'])
 
-    # HDF5 creation: need to make a large file then divide into train/test later?
+        for i in sub_pbar:
+            aoi_chunk = aoi[i:i+chunk_size, :]
+            query_chunk = query[i:i+chunk_size, :]
 
-    workers = config['workers']
-    curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / chunk_size))
-    sub_pbar = get_pbar(
-        range(0, aoi.shape[0], chunk_size),
-        np.ceil(aoi.shape[0]/chunk_size),
-        "Saving Neighborhoods",
-        pb_pos, disable=config['tqdm'])
+            aoi_chunk = np.expand_dims(aoi_chunk, 1)
+            neighborhoods = np.concatenate(
+                (aoi_chunk, source_scan[query_chunk]),
+                axis=1)
 
-    for i in sub_pbar:
-        aoi_chunk = aoi[i:i+chunk_size, :]
-        query_chunk = query[i:i+chunk_size, :]
+            f['eval'][i:i+chunk_size] = neighborhoods
 
-        aoi_chunk = np.expand_dims(aoi_chunk, 1)
-        neighborhoods = np.concatenate(
-            (aoi_chunk, source_scan[query_chunk]),
-            axis=1)
-
-        data = zip(range(i, i+neighborhoods.shape[0]), neighborhoods)
-
-        with Pool(workers) as p:
-            sub_pbar2 = get_pbar(
-                p.imap_unordered(save_func, data),
-                neighborhoods.shape[0],
-                f"Processing Chunk [{curr_idx}/{max_idx}]",
-                pb_pos+1, disable=config['tqdm'])
-
-            for _ in sub_pbar2:
-                pass
-
-        curr_idx+=1
 
 def save_neighborhoods_hdf5(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
-    with h5py.File(config['hdf5_path'], "a") as f:
+    with h5py.File(config['dataset_path'], "a") as f:
         # the goal is to load as little of this into memory at once
         aoi_ = {}; query_ = {}
-        # train_idx = np.random.choice(aoi.shape[0], size=train_size)
         train_idx = np.full(len(aoi), False, dtype=bool)
         train_size = int(config['splits']['train']*aoi.shape[0])
 

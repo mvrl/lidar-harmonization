@@ -71,7 +71,7 @@ def get_dataloaders(config):
     #                 drop_last=False)
 
     return dataloaders
- 
+""" 
 class DistributedWeightedSampler(Sampler):
 # https://discuss.pytorch.org/t/how-to-use-my-own-sampler-when-i-already-use-distributedsampler/62143/8
     def __init__(self, dataset, num_replicas=None, rank=None, replacement=True):
@@ -129,3 +129,4 @@ class DistributedWeightedSampler(Sampler):
 
     def set_epoch(self, epoch):
         self.epoch = epoch
+"""

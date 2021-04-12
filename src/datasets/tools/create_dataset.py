@@ -15,7 +15,7 @@ import h5py
 from tqdm import tqdm, trange
 
 from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points, get_pbar
-from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods
+from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods_hdf5, save_neighborhoods_hdf5_eval
 
 
 def load_shared(path):
@@ -122,18 +122,21 @@ def make_csv(config):
 
     print("Done.")
 
+def setup_eval_hdf5(config):
+    if not config['eval_dataset'].exists():
+        with h5py.File(config['eval_dataset'], "a") as f:
+            eval_dset = f.create_dataset(
+                "eval",
+                (0, 151, 9),
+                chunks=(config['max_chunk_size'], 151, 9),
+                maxshape=(config['eval_tile_size'], 151, 9),
+                dtype=np.float)
+
+
 def create_eval_tile(config):
 
     scans_path = Path(config['scans_path'])
-    save_path = Path(config['eval_save_path'])
-    neighborhoods_path = save_path / "neighborhoods"
-    neighborhoods_path.mkdir(parents=True, exist_ok=True)
-
-    # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
-    # func = partial(save_neighborhood, neighborhoods_path, save_format)
-
     intersecting_flight = config['eval_source_scan']
-
     flight = np.load(scans_path / (intersecting_flight+".npy"))
 
     kd = kdtree._build(flight[:, :3])
@@ -145,25 +148,24 @@ def create_eval_tile(config):
 
     q = kdtree._query(kd, tile[:, :3], k=config['max_n_size'])
 
-    save_neighborhoods(tile, np.array(q), flight, func, config, pb_pos=0)
+    setup_eval_hdf5(config)
 
-    examples = [f for f in neighborhoods_path.glob("*.txt.gz")]
-    df = pd.DataFrame()
-    df['examples'] = examples
-    df.to_csv(save_path / "eval_dataset.csv")
+    save_neighborhoods_hdf5_eval(tile, 
+                                np.array(q), 
+                                flight, 
+                                config, 
+                                pb_pos=0)
 
-    # v = viewer(tile[:, :3])
-    # v.set(lookat=config['eval_tile_center'])
 
-def setup_hdf5(config):
+def setup_dataset_hdf5(config):
 
     # do nothing if we aren't recreating
     if config['create_new']:
 
-        if config['hdf5_path'].exists():
+        if config['dataset_path'].exists():
             print("Creating a new dataset! Deleteing the old one. ")
-            print(config['hdf5_path'])
-            config['hdf5_path'].unlink()  # delete
+            print(config['dataset_path'])
+            config['dataset_path'].unlink()  # delete
             config['create_new'] = False  # don't delete on another iteration
 
         # Size per scan is the igroup sample size times the number of intensity groups.
@@ -178,8 +180,8 @@ def setup_hdf5(config):
         train_size = int(max_size * config['splits']['train'])
         test_size = int(max_size * config['splits']['test'])
 
-        if not config['hdf5_path'].exists():
-            with h5py.File(config['hdf5_path'], "a") as f:
+        if not config['dataset_path'].exists():
+            with h5py.File(config['dataset_path'], "a") as f:
                 train_dset = f.create_dataset(
                     "train",
                     (0, 151, 9),
@@ -199,7 +201,7 @@ def create_dataset(hm, config):
     # Neighborhoods path:
     start=time.time()
 
-    setup_hdf5(config)
+    setup_dataset_hdf5(config)
 
     # Logging
     logging.config.fileConfig(config['creation_log_conf'])
