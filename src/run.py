@@ -26,7 +26,7 @@ hm = HarmonizationMapping(
     create_new=config['dataset']['create_new'])
 
 # create evaluation tile for (optional) evaluation of models
-if not (Path(config['dataset']['eval_save_path']) / 'eval_dataset.csv').exists():
+if not (Path(config['dataset']['eval_dataset']).exists()):
     create_eval_tile(config['dataset'])
 
 print("Starting up...")
