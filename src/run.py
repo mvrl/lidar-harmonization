@@ -23,11 +23,13 @@ hm = HarmonizationMapping(
     config['dataset']['scans_path'],
     config['dataset']['target_scan'],
     config['dataset']['harmonized_path'],
-    create_new=config['dataset']['create_new'])
+    config)
 
 # create evaluation tile for (optional) evaluation of models
 if not (Path(config['dataset']['eval_dataset']).exists()):
     create_eval_tile(config['dataset'])
+else:
+    print("Found eval tile")
 
 print("Starting up...")
 partition = os.getenv('SLURM_JOB_PARTITION', None)
@@ -51,9 +53,7 @@ while True:
     print("building model")
     model, path = train(training_dataloaders, config)
 
-    print("found stage one scans: ")
-    print(hm.get_stage(1))
-
+    # perhaps it makes sense to add `model_path` to the mapping csv so we can load it back in later
     for source_scan_num in hm.get_stage(1):
         print(f"Harmonizing scan {source_scan_num}")
         
@@ -65,13 +65,12 @@ while True:
         np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)
         hm.add_harmonized_scan_path(source_scan_num)
         hm.incr_stage(source_scan_num)
-    
+
     if hm.done():
         break
 
 # if hm.done():
 #   repackage the harmonized scans as laz
 
-config['dataset']['save_path_obj'].cleanup()
 print("finished")
 hm.print_mapping()

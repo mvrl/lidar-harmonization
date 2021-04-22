@@ -333,8 +333,8 @@ def neighborhoods_from_aoi(
     # filter out target points from aoi with neighborhoods in source 
     #   with size < `max_n_size`
     aoi = filter_aoi(
-        kd, 
-        aoi, 
+        kd,
+        aoi,
         config,
         pb_pos=2)
 

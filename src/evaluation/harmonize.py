@@ -15,6 +15,7 @@ from src.datasets.tools.metrics import create_kde
 from src.datasets.tools.lidar_dataset import LidarDatasetNP
 from src.datasets.tools.dataloaders import get_transforms
 from src.config.pbar import get_pbar
+from src.datasets.tools.transforms import GlobalShift
 
 
 # def harmonize(model, scan, harmonization_mapping, config):
@@ -28,8 +29,13 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     b_size = config['train']['batch_size']
     chunk_size = config['dataset']['dataloader_size']
     transforms = get_transforms(config)
+    G = GlobalShift(**config["dataset"])
 
     source_scan = np.load(source_scan_path)
+    
+    if config['dataset']['shift']:
+            source_scan = G(source_scan)
+
     source_scan_num = int(source_scan[0, 8])
     
     if sample_size is not None:

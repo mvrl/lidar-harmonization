@@ -1,10 +1,12 @@
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from shutil import copyfile
+from src.datasets.tools.transforms import GlobalShift
 import code
 
 class HarmonizationMapping:
-	def __init__(self, scans_path, target_scan_num, harmonization_path, create_new=False):
+	def __init__(self, scans_path, target_scan_num, harmonization_path, config):
 		
 		self.harmonization_path = Path(harmonization_path)
 		self.harmonization_path.mkdir(exist_ok=True, parents=True)
@@ -16,12 +18,22 @@ class HarmonizationMapping:
 		target_scan_path = Path(scans_path) / (target_scan_num+".npy")
 
 		# copy to the harmonized path.
+		# - one time this just didn't work. Deleting the copy and restarting the
+		#     program seemed to work.
 		if not (self.harmonization_path / (target_scan_num+".npy")).exists():
-			copyfile(
-			    str(target_scan_path), 
-			    str(self.harmonization_path / (target_scan_num+".npy")))
+			if not config['dataset']['shift']:
+				copyfile(
+				    str(target_scan_path), 
+				    str(self.harmonization_path / (target_scan_num+".npy")))
+			else:
+				# move this later?
+				target = np.load(str(target_scan_path))
+				G = GlobalShift(**config["dataset"])
+				target = G(target)
+				np.save(str(self.harmonization_path / (target_scan_num+".npy")), target)
 
-		if not create_new:
+
+		if not config['dataset']['create_new']:
 			if (self.harmonization_path / "df.csv").exists():
 				self.df = pd.read_csv((self.harmonization_path / "df.csv"), index_col=0)
 			else:

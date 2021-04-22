@@ -90,7 +90,7 @@ config['sig_l'] =  100
 config['sig_s'] =  .7
 
 # training settings:
-config['shift'] = False  # Apply global shift
+config['shift'] = True  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
 config['dataloader_size'] = 500000

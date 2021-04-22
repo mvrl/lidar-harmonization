@@ -14,6 +14,7 @@ import sharedmem
 import h5py
 from tqdm import tqdm, trange
 
+from src.datasets.tools.transforms import GlobalShift
 from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points, get_pbar
 from src.datasets.tools.overlap import neighborhoods_from_aoi, log_message, save_neighborhoods_hdf5, save_neighborhoods_hdf5_eval
 
@@ -27,7 +28,7 @@ def load_shared(path):
 def make_weights_for_balanced_classes(nclasses, config):
     # https://discuss.pytorch.org/t/balanced-sampling-between-classes-with-torchvision-dataloader/2703/3
     count = [0] * nclasses
-    with h5py.File(config['hdf5_path'], "a") as f:
+    with h5py.File(config['dataset_path'], "a") as f:
         dataset = f['train']
         for i in range(dataset.shape[0]):
             label = int(np.floor(dataset[i][0, 3]/config['igroup_size']))  # hdf5
@@ -64,65 +65,8 @@ def save_neighborhood(path, save_format, data):
     np.savetxt(path / save_string, neighborhood)
     return
 
-def make_csv(config):
-    print(f"building csv on {config['save_path']}")
-    dataset_path = Path(config['save_path'])
-    if dataset_path.exists():
-        print(f"Found dataset folder at {config['save_path']}")
-    
-    examples = [f.absolute() for f in (dataset_path / "neighborhoods").glob("*.txt.gz")]
-    if not len(examples):
-        exit(f"could not find examples in {dataset_path / 'neighborhoods'}")
-    print(f"Found {len(examples)} examples")
-
-    # Build a master record of all examples
-    intensities = [None] * len(examples)
-    source_scan = [None] * len(examples)
-    target_scan = [None] * len(examples)
-    
-    for i in trange(len(examples), desc="processing"):
-        filename = examples[i].stem
-        source_scan[i] = filename.split("_")[0]
-        target_scan[i] = filename.split("_")[1]
-        intensities[i] = filename.split("_")[2]
-    
-    df = pd.DataFrame()
-    df['examples'] = examples
-    df['source_scan'] = source_scan
-    df['target_scan'] = target_scan
-    df['target_intensity'] = intensities
-
-    cols = ['source_scan', 'target_scan', 'target_intensity']
-    df[cols] = df[cols].apply(pd.to_numeric)
-    print("Saving csv... ", end='')
-    df.to_csv(dataset_path / "master.csv")
-    print("Done.")
-    
-    # Create training/testing split
-    print("Creating splits...")
-    df = df.sample(frac=1).reset_index(drop=True)
-    sample_count = len(df)
-    split_point = sample_count - sample_count//5
-    df_train = df.iloc[:split_point, :].reset_index(drop=True)
-    df_test = df.iloc[split_point:, :].reset_index(drop=True)
-
-    val_split_point = len(df_test) - len(df_test)//2
-    df_val = df_test.iloc[val_split_point:, :].reset_index(drop=True)
-    df_test = df_test.iloc[:val_split_point, :].reset_index(drop=True)
-    print(f"Training samples: {len(df_train)}")
-    print(f"Validation samples: {len(df_val)}")
-    print(f"Testing samples: {len(df_test)}")
-
-    df_train.to_csv(dataset_path / "train.csv")
-    df_val.to_csv(dataset_path / "val.csv")
-    df_test.to_csv(dataset_path / "test.csv")
-
-    return df_train, df_val, df_test
-
-
-    print("Done.")
-
 def setup_eval_hdf5(config):
+    # just create the file
     if not config['eval_dataset'].exists():
         with h5py.File(config['eval_dataset'], "a") as f:
             eval_dset = f.create_dataset(
@@ -208,9 +152,8 @@ def create_dataset(hm, config):
     logger = logging.getLogger('datasetCreation')
     logger.info("Starting")
 
-    # Save neighborhoods as partial function
-    # save_format = "{source_scan}_{target_scan}_{center}_{idx}.txt.gz"
-    # func = partial(save_neighborhood, neighborhoods_path, save_format)
+    # Shift
+    G = GlobalShift(**config)
 
     # Get point clouds ready to load in
     h_scans_path = {f.stem:f.absolute() for f in Path(config['harmonized_path']).glob("*.npy")}
@@ -225,7 +168,10 @@ def create_dataset(hm, config):
 
     for target_scan_num in pbar_t:
         log_message(f"found target scan {target_scan_num}, checking for potential sources to harmonize", "INFO", logger)
-        target_scan = load_shared(hm[target_scan_num].harmonization_scan_path.values[0])
+        target_scan = load_shared(hm[target_scan_num].harmonization_scan_path.item())
+        if config['shift']:
+            target_scan = G(target_scan)
+        
         pbar_s = get_pbar(
             hm.get_stage(0),
             len(hm.get_stage(0)),
@@ -235,6 +181,9 @@ def create_dataset(hm, config):
         for source_scan_num in pbar_s:
             log_message(f"found potential source scan {source_scan_num}, checking for overlap", "INFO", logger)
             source_scan = load_shared(hm[source_scan_num].source_scan_path.values[0])
+            
+            if config['shift']:
+                source_scan = G(source_scan)
 
             hist_info, _ = get_hist_overlap(target_scan, source_scan)
 
