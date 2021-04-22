@@ -1,6 +1,8 @@
 LiDAR Harmonization
 --
 
+![Pipeline Results](/src/graphics/figures/png/pipeline_results.png)
+
 This is the lidar harmonization repo. See below for results and how to get setup.
 
 ## Setup
