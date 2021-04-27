@@ -19,11 +19,7 @@ config = {
 }
 
 # build a mapping from source scan paths to target scan numbers.
-hm = HarmonizationMapping(
-    config['dataset']['scans_path'],
-    config['dataset']['target_scan'],
-    config['dataset']['harmonized_path'],
-    config)
+hm = HarmonizationMapping(config)
 
 # create evaluation tile for (optional) evaluation of models
 if not (Path(config['dataset']['eval_dataset']).exists()):
@@ -58,8 +54,8 @@ while True:
         print(f"Harmonizing scan {source_scan_num}")
         
         harmonized_scan = harmonize(model,
-                            hm[source_scan_num].source_scan_path.item(), 
-                            hm[source_scan_num].harmonization_target.item(), 
+                            hm[source_scan_num].source_scan_path.item(),
+                            hm[source_scan_num].harmonization_target.item(),
                             config)
 
         np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)

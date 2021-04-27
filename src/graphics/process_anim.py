@@ -2,137 +2,322 @@ from manim import *
 import numpy as np
 from pathlib import Path
 import code
-from pptk import kdtree
-from src.config.patch import patch_mp_connection_bpo_17560
-from src.datasets.tools.overlap import get_hist_overlap, get_overlap_points
 
 # Animation story board:
-# 1: show two scans (different colors, not harmonized!)
-# 2: Show our method
-#    a. Isolate the overlap region
-#    b. Split into neighborhoods (???)
-#    c. Examine a single neighborhood
-#    d. Pointnet extracts local features from source, interpolates point at target
-#    e. Learn a mapping from source --> target
-#    f. Zoom out, apply new color to source scan
+# 1. Show two planes flying across the scene (perpendicular, sequential?).
+#    Differently colored bounding boxes appear behind the planes to indicate the
+#    LiDAR that is being collected on the ground. 
+#
+# 2. The LiDAR rectangles are replaced by evenly spaced dots of the same color.
+#    Initially, the dots occupy the same grid spots (in the overlap). Perhaps
+#    it makes sense to show this and how it is simple to approximate a function
+#    from this. 
+#
+# 3. The dots from the second plane's LiDAR are shifted (there are several ways
+#    to do this: a linear shift, jitter,...). We show how it is no longer simple
+#    to build a transformation. 
 
-class ProcessAnim(ThreeDScene):
+# 4. Explanation of our method... animate that process (the rest of the owl)
+
+# 5. Change the color of the second plane's LiDAR dots to the color of the 
+#    first plane's dots.
+
+class OpenAnim(Scene):
     def construct(self):
-        patch_mp_connection_bpo_17560()
-
-        # Build a test point cloud
-        print("loading points")
-
-        SCALE_FACTOR = 4  # expands the point clouds 
-
-        pc1 = np.load("../datasets/dublin/data/npy/1.npy")
-        pc2 = np.load("../datasets/dublin/data/npy/6.npy")
-        pc12 = np.concatenate((pc1, pc2), axis=0)
-
-        # Center
-        pc1[:, :3] -= np.mean(pc12[:, :3], axis=0)
-        pc2[:, :3] -= np.mean(pc12[:, :3], axis=0)
-        pc12[:, :3] -= np.mean(pc12[:, :3], axis=0)
-
-
-
-        # # Get overlap region
-        if not (Path("aoi_idx.npy").exists() and Path("overlap_info.npy").exists()):
-            print("generating overlap info and aoi_idx")
-            config = {"workers": 8, 'tqdm': False}
-            overlap_info, _ = get_hist_overlap(pc1, pc2, 10000)
-            aoi_idx = get_overlap_points(pc1, overlap_info, config)
-            np.save("aoi_idx", aoi_idx)
-            np.save("overlap_info", overlap_info)
-
-        else:
-            print("Loading overlap info and aoi idx")
-            aoi_idx = np.load("aoi_idx.npy")
-            # overlap_info = np.load("overlap_info.npy", allow_pickle=True)
-
-        # Normalize
-        dist_max = np.sqrt(np.sum(((pc12[:, :3] - [0, 0, 0])**2), axis=1)).max()
-        print(dist_max)
-        pc1[:, :3] /= (dist_max/SCALE_FACTOR)
-        pc2[:, :3] /= (dist_max/SCALE_FACTOR)
-
-        print(f"Got overlap! Size: {aoi_idx.shape} ({aoi_idx.shape[0]/pc1.shape[0]})")
-        # Get a reasonable sample of neighborhoods from pc1-->pc2
-        kd = kdtree._build(pc2[:, :3], numprocs=8)
-        query = kdtree._query(kd, pc1[aoi_idx, :3], k=10, dmax=1, numprocs=8)
-        print("Query: ", len(query))
-
-        neighborhoods = []
-        targets = []
-        sample_aoi = np.random.choice(len(query), size=100)
-        
-        for i in sample_aoi:
-            neighborhoods.append(pc2[query[i]])
-
-        print(len(neighborhoods))
-        targets = pc1[aoi_idx][sample_aoi]
-        print(targets.shape)
-
-        pc1_group = PMobject().add_points(targets[:, :3], color=RED_E)
-
-        pc2_group = []
-        for i in range(len(neighborhoods)):            
-            pc2_group.append(PMobject().add_points(
-                neighborhoods[i][:, :3], color=BLUE_E))
-
-
-
-
-        ### Visualize scans
-        sample1 = np.random.choice(len(pc1), size=10000)
-        sample2 = np.random.choice(len(pc2), size=10000)
-
-        pc1_v = pc1[sample1]
-        pc2_v = pc2[sample2]
-
-        targets_group = PGroup(*pc1_group)
-        neighborhood_group = PGroup(*pc2_group)
-
-        # Setup Scene
-        pm1 = PMobject()
-        pm2 = PMobject()
-        pm1.add_points(pc1_v[:, :3], color=BLUE_E)
-        pm2.add_points(pc2_v[:, :3], color=RED_E)
-        pm1.set_stroke_width(2)
-        pm2.set_stroke_width(2)
-
-        # See camera settings
-        print("Starting Distance")
-        print(self.camera.get_distance())
-        print("Starting phi")
-        print(self.camera.get_phi())
-        print("Starting theta")
-        print(self.camera.get_theta())
-
-
+        grid = NumberPlane()
         # Create the scene
-        self.add(pm1)
-        self.add(pm2)
-        self.add(targets_group)
-        self.add(neighborhood_group)
-        # self.add(overlap area)
+        self.add(grid)
+        self.remove(grid)  # this is hacky
 
-        # Adjust camera some?
-        self.move_camera(phi=0.10, theta=0.0)
-        self.wait()
+        # Scene 1:
+        """
+        LiDAR has become a very powerful tool for surveying large regions very
+        quickly. LiDAR sensors can be affixed to planes, and then these planes
+        can very easiliy sweep large regions by moving back and forth across the
+        area of interest. This method is powerful, as LiDAR is extremely accurate
+        ....
 
-        self.play(
-            FadeOutAndShift(pm1),
-            FadeOutAndShift(pm2))
+        """
+        plane1_pos1 = np.array([-8, 3, 0])
+        plane1_pos2 = np.array([8, 3, 0])
+        plane1 = ImageMobject("plane.png").move_to(plane1_pos1)# .rotate(-PI/4)
+        plane1.height = 1
+        plane1.width = 1
+        plane1.rotate(-PI/2)
         
-        self.move_camera(distance=10)
+        for i in range(4):
+
+            rect1_1 = Rectangle(color=RED, height=2, width=1).move_to(plane1_pos1)
+            rect1_1.set_fill(RED, opacity=0.5)
+            rect1_2 = Rectangle(color=RED, height=2, width=32).move_to(plane1_pos1)
+            rect1_2.set_fill(RED, opacity=0.5)
+            self.add(rect1_1)
+            self.add(plane1)
+            
+            self.play(
+                ApplyMethod(plane1.move_to, plane1_pos2),
+                Transform(rect1_1, rect1_2), 
+                rate_func=linear, run_time=3)
+            self.wait()
+
+            self.remove(plane1)
+            plane1_pos1[1] -= 2
+            plane1_pos2[1] -= 2
+            plane1_pos1[0] = -plane1_pos1[0]
+            plane1_pos2[0] = -plane1_pos2[0]
+            plane1.move_to(plane1_pos1)
+            plane1.rotate(PI)
+
+        self.wait(2)
+        self.clear()
+        self.wait(2)
+
+class OverlapAnim(Scene):
+    def construct(self):
+        grid = NumberPlane()
+        # Create the scene
+        self.add(grid)
+        self.remove(grid)  # this is hacky
+
+        # Scene 2: 
+        """
+        Sometimes, data acquisition takes multiple flights, either with multiple 
+        planes or sequential flights over a longer period of time. Conditions 
+        such as humidity, temperature, and wetness all affect the intensity 
+        measurement. It may even be the case that sensors calibration is just a 
+        little bit different. This presents a problem when trying to compare 
+        scans that are ajacent or overlapping: since the intensity is different,
+        our ability to use intensity as a feature for tasks such as 
+        classification or detection is impaired.
+        """
+        plane1_pos1 = np.array([-8, 0, 0])
+        plane1_pos2 = np.array([8, 0, 0])
+        plane1 = ImageMobject("plane.png").move_to(plane1_pos1)# .rotate(-PI/4)
+        plane1.height = 1
+        plane1.width = 1
+        plane1.rotate(-PI/2)
+
+        rect1_1 = Rectangle(color=RED, height=2, width=1).move_to(plane1_pos1)
+        rect1_1.set_fill(RED, opacity=0.5)
+        rect1_2 = Rectangle(color=RED, height=2, width=32).move_to(plane1_pos1)
+        rect1_2.set_fill(RED, opacity=0.5)
+
+        plane2_pos1 = np.array([0, -5, 0])
+        plane2_pos2 = np.array([0, 5, 0])
+        plane2 = ImageMobject("plane.png").move_to(plane2_pos1)# .rotate(-3*PI/4)
+        plane2.height = 1
+        plane2.width = 1
+        rect2_1 = Rectangle(color=BLUE, height=1, width=2).move_to(plane2_pos1)
+        rect2_1.set_fill(BLUE)
+        rect2_2 = Rectangle(color=BLUE, height=20, width=2).move_to(plane2_pos1)
+        rect2_2.set_fill(BLUE, opacity=0.5)
+
+        self.add(rect1_1)
+        self.add(rect2_1)
+        self.add(plane2)
+        self.add(plane1)
+        
+        self.wait()
+        self.play(
+            ApplyMethod(plane1.move_to, plane1_pos2),
+            Transform(rect1_1, rect1_2),
+            rate_func=linear, run_time=3),
         self.wait()
 
         self.play(
-            neighborhood_group.animate.shift([0, 0, .1]),
-            targets_group.animate.shift([0, 0, 1]))
+            ApplyMethod(plane2.move_to, plane2_pos2),
+            Transform(rect2_1, rect2_2),
+            rate_func=linear, run_time=3)
 
+        self.wait(2)
+        self.clear()
+        self.wait(2)
+
+class OverlapAnimDots(Scene):
+    def construct(self):
+        grid = NumberPlane()
+        self.add(grid)
+        self.remove(grid)
+
+        # Scene 3:
+        """
+        Let's take a closer look at this. The point cloud data is now shown.
+        In an ideal world, we would have points that overlap nicely. In this
+        case, we could just approximate a function using our favorite function
+        approximation algorithm. However, it is rare for there to be a case like
+        this. 
+        """
+        density=.5  # (np defaults to 50)
+        dot_radius = 0.12  # (manim defaults to 0.08)
+        vertical_space_ratio = 8
+
+        plane1_pos1 = np.array([-8, 0, 0])
+        rect1 = Rectangle(color=RED, height=2, width=16).set_fill(RED, opacity=0.5)
+        rect2 = Rectangle(color=BLUE, height=10, width=2).set_fill(BLUE, opacity=0.5)
+        self.add(rect1)
+        self.add(rect2)
+
+        dots1_coords = []
+        for i in np.arange(-8, 8+density, density):
+            for j in np.arange(-1, 1+density, density):
+                dots1_coords.append(np.array([i, j, 0]))
+
+        dots1 = [Dot(i, radius=dot_radius).set_fill(RED, opacity=1) for i in dots1_coords]
+
+
+        dots2_coords = []
+        for i in np.arange(-1, 1+density, density):
+            for j in np.arange(-5, 5+density, density):
+                dots2_coords.append(np.array([i, j, 0]))
+
+        dots2 = [Dot(i, radius=dot_radius).set_fill(BLUE, opacity=1) for i in dots2_coords]
+
+        dot1set = set([tuple(x) for x in dots1_coords])
+        dot2set = set([tuple(x) for x in dots2_coords])
+        dots_overlap_coords = np.array([x for x in dot1set & dot2set])
+
+        dots1_overlap = [Dot(i, radius=dot_radius).set_fill(RED, opacity=1) for i in dots_overlap_coords]
+        dots2_overlap = [Dot(i, radius=dot_radius).set_fill(BLUE, opacity=1) for i in dots_overlap_coords]
+
+        # transform overlap points into a straight vertical line
+        num_dots = len(dots1_overlap)
+
+        dots_vertical_coords = []
+        for i in np.linspace(-num_dots/vertical_space_ratio, num_dots/vertical_space_ratio, num_dots):
+            dots_vertical_coords.append([0, i, 0])
+
+        dots1_vertical = [Dot(i, radius=dot_radius/2).set_fill(RED, opacity=1) for i in dots_vertical_coords]
+        dots2_vertical = [Dot(i, radius=dot_radius/2).set_fill(BLUE, opacity=1) for i in dots_vertical_coords]
+
+        dots_overlap_to_vertical_anim = []
+        for i in range(num_dots):
+            dots_overlap_to_vertical_anim.append(ReplacementTransform(dots1_overlap[i], dots1_vertical[i]))
+            dots_overlap_to_vertical_anim.append(ReplacementTransform(dots2_overlap[i], dots2_vertical[i]))
+
+        # Reset overlap with harmonized colors
+        dots1_overlap_h = [Dot(i, radius=dot_radius).set_fill(RED, opacity=1) for i in dots_overlap_coords]
+        dots2_overlap_h = [Dot(i, radius=dot_radius).set_fill(RED, opacity=1) for i in dots_overlap_coords]
+
+        dots_vertical_to_overlap_anim = []
+        for i in range(num_dots):
+            dots_vertical_to_overlap_anim.append(ReplacementTransform(dots1_vertical[i], dots1_overlap_h[i]))
+            dots_vertical_to_overlap_anim.append(ReplacementTransform(dots2_vertical[i], dots2_overlap_h[i]))
+
+        dots1_anim = AnimationGroup(*[GrowFromCenter(d) for d in dots1])
+        dots2_anim = AnimationGroup(*[GrowFromCenter(d) for d in dots2])
+        dots1_group = VGroup(*dots1)
+        dots2_group = VGroup(*dots2)
+        dots1_overlap_group = VGroup(*dots1_overlap)
+        dots2_overlap_group = VGroup(*dots2_overlap)
+
+        dots1_overlap_h_group = VGroup(*dots1_overlap_h)
+        dots2_overlap_h_group = VGroup(*dots2_overlap_h)
+
+        dots1_vertical_group = VGroup(*dots1_vertical)
+        dots2_vertical_group = VGroup(*dots2_vertical)
+
+        vertical_expression_tex = MathTex(r'I_x = f(H_x)')
+        vertical_expression_tex_2 = MathTex(r'H_x = g(I_x), g = f^{-1}')
+
+        self.play(
+            dots1_anim,
+            dots2_anim,
+            FadeOut(rect1),
+            FadeOut(rect2))
+        self.wait()
+        self.play(
+            FadeIn(dots1_overlap_group),
+            FadeIn(dots2_overlap_group),
+            FadeOut(dots1_group),
+            FadeOut(dots2_group)
+            )
         self.wait()
 
-        # self.remove(pm)
-        self.wait(1)
+        # show the two sets overlap
+        self.play(
+            dots1_overlap_group.animate.shift(np.array([3.0, 0, 0])),
+            dots2_overlap_group.animate.shift(np.array([-3.0, 0, 0])))
+        self.wait()
+
+        # put them back
+        self.play(
+            dots1_overlap_group.animate.shift(np.array([-3.0, 0, 0])),
+            dots2_overlap_group.animate.shift(np.array([3.0, 0, 0])))
+        self.wait()
+
+        # lay them out vertically
+        self.play(AnimationGroup(*dots_overlap_to_vertical_anim))
+        self.wait()
+
+        # shift the dot sets
+        self.play(
+            dots1_vertical_group.animate.shift(np.array([3.0, 0, 0])),
+            dots2_vertical_group.animate.shift(np.array([-3.0, 0, 0]))
+            )
+        self.wait()
+
+        # write out our equation for kicks
+        self.play(Write(vertical_expression_tex))
+        self.wait()
+
+        self.play(vertical_expression_tex.animate.shift(np.array([0, 1, 0])))
+        self.wait()
+        self.play(Write(vertical_expression_tex_2))
+        self.wait()
+
+        # harmonize dots
+        self.play(dots2_vertical_group.animate.set_fill(RED, opacity=1))
+        self.wait()
+
+        # remove tex
+        self.play(
+            vertical_expression_tex.animate.shift(np.array([0, 10, 0])),
+            vertical_expression_tex_2.animate.shift(np.array([0, 10, 0])))
+        self.wait()
+        self.remove(vertical_expression_tex)
+        self.remove(vertical_expression_tex_2)
+
+        # reverse the animation sequence
+        # shift the dot sets
+        self.play(
+            dots1_vertical_group.animate.shift(np.array([-3.0, 0, 0])),
+            dots2_vertical_group.animate.shift(np.array([3.0, 0, 0]))
+            )
+        self.wait()
+
+        # put them back in the grid
+        self.play(AnimationGroup(*dots_vertical_to_overlap_anim))
+        self.wait()
+
+        # show the whole set
+        self.play(
+            FadeIn(dots2_group),
+            FadeIn(dots1_group),
+            FadeOut(dots1_overlap_h_group),
+            FadeOut(dots2_overlap_h_group)
+            )
+        self.wait()
+
+        self.play(dots2_group.animate.set_color(RED))
+        self.wait()
+
+        rect2.set_color(RED)
+
+        self.play(
+            FadeOut(dots2_group),
+            FadeOut(dots1_group),
+            FadeIn(rect1),
+            FadeIn(rect2),
+            rect1.animate.set_fill(RED_C, opacity=1),
+            rect2.animate.set_fill(RED_C, opacity=1)
+            )
+        self.wait()
+
+
+        self.play(
+            FadeOut(rect1),
+            FadeOut(rect2))
+        self.wait()
+        
+
+

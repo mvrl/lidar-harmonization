@@ -7,7 +7,7 @@ from src.config.pbar import get_pbar
 from pptk import viewer
 
 
-def harmonization_visualization(gt_collection_path, hm_collection_path, sample_size=100000, view=True):
+def harmonization_visualization(gt_collection_path, hm_collection_path, sample_size=100000, shift=False, view=True):
     gt_files = {f.stem:f for f in gt_collection_path.glob("*.npy")}
     hm_files = {f.stem:f for f in hm_collection_path.glob("*.npy")}
     
@@ -23,6 +23,8 @@ def harmonization_visualization(gt_collection_path, hm_collection_path, sample_s
 
     for idx, scan_num in pbar:
         scan = np.load(gt_files[scan_num])
+        if shift:
+            scan = G(scan)
         if scan_num != config['target_scan']:
             corruption = C(scan)[1:, 3] # no copy of first point
             harmonization = np.load(hm_files[scan_num])[:, 3] # intensity only
@@ -77,5 +79,6 @@ def harmonization_visualization(gt_collection_path, hm_collection_path, sample_s
 if __name__ == "__main__":
     harmonization_visualization(config['scans_path'], 
                                 config['harmonized_path'],
-                                sample_size=100000)
+                                sample_size=100000,
+                                shift=True)
 

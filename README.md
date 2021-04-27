@@ -1,9 +1,12 @@
 LiDAR Harmonization
 --
-
+### [Project Page](https://davidthomasjones.me/publications/Intensity%20Harmonization) | [Video]() | [Paper]()
 ![Pipeline Results](/src/graphics/figures/png/pipeline_results.png)
 
-This is the lidar harmonization repo. See below for results and how to get setup.
+Pytorch implementation of harmonizing a collection of airborne LiDAR scans, where each scan may have unique sensor callibrations or varying acquisition conditions.
+
+Airborne LiDAR Intensity Harmonization<br>
+[David Jones](https://davidthomasjones.me), [Nathan Jacobs](https://www.engr.uky.edu/directory/jacobs-nathan)
 
 ## Setup
 

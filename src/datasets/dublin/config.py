@@ -69,31 +69,15 @@ config['sig_l'] =  100
 config['sig_s'] =  .7
 
 # training settings:
-config['shift'] = False  # Apply global shift
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
+config['shift'] = True  # Apply global shift
+config['dataloader_size'] = 500000
 
 # this sets the limit for RAM usage during the actual harmonization process. 
 #   Using a higher value consumes more RAM. Recommend 100-200k for 32GB of RAM.
-config['dataloader_size'] = 10000 
+config['dataloader_size'] = 10000
 
-# Corruption
-config['dorf_path'] =  config['data_path'] / 'dorf.json'
-config['mapping_path'] =  config['data_path'] / 'mapping.npy'
-config['max_intensity'] =  1
-
-# global shift settings:
-config['bounds_path'] =  config['data_path'] / 'bounds.npy'
-config['sig_floor'] =  .3
-config['sig_center'] =  .5
-config['sig_l'] =  100
-config['sig_s'] =  .7
-
-# training settings:
-config['shift'] = True  # Apply global shift
-config['use_ss'] = True  # use training examples from outside the overlap
-config['phases'] = ['train', 'test']
-config['dataloader_size'] = 500000
 
 ### do not modify
 if config['shift']:

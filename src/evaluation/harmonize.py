@@ -1,5 +1,5 @@
 from pathlib import Path
-from pptk import kdtree
+
 import numpy as np
 import code
 from multiprocessing import Pool
@@ -11,11 +11,15 @@ import matplotlib
 import matplotlib.pyplot as plt
 from pprint import pprint
 
+from src.datasets.tools.harmonization_mapping import HarmonizationMapping
 from src.datasets.tools.metrics import create_kde
 from src.datasets.tools.lidar_dataset import LidarDatasetNP
 from src.datasets.tools.dataloaders import get_transforms
 from src.config.pbar import get_pbar
-from src.datasets.tools.transforms import GlobalShift
+from src.datasets.tools.transforms import GlobalShift, Corruption
+from src.evaluation.histogram_matching import hist_match
+
+from pptk import kdtree
 
 
 # def harmonize(model, scan, harmonization_mapping, config):
@@ -122,7 +126,7 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
     cr = cr.numpy()
     cr = np.expand_dims(cr, 1)
 
-    if config['dataset']['name'] == "dublin":
+    if config['dataset']['name'] == "dublin" and sample_size is None:
         create_kde(source_scan[sample, 3], hz.squeeze(),
                     xlabel="ground truth harmonization", ylabel="predicted harmonization",
                     output_path=plots_path / f"{source_scan_num}-{target_scan_num}_harmonization.png")
@@ -147,3 +151,80 @@ def harmonize(model, source_scan_path, target_scan_num, config, save=False, samp
         np.save((Path(config['dataset']['harmonized_path']) / (str(source_scan_num)+".npy")), harmonized_scan)
 
     return harmonized_scan     
+
+def harmonize_hm(source_scan_path, target_scan, config, save=False, sample_size=None):
+
+    harmonized_path = Path(config['dataset']['harmonized_path'])
+    plots_path = harmonized_path / "plots"
+    plots_path.mkdir(exist_ok=True, parents=True)
+
+    transforms = get_transforms(config)
+    C = Corruption(**config['dataset'])
+    G = GlobalShift(**config['dataset'])
+
+    source_scan = np.load(source_scan_path)
+    
+    if config['dataset']['shift']:
+            source_scan = G(source_scan)
+
+    source_scan_num = int(source_scan[0, 8])
+    
+    if sample_size is not None:
+        sample = np.random.choice(source_scan.shape[0], sample_size)
+    else:
+        sample = np.arange(source_scan.shape[0])
+
+    size = len(source_scan.shape)
+    
+    ### perform harmonization here ###
+
+    gt_intensity = source_scan[sample, 3].copy()
+    alt_intensity = C(source_scan)[1:, 3][sample]  # chop off added point used in train
+    fix_intensity = hist_match(alt_intensity, target_scan[:, 3])
+
+    ### -------------------------- ###
+
+    # visualize results
+    if config['dataset']['name'] == "dublin":
+        create_kde(gt_intensity, fix_intensity,
+                    xlabel="ground truth harmonization", ylabel="predicted harmonization",
+                    output_path=plots_path / f"{source_scan_num}-{config['dataset']['target_scan_num']}_harmonization.png")
+
+        create_kde(gt_intensity, alt_intensity,
+                    xlabel="ground truth", ylabel="corruption",
+                    output_path=plots_path / f"{source_scan_num}-{config['dataset']['target_scan_num']}_corruption.png")
+    
+
+    # insert results into original scan
+    harmonized_scan = np.hstack((source_scan[sample, :3], np.expand_dims(fix_intensity, 1), source_scan[sample, 4:])) 
+
+    if config['dataset']['name'] == "dublin":
+        scan_error = np.mean(np.abs(source_scan[sample, 3] - fix_intensity))
+        print(f"Scan {source_scan_num} Harmonize MAE: {scan_error}")
+
+    if save:
+        np.save((Path(config['dataset']['harmonized_path']) / (str(source_scan_num)+".npy")), harmonized_scan)
+
+    return harmonized_scan
+
+if __name__ == "__main__":
+    from src.datasets.dublin.config import config as dublin_config
+    from src.training.config import config as train_config
+
+    config = {
+        "dataset": dublin_config,
+        "train": train_config
+    }
+
+    hm = HarmonizationMapping(config)
+    target_scan = np.load(config['dataset']['scans_path'] / (str(config['dataset']['target_scan']) + '.npy'))
+
+    for source_scan_num in hm.get_stage(0):
+        harmonized_scan = harmonize_hm(
+                            hm[source_scan_num].source_scan_path.item(), 
+                            target_scan,
+                            config)
+
+        np.save(str(hm.harmonization_path / (str(source_scan_num)+".npy")), harmonized_scan)
+        hm.add_harmonized_scan_path(source_scan_num)
+        hm.incr_stage(source_scan_num)

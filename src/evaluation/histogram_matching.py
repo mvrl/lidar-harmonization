@@ -6,7 +6,6 @@ import pandas as pd
 import torch
 
 from tqdm import tqdm
-from src.datasets.tools.dataloaders import get_dataloader
 from src.datasets.dublin.tools.shift import apply_shift_pc, sigmoid, get_physical_bounds
 
 def hist_match(target, reference):
@@ -24,9 +23,11 @@ def hist_match(target, reference):
     # global mins and maxes
     g = np.concatenate((target, reference))
 
-    # bins
+    # bins can be a little tricky to choose. We use 512 since there are 512 
+    # possible intensities (assuming intensity is a whole number)
     bin_range = [g.min(), g.max()]
-    bin_num = int((g.max()-g.min())/5.)
+    # bin_num = int((g.max()-g.min())/5.)
+    bin_num = 512
     
     # Convert distributions to histograms
     target_hist, target_be = np.histogram(target, bins=bin_num, range=bin_range, density=True)
