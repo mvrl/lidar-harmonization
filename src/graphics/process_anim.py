@@ -3,25 +3,6 @@ import numpy as np
 from pathlib import Path
 import code
 
-# Animation story board:
-# 1. Show two planes flying across the scene (perpendicular, sequential?).
-#    Differently colored bounding boxes appear behind the planes to indicate the
-#    LiDAR that is being collected on the ground. 
-#
-# 2. The LiDAR rectangles are replaced by evenly spaced dots of the same color.
-#    Initially, the dots occupy the same grid spots (in the overlap). Perhaps
-#    it makes sense to show this and how it is simple to approximate a function
-#    from this. 
-#
-# 3. The dots from the second plane's LiDAR are shifted (there are several ways
-#    to do this: a linear shift, jitter,...). We show how it is no longer simple
-#    to build a transformation. 
-
-# 4. Explanation of our method... animate that process (the rest of the owl)
-
-# 5. Change the color of the second plane's LiDAR dots to the color of the 
-#    first plane's dots.
-
 MY_RED = RED
 MY_PURPLE = PURPLE
 MY_GREEN = GREEN
@@ -37,6 +18,10 @@ class OpenAnim(MovingCameraScene):
 
         # Scene 1:  ~ 1 min
         """
+        We present Intensity Harmonization for Airborne LiDAR, a new method for 
+        harmonizing airborne lidar intensity across a large collection of lidar
+        scans. 
+
         LiDAR has become a very powerful tool for surveying large regions very
         quickly. LiDAR sensors can be affixed to planes, and then these planes
         can very easiliy sweep large regions by moving back and forth across the
@@ -76,7 +61,6 @@ class OpenAnim(MovingCameraScene):
                 ApplyMethod(plane1.move_to, plane1_pos2),
                 Transform(rect1_1, rect1_2), 
                 rate_func=linear, run_time=4)
-            self.wait()
 
             self.remove(plane1)
             plane1_pos1[1] -= 2
@@ -220,8 +204,6 @@ class OverlapAnimDots(Scene):
 
         vertical_expression_tex = MathTex(r'I_x = f(H_x)')
         vertical_expression_tex_2 = MathTex(r'H_x = g(I_x), g = f^{-1}')
-
-
 
         self.play(
             dots1_anim,
@@ -416,15 +398,266 @@ class OverlapAnimMorePlanes(Scene):
 
         self.wait()
         self.play(
-            ApplyMethod(plane3.move_to, plane3_pos2),
-            ApplyMethod(plane4.move_to, plane4_pos2),
-            ReplacementTransform(rect3_1, rect3_2),
-            ReplacementTransform(rect4_1, rect4_2))
+            plane3.animate.move_to(plane3_pos2),
+            plane4.aniamte.move_to(plane4_pos2))
         self.wait()
-        self.remove(rect3_1)
-        self.remove(rect4_1)
 
         self.play(
+            Transform(rect3_1, rect3_2),
+            Transform(rect4_1, rect4_2),
             Transform(rect3_2, rect3_2_red),
             Transform(rect4_2, rect4_2_red))
         self.wait()
+
+class OverlapAnimDotsActual(MovingCameraScene):
+    def setup(self):
+        MovingCameraScene.setup(self)
+
+    def construct(self):
+        point_spread = 2
+        density=.5  # this is the spacing (used in linspace, np defaults to 50)
+        dot_radius = 0.12  # (manim defaults to 0.08)
+        vertical_space_ratio = 8
+        scale_factor = 0.35
+
+        grid = NumberPlane()
+        self.add(grid)
+        self.remove(grid)
+
+        # create our 5x5 grid of dots ("perfect overlap")
+        grid_coords = []
+        for i in np.arange(-1, 1+density, density):
+            for j in np.arange(-1, 1+density, density):
+                grid_coords.append(np.array([float(i), float(j), float(0)], dtype=float))
+
+        grid_dots_red = [Dot(i, radius=dot_radius).set_fill(MY_RED, opacity=1) for i in grid_coords]
+        grid_dots_red_group = VGroup(*grid_dots_red)
+        grid_dots_blue = [Dot(i, radius=dot_radius).set_fill(MY_BLUE, opacity=1) for i in grid_coords]
+        grid_dots_blue_group = VGroup(*grid_dots_blue)
+
+        self.add(grid_dots_blue_group, grid_dots_red_group)
+        self.play(
+            FadeIn(grid_dots_red_group),
+            FadeIn(grid_dots_blue_group)
+            )
+        self.wait()
+
+        # add jitter to the grid
+        grid_jittered_coords_red = []
+        for i in np.arange(-1, 1+density, density):
+            for j in np.arange(-1, 1+density, density):
+                x_jitter = point_spread*(np.random.rand(1)-.5)[0]
+                y_jitter = point_spread*(np.random.rand(1)-.5)[0]
+                grid_jittered_coords_red.append(np.array([i+x_jitter, j+y_jitter, 0]))
+
+        grid_jittered_coords_blue = []
+        for i in np.arange(-1, 1+density, density):
+            for j in np.arange(-1, 1+density, density):
+                x_jitter = 2*(np.random.rand(1)-.5)[0]
+                y_jitter = 2*(np.random.rand(1)-.5)[0]
+                grid_jittered_coords_blue.append(np.array([i+x_jitter, j+y_jitter, 0]))
+
+        transition_anim = []
+        for i, dot in enumerate(grid_dots_blue):
+            transition_anim.append(dot.animate.move_to(grid_jittered_coords_blue[i]))
+
+        for i, dot in enumerate(grid_dots_red):
+            transition_anim.append(dot.animate.move_to(grid_jittered_coords_red[i]))
+
+        self.play(
+            AnimationGroup(*transition_anim)
+            )
+        self.wait()
+        
+        scale_down_anim_red = [dot.animate.scale(scale_factor) for dot in grid_dots_red]
+        scale_down_anim_blue = [dot.animate.scale(scale_factor) for dot in grid_dots_blue]
+        self.camera.frame.save_state()
+        self.play(
+            self.camera.frame.animate.set(width=4),
+            AnimationGroup(*scale_down_anim_blue),
+            AnimationGroup(*scale_down_anim_red)
+            )
+        self.wait()
+
+
+         # Find a red dot that is close to (0, 0, 0)
+        distance_vectors = np.abs(np.repeat(np.array([[0, 0, 0]]), len(grid_jittered_coords_red), axis=0) - np.stack(grid_jittered_coords_red))
+        distances = np.sqrt(distance_vectors[:, 0]**2 + distance_vectors[:, 1]**2 )
+        closest_red_dot_idx = np.argmin(distances)
+        red_dot_coord = grid_jittered_coords_red[closest_red_dot_idx]
+
+        # Find blue dots that close to the selected red dot (N=5?)
+        distance_vectors = np.abs(np.repeat(np.expand_dims(grid_jittered_coords_red[closest_red_dot_idx], 0), len(grid_jittered_coords_blue), axis=0) - np.stack(grid_jittered_coords_blue))
+        distances = np.sqrt(distance_vectors[:, 0]**2 + distance_vectors[:, 1]**2 )
+        blue_dots_by_distance = np.argsort(distances)
+        blue_dot_coords = [grid_jittered_coords_blue[i] for i in blue_dots_by_distance]
+
+        # draw arrows from red dots to blue dots
+        # arrows = [Arrow(start=red_dot_coord, end=dest_coord, max_stroke_width_to_length_ratio=1) for dest_coord in blue_dot_coords[:5]]
+        arrows = [Line(start=red_dot_coord, end=dest_coord, stroke_width=1, buff=.037) for dest_coord in blue_dot_coords[:5]]
+
+        self.play(
+            *[GrowFromPoint(arrow, red_dot_coord) for arrow in arrows]
+
+            )
+        self.wait()
+
+        # do this for all the red dots
+        arrows_all = []
+        arrows_all_anim = []
+        for curr_red_dot_coord in grid_jittered_coords_red:
+            # Find blue dots that close to the selected red dot (N=5?)
+            if np.allclose(curr_red_dot_coord, red_dot_coord):
+                # skip the original above!
+                continue
+            distance_vectors = np.abs(np.repeat(np.expand_dims(curr_red_dot_coord, 0), len(grid_jittered_coords_blue), axis=0) - np.stack(grid_jittered_coords_blue))
+            distances = np.sqrt(distance_vectors[:, 0]**2 + distance_vectors[:, 1]**2 )
+            blue_dots_by_distance = np.argsort(distances)
+            blue_dot_coords = [grid_jittered_coords_blue[i] for i in blue_dots_by_distance]
+
+            # draw arrows from red dots to blue dots, use grey so we aren't overwhelming the viewer
+            curr_arrows = [Line(start=curr_red_dot_coord, end=dest_coord, stroke_color=GREY, stroke_width=1, buff=.033) for dest_coord in blue_dot_coords[:5]]
+            arrows_all.extend(curr_arrows)
+            arrows_all_anim.extend([GrowFromPoint(arrow, curr_red_dot_coord) for arrow in curr_arrows])
+        
+        self.play(
+            AnimationGroup(*arrows_all_anim)
+            )
+        self.wait(2) # time for arrows to stay alive
+
+        # "Interpolate using pointnet" -- give a blue dot where the red dots are
+        # explain how pointnet uses local features to interpolate this point
+        interpolated_dots = [Dot(i, radius=dot_radius*scale_factor).set_fill(MY_BLUE, opacity=1) for i in grid_jittered_coords_red]
+        interpolated_dots_group = VGroup(*interpolated_dots)
+
+        # return to normal
+        scale_up_anim_red = [dot.animate.scale(1/scale_factor) for dot in grid_dots_red]
+        scale_up_anim_interpolated = [dot.animate.scale(1/scale_factor) for dot in interpolated_dots]
+        self.play(
+            *[FadeOut(arrow) for arrow in arrows],
+            *[FadeOut(arrow) for arrow in arrows_all],
+            FadeIn(interpolated_dots_group),
+            FadeOut(grid_dots_blue_group),
+            Restore(self.camera.frame),
+            AnimationGroup(*scale_up_anim_interpolated),
+            AnimationGroup(*scale_up_anim_red)
+            )
+        self.wait()
+
+        # mirror previous scene - convert to vertical line, show eqns, etc
+        self.play(
+            interpolated_dots_group.animate.shift(np.array([-3.5, 0, 0])),
+            grid_dots_red_group.animate.shift(np.array([3.5, 0, 0]))
+            )
+        self.wait()
+
+        self.play(
+            interpolated_dots_group.animate.shift(np.array([3.5, 0, 0])),
+            grid_dots_red_group.animate.shift(np.array([-3.5, 0, 0]))
+            )
+        self.wait()
+
+        # convert to vertical lines
+        num_dots = len(interpolated_dots)
+        print("Num dots: ", num_dots)
+
+        dots_vertical_coords = []
+        for i in np.linspace(-num_dots/vertical_space_ratio, num_dots/vertical_space_ratio, num_dots):
+            dots_vertical_coords.append([0, i, 0])
+
+        interpolated_dots_vertical = [Dot(i, radius=dot_radius/2).set_fill(MY_BLUE, opacity=1) for i in dots_vertical_coords]
+        red_dots_vertical = [Dot(i, radius=dot_radius/2).set_fill(MY_RED, opacity=1) for i in dots_vertical_coords]
+        interpolated_dots_vertical_group = VGroup(*interpolated_dots_vertical)
+        red_dots_vertical_group = VGroup(*red_dots_vertical)
+
+        go_vertical_anim = []
+        for i in range(num_dots):
+            go_vertical_anim.append(ReplacementTransform(interpolated_dots[i], interpolated_dots_vertical[i])),
+            go_vertical_anim.append(ReplacementTransform(grid_dots_red[i], red_dots_vertical[i]))
+
+        self.play(
+            AnimationGroup(*go_vertical_anim))
+
+        # shift the dot sets
+        self.play(
+            interpolated_dots_vertical_group.animate.shift(np.array([-3.0, 0, 0])),
+            red_dots_vertical_group.animate.shift(np.array([3.0, 0, 0]))
+            )
+        self.wait()
+
+        vertical_expression_tex = MathTex(r'I_x = f(H_x)')
+        vertical_expression_tex_2 = MathTex(r'H_x = g(I_x), g = f^{-1}')
+
+        # write out our equation for kicks
+        self.play(Write(vertical_expression_tex))
+        self.wait()
+
+        self.play(vertical_expression_tex.animate.shift(np.array([0, 1, 0])))
+        self.wait()
+        self.play(Write(vertical_expression_tex_2))
+        self.wait()
+
+        # harmonize dots
+        self.play(interpolated_dots_vertical_group.animate.set_fill(MY_RED, opacity=1))
+        self.wait()
+
+        # remove tex
+        self.play(
+            vertical_expression_tex.animate.shift(np.array([0, 10, 0])),
+            vertical_expression_tex_2.animate.shift(np.array([0, 10, 0])))
+        self.wait()
+        self.remove(vertical_expression_tex)
+        self.remove(vertical_expression_tex_2)
+
+        self.play(
+            interpolated_dots_vertical_group.animate.shift(np.array([3.0, 0, 0])),
+            red_dots_vertical_group.animate.shift(np.array([-3.0, 0, 0]))
+            )
+        self.wait()
+
+        # put them back in the jittered grid
+        # need to reset after a ReplacementTransform
+        grid_jit_dot_red_h = [Dot(i, radius=dot_radius).set_fill(MY_RED, opacity=1) for i in grid_jittered_coords_red]
+        grid_jit_dot_blue_h = [Dot(i, radius=dot_radius).set_fill(MY_RED, opacity=1) for i in grid_jittered_coords_red]
+
+        go_back_anim = []
+        for i in range(num_dots):
+            go_back_anim.append(ReplacementTransform(interpolated_dots_vertical[i], grid_jit_dot_blue_h[i]))
+            go_back_anim.append(ReplacementTransform(red_dots_vertical[i], grid_jit_dot_red_h[i]))
+
+        self.play(
+            AnimationGroup(*go_back_anim))
+        self.wait()
+
+        # fade out the dots show the overlapping unharmonized scans
+        rect1_red = Rectangle(color=MY_RED, height=2, width=16).set_fill(MY_RED, opacity=0.5)
+        rect1_red2 = Rectangle(color=MY_RED, height=2, width=16).set_fill(MY_RED, opacity=1)
+        rect2_blue = Rectangle(color=MY_BLUE, height=10, width=2).set_fill(MY_BLUE, opacity=0.5)
+        rect2_red = Rectangle(color=MY_RED, height=10, width=2).set_fill(MY_RED, opacity=1)
+
+        self.play(
+            VGroup(*grid_jit_dot_blue_h).animate.scale(.5),
+            VGroup(*grid_jit_dot_red_h).animate.scale(.5))
+
+        self.play(
+            FadeOut(VGroup(*grid_jit_dot_blue_h)),
+            FadeOut(VGroup(*grid_jit_dot_red_h)),
+            FadeIn(rect2_blue),
+            FadeIn(rect1_red)
+            )
+        self.wait()
+
+        # harmonize the blue scan
+        self.play(
+            ReplacementTransform(rect1_red, rect1_red2),
+            ReplacementTransform(rect2_blue, rect2_red)
+            )
+        self.wait()
+
+        # fade out
+        self.play(
+            FadeOut(rect1_red),
+            FadeOut(rect2_red2))
+        self.wait()
+
+        # FIN
