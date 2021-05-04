@@ -9,7 +9,7 @@ MY_GREEN = GREEN
 MY_BLUE = BLUE
 MY_YELLOW = "#b9b946"
 
-class OpenAnim(MovingCameraScene):
+class A_OpenAnim(MovingCameraScene):
     def construct(self):
         grid = NumberPlane()
         # Create the scene
@@ -119,7 +119,7 @@ class OpenAnim(MovingCameraScene):
         # self.wait(2)
 
 
-class OverlapAnimDots(Scene):
+class B_OverlapAnimDots(Scene):
     def construct(self):
         grid = NumberPlane()
         self.add(grid)
@@ -304,7 +304,7 @@ class OverlapAnimDots(Scene):
         #     FadeOut(rect2))
         # self.wait()
 
-class OverlapAnimMorePlanes(Scene):
+class C_OverlapAnimMorePlanes(Scene):
     def construct(self):
         grid = NumberPlane()
         self.add(grid)
@@ -396,20 +396,20 @@ class OverlapAnimMorePlanes(Scene):
             Transform(rect2_2, rect2_2_red))
         self.wait()
 
-        self.wait()
         self.play(
             plane3.animate.move_to(plane3_pos2),
-            plane4.aniamte.move_to(plane4_pos2))
+            plane4.animate.move_to(plane4_pos2),
+            Transform(rect3_1, rect3_2),
+            Transform(rect4_1, rect4_2),
+            rate_func=linear, run_time=3)
         self.wait()
 
         self.play(
-            Transform(rect3_1, rect3_2),
-            Transform(rect4_1, rect4_2),
             Transform(rect3_2, rect3_2_red),
             Transform(rect4_2, rect4_2_red))
         self.wait()
 
-class OverlapAnimDotsActual(MovingCameraScene):
+class D_OverlapAnimDotsActual(MovingCameraScene):
     def setup(self):
         MovingCameraScene.setup(self)
 
@@ -656,8 +656,8 @@ class OverlapAnimDotsActual(MovingCameraScene):
 
         # fade out
         self.play(
-            FadeOut(rect1_red),
-            FadeOut(rect2_red2))
+            FadeOut(rect2_red),
+            FadeOut(rect1_red2))
         self.wait()
 
         # FIN

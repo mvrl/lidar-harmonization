@@ -147,7 +147,7 @@ src/datasets/dublin/data/harmonized_default/*
 src/datasets/dublin/data/test_npy
 src/datasets/kylidar/data/laz/*
 src/datasets/notebooks/lidar_test/*
-
+src/datasets/dublin/data/harmonized_dl_shift/*
 src/graphics/media/*
 
 *.log
