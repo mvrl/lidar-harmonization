@@ -1,7 +1,11 @@
 import code
 import numpy as np
 from pathlib import Path
+
+# change this line to supply your own config!
 from src.datasets.dublin.config import config
+# from src.datasets.<my_dataset>.config import config
+
 from src.datasets.tools.transforms import Corruption, GlobalShift
 from src.config.pbar import get_pbar
 from pptk import viewer

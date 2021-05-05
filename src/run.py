@@ -5,7 +5,8 @@ from pathlib import Path
 import os
 
 from src.training.train import train
-from src.datasets.dublin.config import config as dublin_config
+# from src.datasets.<my_dataset>.config import config as dataset_config
+from src.datasets.dublin.config import config as dataset_config
 from src.training.config import config as train_config
 from src.datasets.tools.create_dataset import create_dataset, create_eval_tile
 from src.datasets.tools.dataloaders import get_dataloaders
@@ -14,7 +15,7 @@ from src.evaluation.harmonize import harmonize
 from src.datasets.tools.harmonization_mapping import HarmonizationMapping
 
 config = {
-    'dataset': dublin_config,
+    'dataset': dataset_config,
     'train': train_config
 }
 
