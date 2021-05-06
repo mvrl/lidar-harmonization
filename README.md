@@ -1,4 +1,4 @@
-Airborne LiDAR Intensity Harmonization
+Intensity Harmonization for Airborne LiDAR
 --
 ### [Project Page](https://davidthomasjones.me/publications/Intensity%20Harmonization) | [Video]() | [Paper]()
 ![Pipeline Results](/src/graphics/figures/png/pipeline_results.png)
