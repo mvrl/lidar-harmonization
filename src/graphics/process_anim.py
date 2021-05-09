@@ -9,6 +9,17 @@ MY_GREEN = GREEN
 MY_BLUE = BLUE
 MY_YELLOW = "#b9b946"
 
+class AAA_TitleScreen(Scene):
+    def construct(self):
+        title_screen = ImageMobject("TitleScreen.png")
+        self.add(title_screen)
+
+        self.wait(3)
+        self.play(
+            FadeOut(title_screen),
+            rate_func=linear, run_time=1)
+        self.wait()
+
 class A_OpenAnim(MovingCameraScene):
     def construct(self):
         grid = NumberPlane()
@@ -16,28 +27,7 @@ class A_OpenAnim(MovingCameraScene):
         self.add(grid)
         self.remove(grid)  # this is hacky
 
-        # Scene 1:  ~ 1 min
-        """
-        We present Intensity Harmonization for Airborne LiDAR, a new method for 
-        harmonizing airborne lidar intensity across a large collection of lidar
-        scans. 
-
-        LiDAR has become a very powerful tool for surveying large regions very
-        quickly. LiDAR sensors can be affixed to planes, and then these planes
-        can very easiliy sweep large regions by moving back and forth across the
-        area of interest. (start) This method is powerful, as LiDAR is extremely 
-        accurate. In addition to measuring precise topographic data, LiDAR also 
-        measures intensity, which is used for many tasks such as classification 
-        or detection. However, intensity is not an absolute measurment, and is
-        affected by environmental factors or just calibration differences. This
-        presents a problem when utilizing large lidar collections that may have
-        many discrepancies in the intensity measurements, which can occur even 
-        in adjacent or overlapping areas.
-
-        ....
-
-        """
-
+        
         # a segment that makes it clear that the red zone is a point cloud might 
         # be useful
         plane1_pos1 = np.array([-8, 3, 0])
@@ -60,7 +50,7 @@ class A_OpenAnim(MovingCameraScene):
             self.play(
                 ApplyMethod(plane1.move_to, plane1_pos2),
                 Transform(rect1_1, rect1_2), 
-                rate_func=linear, run_time=4)
+                rate_func=linear, run_time=5)
 
             self.remove(plane1)
             plane1_pos1[1] -= 2
@@ -92,7 +82,7 @@ class A_OpenAnim(MovingCameraScene):
             self.camera.frame.animate.move_to(np.array([-16, -3, 0])),
             Transform(rect2_1, rect2_2),
             plane1.animate.move_to(plane1_pos2),
-            rate_func=linear, run_time=8
+            rate_func=linear, run_time=12
             )
         self.wait()
 
@@ -125,14 +115,7 @@ class B_OverlapAnimDots(Scene):
         self.add(grid)
         self.remove(grid)
 
-        # Scene 2:
-        """
-        Let's take a closer look at this. The point cloud data is now shown.
-        In an ideal world, we would have points that overlap nicely. In this
-        case, we could just approximate a function using our favorite function
-        approximation algorithm. However, it is rare for there to be a case like
-        this. 
-        """
+
         density=.5  # (np defaults to 50)
         dot_radius = 0.12  # (manim defaults to 0.08)
         vertical_space_ratio = 8
@@ -344,23 +327,23 @@ class C_OverlapAnimMorePlanes(Scene):
         rect2_2_red.set_fill(MY_RED, opacity=1)
 
         ####
-        plane3_pos1 = np.array([-4, -5, 0])
-        plane3_pos2 = np.array([-4, 5, 0])
+        plane3_pos1 = np.array([-4, 5, 0])
+        plane3_pos2 = np.array([-4, -5, 0])
         plane3 = ImageMobject("plane.png").move_to(plane3_pos1)
         plane3.height = 1
         plane3.width = 1
-        # plane1.rotate(-PI)
+        plane3.rotate(-PI)
         rect3_1 = Rectangle(color=MY_YELLOW, height=1, width=2).move_to(plane3_pos1)
         rect3_1.set_fill(MY_YELLOW, opacity=1)
         rect3_2 = Rectangle(color=MY_YELLOW, height=20, width=2).move_to(plane3_pos1)
         rect3_2.set_fill(MY_YELLOW, opacity=1)
 
-        plane4_pos1 = np.array([4, 5, 0])
-        plane4_pos2 = np.array([4, -5, 0])
+        plane4_pos1 = np.array([4, -5, 0])
+        plane4_pos2 = np.array([4, 5, 0])
         plane4 = ImageMobject("plane.png").move_to(plane4_pos1)
         plane4.height = 1
         plane4.width = 1
-        plane4.rotate(-PI)
+        # plane4.rotate(-PI)
         rect4_1 = Rectangle(color=MY_BLUE, height=1, width=2).move_to(plane4_pos1)
         rect4_1.set_fill(MY_BLUE, opacity=1)
         rect4_2 = Rectangle(color=MY_BLUE, height=20, width=2).move_to(plane4_pos1)
@@ -386,6 +369,10 @@ class C_OverlapAnimMorePlanes(Scene):
             ApplyMethod(plane2.move_to, plane2_pos2),
             ReplacementTransform(rect1_1, rect1_2),
             ReplacementTransform(rect2_1, rect2_2),
+            plane3.animate.move_to(plane3_pos2),
+            plane4.animate.move_to(plane4_pos2),
+            Transform(rect3_1, rect3_2),
+            Transform(rect4_1, rect4_2),
             rate_func=linear, run_time=3)
         self.wait()
         self.remove(rect1_1)
@@ -393,21 +380,11 @@ class C_OverlapAnimMorePlanes(Scene):
 
         self.play(
             Transform(rect1_2, rect1_2_red),
-            Transform(rect2_2, rect2_2_red))
-        self.wait()
-
-        self.play(
-            plane3.animate.move_to(plane3_pos2),
-            plane4.animate.move_to(plane4_pos2),
-            Transform(rect3_1, rect3_2),
-            Transform(rect4_1, rect4_2),
-            rate_func=linear, run_time=3)
-        self.wait()
-
-        self.play(
+            Transform(rect2_2, rect2_2_red),
             Transform(rect3_2, rect3_2_red),
             Transform(rect4_2, rect4_2_red))
         self.wait()
+
 
 class D_OverlapAnimDotsActual(MovingCameraScene):
     def setup(self):
@@ -498,7 +475,6 @@ class D_OverlapAnimDotsActual(MovingCameraScene):
 
         self.play(
             *[GrowFromPoint(arrow, red_dot_coord) for arrow in arrows]
-
             )
         self.wait()
 
@@ -527,8 +503,28 @@ class D_OverlapAnimDotsActual(MovingCameraScene):
 
         # "Interpolate using pointnet" -- give a blue dot where the red dots are
         # explain how pointnet uses local features to interpolate this point
+
         interpolated_dots = [Dot(i, radius=dot_radius*scale_factor).set_fill(MY_BLUE, opacity=1) for i in grid_jittered_coords_red]
         interpolated_dots_group = VGroup(*interpolated_dots)
+
+        self.play(
+            FadeOut(grid_dots_red_group)
+            )
+        self.wait()
+
+        self.play(
+            FadeIn(interpolated_dots_group)
+            )
+
+        # highlight our new interpolated dots
+        self.play(
+            interpolated_dots_group.animate.set_fill(MY_YELLOW, opacity=1)
+            )
+
+        self.play(
+            interpolated_dots_group.animate.set_fill(MY_BLUE, opacity=1)
+            )
+        self.wait()
 
         # return to normal
         scale_up_anim_red = [dot.animate.scale(1/scale_factor) for dot in grid_dots_red]
@@ -536,7 +532,7 @@ class D_OverlapAnimDotsActual(MovingCameraScene):
         self.play(
             *[FadeOut(arrow) for arrow in arrows],
             *[FadeOut(arrow) for arrow in arrows_all],
-            FadeIn(interpolated_dots_group),
+            FadeIn(grid_dots_red_group),
             FadeOut(grid_dots_blue_group),
             Restore(self.camera.frame),
             AnimationGroup(*scale_up_anim_interpolated),

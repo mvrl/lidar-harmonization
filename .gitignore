@@ -155,3 +155,5 @@ src/graphics/media/*
 *.laz
 *lidar.txt
 *.tar.gz
+
+*final.mp4
