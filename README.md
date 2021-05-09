@@ -58,7 +58,7 @@ python evaluation/visualize_scan
 ```
 
 ## Harmonizing your own LiDAR Collection
-Harmonizing your own LiDAR is fairly straightforward. **Note**: you will need the original swaths in LAZ format. It is recommended to simply make a new data directory `src/datasets/<your_dataset_name>/data/laz`, where all the LiDAR scans will reside. Copy the base config file from `src/datasets/tools/config.py`, and simply fill in the blank lines. You can then follow the steps outlined in the *Running Code* section above. You will need to supply your config file in the imports section of `run.py` and `visualize_lidar_collection.py`. 
+Harmonizing your own LiDAR is fairly straightforward. **Note**: you will need the original swaths in LAZ format. It is recommended to simply make a new data directory `src/datasets/<your_dataset_name>/data/laz`, where all the LiDAR scans will reside. Copy the base config file from `src/datasets/tools/config.py` to `src/datasets/<your_dataset>/config.py`, and simply fill in the appropriate lines. You can then follow the steps outlined in the *Running Code* section above. You will need to supply your config file in the imports section of `run.py` and `visualize_lidar_collection.py`. 
 
 ## Citatation
 Please use the following citation
