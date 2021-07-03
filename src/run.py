@@ -50,6 +50,9 @@ while True:
     print("building model")
     model, path = train(training_dataloaders, config)
 
+    # harmonize eval tile
+    # harmonize_eval_tile(model, config)
+
     # perhaps it makes sense to add `model_path` to the mapping csv so we can load it back in later
     for source_scan_num in hm.get_stage(1):
         print(f"Harmonizing scan {source_scan_num}")

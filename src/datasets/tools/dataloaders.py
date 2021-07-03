@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from torchvision.transforms import Compose
 
-from src.datasets.tools.lidar_dataset import LidarDataset, LidarDatasetNP, LidarDatasetHDF5
+from src.datasets.tools.lidar_dataset import LidarDatasetNP, LidarDatasetHDF5
 from src.datasets.tools.transforms import CloudAngleNormalize
 from src.datasets.tools.transforms import Corruption, GlobalShift, CloudJitter
 

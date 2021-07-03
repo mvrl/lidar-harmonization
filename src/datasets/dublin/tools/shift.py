@@ -4,6 +4,7 @@ from pathlib import Path
 def get_physical_bounds(scans="dataset/dublin/npy", bounds_path="dataset/bounds.npy", reset=False):
     scans = Path(scans)
     if reset or not Path(bounds_path).exists():
+        print("Generating new bounds")
         min_x = min_y = min_z = 99999999
         max_x = max_y = max_z = 1
 

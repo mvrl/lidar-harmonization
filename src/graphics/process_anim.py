@@ -8,6 +8,7 @@ MY_PURPLE = PURPLE
 MY_GREEN = GREEN
 MY_BLUE = BLUE
 MY_YELLOW = "#b9b946"
+config.background_color = "#303030"  # google slides "simple dark" background color according to colorzilla
 
 class AAA_TitleScreen(Scene):
     def construct(self):
@@ -25,7 +26,7 @@ class A_OpenAnim(MovingCameraScene):
         grid = NumberPlane()
         # Create the scene
         self.add(grid)
-        self.remove(grid)  # this is hacky
+        self.remove(grid)  # this is hacky, but makes positioning easier
 
         
         # a segment that makes it clear that the red zone is a point cloud might 
@@ -268,7 +269,7 @@ class B_OverlapAnimDots(Scene):
         self.wait()
 
         self.play(dots2_group.animate.set_color(MY_RED))
-        self.wait()
+        self.wait( )
 
         rect2.set_color(MY_RED)
 
@@ -363,7 +364,6 @@ class C_OverlapAnimMorePlanes(Scene):
         self.add(plane2)
         self.add(plane1)
 
-        self.wait()
         self.play(
             ApplyMethod(plane1.move_to, plane1_pos2),
             ApplyMethod(plane2.move_to, plane2_pos2),
@@ -371,10 +371,9 @@ class C_OverlapAnimMorePlanes(Scene):
             ReplacementTransform(rect2_1, rect2_2),
             plane3.animate.move_to(plane3_pos2),
             plane4.animate.move_to(plane4_pos2),
-            Transform(rect3_1, rect3_2),
-            Transform(rect4_1, rect4_2),
+            ReplacementTransform(rect3_1, rect3_2),
+            ReplacementTransform(rect4_1, rect4_2),
             rate_func=linear, run_time=3)
-        self.wait()
         self.remove(rect1_1)
         self.remove(rect2_1)
 
@@ -383,6 +382,16 @@ class C_OverlapAnimMorePlanes(Scene):
             Transform(rect2_2, rect2_2_red),
             Transform(rect3_2, rect3_2_red),
             Transform(rect4_2, rect4_2_red))
+        self.wait()
+
+        self.play(
+            FadeOut(rect1),
+            FadeOut(rect2),
+            FadeOut(rect1_2),
+            FadeOut(rect2_2),
+            FadeOut(rect3_2),
+            FadeOut(rect4_2)
+        )
         self.wait()
 
 
@@ -657,3 +666,31 @@ class D_OverlapAnimDotsActual(MovingCameraScene):
         self.wait()
 
         # FIN
+
+class E_Results(Scene):
+    def construct(self):
+        title_screen = ImageMobject("results.png")
+        self.add(title_screen)
+
+
+        self.play(
+            FadeIn(title_screen))
+        self.wait()
+        self.wait(4)
+        self.play(
+            FadeOut(title_screen))
+
+
+
+class F_ResultsShift(Scene):
+    def construct(self):
+        title_screen = ImageMobject("results_shift.png")
+        self.add(title_screen)
+
+
+        self.play(
+            FadeIn(title_screen))
+        self.wait()
+        self.wait(4)
+        self.play(
+            FadeOut(title_screen))

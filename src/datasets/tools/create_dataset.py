@@ -78,10 +78,15 @@ def setup_eval_hdf5(config):
 
 
 def create_eval_tile(config):
-
+    
     scans_path = Path(config['scans_path'])
     intersecting_flight = config['eval_source_scan']
     flight = np.load(scans_path / (intersecting_flight+".npy"))
+    
+    G = GlobalShift(**config)
+
+    if config['shift']:
+        flight = G(flight)
 
     kd = kdtree._build(flight[:, :3])
     q = kdtree._query(kd, 
@@ -97,7 +102,8 @@ def create_eval_tile(config):
     save_neighborhoods_hdf5_eval(tile, 
                                 np.array(q), 
                                 flight, 
-                                config, 
+                                config,
+                                chunk_size=500, # config['max_chunk_size']
                                 pb_pos=0)
 
 

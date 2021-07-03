@@ -1,6 +1,6 @@
 Intensity Harmonization for Airborne LiDAR
 --
-### [Project Page](https://davidthomasjones.me/publications/Intensity%20Harmonization) | [Paper](https://arxiv.org/abs/2105.01793)
+### [Project Page](https://davidthomasjones.me/publications/2021-02-01-airborne_lidar_intensity_harmonization) | [Video](https://youtu.be/RmBSQHdYVSA) | [Paper](https://arxiv.org/abs/2105.01793)
 ![Pipeline Results](/src/graphics/figures/png/pipeline_results.png)
 
 Pytorch implementation of harmonizing a collection of airborne LiDAR scans, where each scan may have unique sensor callibrations or varying acquisition conditions. See the example above, where a collection of unharmonized scans (right) are harmonized (middle, left is ground truth).

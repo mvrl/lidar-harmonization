@@ -33,7 +33,6 @@ def hist_match(target, reference):
     target_hist, target_be = np.histogram(target, bins=bin_num, range=bin_range, density=True)
     reference_hist, reference_be = np.histogram(reference, bins=bin_num, range=bin_range, density=True)
     
-    # PDF
     target_hist = target_hist/sum(target_hist)
     reference_hist = reference_hist/sum(reference_hist)
     

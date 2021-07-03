@@ -14,12 +14,12 @@ config = defaultdict(default_value)
 
 config['name'] = 'dublin'
 
-config['create_new'] = False
+config['create_new'] = True
 config['data_path'] = p.root / 'datasets/dublin/data'
 
 ## directories
-config['scans_path'] =  config['data_path'] / 'npy'
-# config['scans_path'] = config['data_path'] / 'test_npy'
+# config['scans_path'] =  config['data_path'] / 'npy'
+config['scans_path'] = config['data_path'] / 'test_npy'
 
 # Create a permanent dataset
 config['save_path'] = config['data_path'] / '150'
@@ -52,7 +52,7 @@ config['workers'] = int(getenv('SLURM_CPUS_PER_TASK', 8))
 
 # Eval tile 
 config['eval_dataset'] =  config['save_path'] / 'eval_tile.h5'
-config['eval_tile_center'] = [316120.0, 234707.422, 1.749] # center of AOI
+config['eval_tile_center'] = [315995.969, 234841.719, -0.623] # center of AOI
 config['eval_source_scan'] = '39'
 config['eval_tile_size'] = 1000000
 
@@ -71,7 +71,7 @@ config['sig_s'] =  .7
 # training settings:
 config['use_ss'] = True  # use training examples from outside the overlap
 config['phases'] = ['train', 'test']
-config['shift'] = True  # Apply global shift
+config['shift'] = False  # Apply global shift
 config['dataloader_size'] = 500000
 
 # this sets the limit for RAM usage during the actual harmonization process. 

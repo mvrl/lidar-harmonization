@@ -177,29 +177,35 @@ def filter_aoi(kd, aoi, config, pb_pos=1):
     return aoi[keep]
 
 
-def save_neighborhoods_hdf5_eval(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
+def save_neighborhoods_hdf5_eval(aoi, query, source_scan, config, chunk_size=500, pb_pos=2):
     with h5py.File(config['eval_dataset'], "a") as f:
-        workers = config['workers']
-        curr_idx = 1; max_idx = int(np.ceil(aoi.shape[0] / chunk_size))
-        sub_pbar = get_pbar(
-            range(0, aoi.shape[0], chunk_size),
-            np.ceil(aoi.shape[0]/chunk_size),
-            "Saving Neighborhoods",
-            pb_pos, disable=config['tqdm'])
 
-        for i in sub_pbar:
-            aoi_chunk = aoi[i:i+chunk_size, :]
-            query_chunk = query[i:i+chunk_size, :]
+        start = f['eval'].shape[0]
+        end = start + aoi.shape[0]
+        slices = (slice(start, end), slice(0, config['max_n_size']+1), slice(0, 9))
+
+        f['eval'].resize(end, axis=0)        
+
+        sub_pbar = get_pbar(
+            f['eval'].iter_chunks(sel=slices),
+            int(np.ceil(aoi.shape[0]/chunk_size)),
+            "Saving Neighborhoods",
+            pb_pos, disable=config['tqdm'], leave=True)
+
+        for idx, chunk in enumerate(sub_pbar):
+            aoi_chunk = aoi[chunk[0].start-start:chunk[0].stop-start]
+                        
+            query_chunk = query[chunk[0].start-start:chunk[0].stop-start]
 
             aoi_chunk = np.expand_dims(aoi_chunk, 1)
+            
             neighborhoods = np.concatenate(
                 (aoi_chunk, source_scan[query_chunk]),
                 axis=1)
+            f['eval'][chunk] = neighborhoods
 
-            f['eval'][i:i+chunk_size] = neighborhoods
 
-
-def save_neighborhoods_hdf5(aoi, query, source_scan, config, chunk_size=5000, pb_pos=2):
+def save_neighborhoods_hdf5(aoi, query, source_scan, config, chunk_size=500, pb_pos=2):
     with h5py.File(config['dataset_path'], "a") as f:
         # the goal is to load as little of this into memory at once
         aoi_ = {}; query_ = {}
